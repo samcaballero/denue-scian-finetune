@@ -221,3 +221,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== Proyecto DENUE-SCIAN =====
+# Datos derivados: solo se suben data/.gitkeep y data/manifest.json
+data/*
+!data/.gitkeep
+!data/manifest.json
+# Datos tabulares y comprimidos (en cualquier carpeta)
+*.csv
+*.zip
+*.parquet
+# Modelos y adaptadores
+*.gguf
+*.safetensors
+*.bin
+*.pt
+# Entornos y secretos (.venv y .env ya estaban arriba; se repiten a propósito)
+.venv/
+.env
+kaggle.json
+access_token
+# Salidas descargadas de Kaggle
+kaggle-output/
