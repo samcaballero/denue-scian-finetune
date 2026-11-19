@@ -1,0 +1,153 @@
+{
+  "fecha": "2026-11-19",
+  "experimento": "fase1_paso2a_diagnostico_denue",
+  "commit": "965a1c4feb738f3e5d51b250e8366b272bf99308",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/diagnostico_denue.py",
+    "cargador": "src/denue.py:cargar_denue",
+    "columnas": [
+      "id",
+      "clee",
+      "nom_estab",
+      "codigo_act",
+      "nombre_act"
+    ],
+    "codificacion": "latin-1"
+  },
+  "semilla": 42,
+  "split": "ninguno: CSV completo (todavía no hay splits)",
+  "hash_split": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+  "hash_split_origen": "data/manifest.json, fuentes.denue_cdmx.sha256",
+  "tamano_muestra": 462732,
+  "horas_gpu": null,
+  "codificacion_csv": {
+    "tamano_bytes": 260022563,
+    "bytes_0x80_0x9F": 0,
+    "bytes_0xA0_0xFF": 1597171,
+    "bytes_de_control_sin_tab_lf_cr": 0,
+    "bytes_CR": 0,
+    "bytes_LF": 462733,
+    "bom_utf8": false,
+    "utf8_valido": false,
+    "utf8_primer_byte_invalido": 767,
+    "conclusion": "latin-1 (sin bytes 0x80-0x9F, cp1252 lee igual)"
+  },
+  "clee_vs_codigo_act": {
+    "longitudes_clee": {
+      "28": 462732
+    },
+    "valores_unicos_id": 462732,
+    "valores_unicos_clee": 462732,
+    "codigo_act_con_6_digitos": 462732,
+    "coincidencias_por_posicion_inicial_0": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 400328,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 5,
+      "13": 0,
+      "14": 0,
+      "15": 0,
+      "16": 0,
+      "17": 0,
+      "18": 0,
+      "19": 0,
+      "20": 0,
+      "21": 0,
+      "22": 0
+    },
+    "mejor_posicion_inicial_0": 5,
+    "caracteres_1_indexados": "6 a 11",
+    "coincidencias": 400328,
+    "discrepancias": 62404,
+    "pct_coincidencias": 86.514,
+    "discrepancias_con_fragmento_de_6_digitos": 62404,
+    "top10_pares_discrepantes": [
+      {
+        "fragmento_clee": "722219",
+        "codigo_act": "722513",
+        "filas": 1857
+      },
+      {
+        "fragmento_clee": "722212",
+        "codigo_act": "722518",
+        "filas": 1408
+      },
+      {
+        "fragmento_clee": "722212",
+        "codigo_act": "722514",
+        "filas": 1279
+      },
+      {
+        "fragmento_clee": "722219",
+        "codigo_act": "722511",
+        "filas": 1167
+      },
+      {
+        "fragmento_clee": "461110",
+        "codigo_act": "461150",
+        "filas": 1114
+      },
+      {
+        "fragmento_clee": "462112",
+        "codigo_act": "461110",
+        "filas": 986
+      },
+      {
+        "fragmento_clee": "722219",
+        "codigo_act": "722514",
+        "filas": 816
+      },
+      {
+        "fragmento_clee": "722212",
+        "codigo_act": "722515",
+        "filas": 812
+      },
+      {
+        "fragmento_clee": "722219",
+        "codigo_act": "722515",
+        "filas": 766
+      },
+      {
+        "fragmento_clee": "722212",
+        "codigo_act": "722517",
+        "filas": 610
+      }
+    ]
+  },
+  "nom_estab": {
+    "exactos": {
+      "": 212,
+      "NA": 0,
+      "NULL": 0,
+      "NONE": 0,
+      "N/A": 0
+    },
+    "solo_espacios_no_vacio": 0,
+    "tras_strip_y_mayusculas": {
+      "": 212,
+      "NA": 0,
+      "NULL": 0,
+      "NONE": 0,
+      "N/A": 0
+    },
+    "nombre_act_vacio": 0,
+    "igual_a_nombre_act": {
+      "exacto": 0,
+      "pct_exacto": 0.0,
+      "tras_strip_y_mayusculas": 32,
+      "pct_tras_strip_y_mayusculas": 0.0069,
+      "nota": "Solo conteo; qué hacer con esas filas se decide en el análisis exploratorio."
+    }
+  }
+}
