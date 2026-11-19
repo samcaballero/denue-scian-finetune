@@ -40,5 +40,29 @@
       "fecha_descarga": "2026-11-19"
     }
   },
+  "catalogos": {
+    "scian_2023_clases": {
+      "ruta": "data/scian_2023_clases.csv",
+      "origen": "fuentes.scian_2023_estructura",
+      "extractor": "src/scian.py",
+      "clases": 1086,
+      "codificacion": "utf-8",
+      "fin_de_linea": "LF",
+      "sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+      "tamano_bytes": 63884,
+      "fecha_registro": "2026-11-19"
+    },
+    "scian_2018_clases": {
+      "ruta": "data/scian_2018_clases.csv",
+      "origen": "fuentes.scian_2018_estructura",
+      "extractor": "src/scian.py",
+      "clases": 1084,
+      "codificacion": "utf-8",
+      "fin_de_linea": "LF",
+      "sha256": "25032bcb792e2c4b4605716bac5cec9cacd5acb0038251ab6508caa4c8db3a31",
+      "tamano_bytes": 63484,
+      "fecha_registro": "2026-11-19"
+    }
+  },
   "splits": {}
 }

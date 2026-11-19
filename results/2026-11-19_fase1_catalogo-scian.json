@@ -1,0 +1,105 @@
+{
+  "fecha": "2026-11-19",
+  "experimento": "fase1_paso2b_catalogo_scian",
+  "commit": "e177c68955e0dc66e0d475f65799fd08afcbe4f3",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/scian.py",
+    "libreria_pdf": "pypdfium2 5.15.2",
+    "seccion_usada": "páginas con \"Versión en Español\" (sin \"Versión en Inglés\" ni \"Español-Inglés\")",
+    "candado": {
+      "2023": {
+        "clases": 1086,
+        "subramas": 610,
+        "ramas": 305
+      },
+      "2018": {
+        "clases": 1084,
+        "subramas": 615,
+        "ramas": 306
+      }
+    }
+  },
+  "semilla": 42,
+  "split": "ninguno: no lee el DENUE",
+  "hash_split": null,
+  "hash_split_origen": "no aplica: este paso no lee el DENUE ni splits",
+  "hashes_fuentes": {
+    "scian_2023_estructura": "ed8531e84235e5b19e4d6ebdf9d267685004f307fabf76fcec0ddffae163c3c6",
+    "scian_2018_estructura": "e7fce81120398a6c47709af6e1da268cd4cc5260f90a39cf197a683ff36022e6"
+  },
+  "tamano_muestra": {
+    "clases_2023": 1086,
+    "clases_2018": 1084
+  },
+  "horas_gpu": null,
+  "versiones": {
+    "2023": {
+      "paginas_pdf": 195,
+      "paginas_espanol": 58,
+      "conteos_por_nivel": {
+        "sectores": 20,
+        "subsectores": 94,
+        "ramas": 305,
+        "subramas": 610,
+        "clases": 1086
+      },
+      "candado_cumplido": true,
+      "lineas_de_clase_todo_el_pdf": 3461,
+      "codigos_clase_unicos_todo_el_pdf": 1086,
+      "codigos_clase_seccion_espanol": 1086,
+      "lineas_ignoradas_antes_de_la_primera_entrada": 5,
+      "marcas_t_quitadas_por_nivel": {
+        "sectores": 20,
+        "subsectores": 75,
+        "ramas": 238,
+        "subramas": 466,
+        "clases": 0
+      },
+      "titulos_con_marca_t_repetida": {
+        "total": 1,
+        "codigos": [
+          "23611"
+        ]
+      },
+      "catalogo": {
+        "ruta": "data/scian_2023_clases.csv",
+        "sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "tamano_bytes": 63884
+      }
+    },
+    "2018": {
+      "paginas_pdf": 138,
+      "paginas_espanol": 49,
+      "conteos_por_nivel": {
+        "sectores": 20,
+        "subsectores": 94,
+        "ramas": 306,
+        "subramas": 615,
+        "clases": 1084
+      },
+      "candado_cumplido": true,
+      "lineas_de_clase_todo_el_pdf": 3265,
+      "codigos_clase_unicos_todo_el_pdf": 1084,
+      "codigos_clase_seccion_espanol": 1084,
+      "lineas_ignoradas_antes_de_la_primera_entrada": 10,
+      "marcas_t_quitadas_por_nivel": {
+        "sectores": 20,
+        "subsectores": 75,
+        "ramas": 240,
+        "subramas": 472,
+        "clases": 0
+      },
+      "titulos_con_marca_t_repetida": {
+        "total": 0,
+        "codigos": []
+      },
+      "catalogo": {
+        "ruta": "data/scian_2018_clases.csv",
+        "sha256": "25032bcb792e2c4b4605716bac5cec9cacd5acb0038251ab6508caa4c8db3a31",
+        "tamano_bytes": 63484
+      }
+    }
+  }
+}
