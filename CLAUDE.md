@@ -19,12 +19,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 
 - CSV original: `../datos-originales/conjunto_de_datos/denue_inegi_09_.csv`
   - Fuera del repo y **SOLO LECTURA**. Pesa ~248 MB (253,929 KB).
-  - Codificación **latin-1** (ISO-8859-1), no UTF-8 (verificado el 2026-11-18 en los primeros 300 KB).
-  - Leer siempre con `usecols` y `dtype=str` para cuidar la RAM:
-    `pd.read_csv(RUTA, usecols=[...], dtype=str, encoding="latin-1")`
+  - Codificación **latin-1** (ISO-8859-1), no UTF-8. Verificado el 2026-11-19 en el archivo completo: no es UTF-8 válido y no tiene bytes entre 0x80 y 0x9F, así que latin-1 y cp1252 lo leen igual.
+  - Las columnas del CSV se leen solo con el cargador único `cargar_denue()` de `src/denue.py`. El cargador verifica el SHA-256 contra `data/manifest.json`, rechaza `telefono`, `correoelec`, `www` y `raz_social`, y lee solo las columnas pedidas con `dtype=str` y `keep_default_na=False`: textos como "NA", "NULL" o "None" se conservan, y un campo vacío queda como `""`.
   - Columnas clave: `nom_estab` (nombre del negocio), `codigo_act` (clase SCIAN), `cod_postal`.
   - Las columnas de domicilio para la tarea 2 se definirán en la Fase 1 con el diccionario de datos.
-  - Pendiente: verificar en los metadatos qué versión del SCIAN usa `codigo_act` (`metadatos_denue.txt` no la menciona).
+  - Versión del SCIAN: el diccionario de datos dice que `codigo_act` y `nombre_act` usan el SCIAN 2018, pero la edición se basa en los Censos Económicos 2024, que usan el SCIAN 2023. Pendiente: decidirla en el paso 2b por los códigos presentes y registrarla en `data/manifest.json`.
 - También de solo lectura: `../datos-originales/diccionario_de_datos/denue_diccionario_de_datos.csv` y `../datos-originales/metadatos/metadatos_denue.txt`.
 - Datos derivados: `data/` (ignorado por git, salvo `data/.gitkeep` y `data/manifest.json`).
 - Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).
@@ -37,6 +36,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 3. **Test congelado:** al crearse se guarda su hash SHA-256 en `data/manifest.json` y no se vuelve a leer, filtrar ni inspeccionar hasta la evaluación final (Fase 4). Lo mismo aplica a los conjuntos reservados solo para test: el hard set de nombres ambiguos, las 100 direcciones escritas a mano y las dos familias de ruido reservadas; todos se registran con su hash en `data/manifest.json`. Toda decisión se toma con validación.
 4. **Toda métrica se escribe en `results/*.json`** con fecha, commit de git, modelo, configuración, semilla, split, hash del split usado (el de `data/manifest.json`), tamaño de muestra y, si hubo entrenamiento, horas de GPU consumidas. Ningún número se reporta si no está en `results/`.
 5. **Respuestas y métricas del clasificador:** cada respuesta cae en una de tres categorías: formato inválido, código válido inexistente o código válido existente. Formato válido: tras quitar espacios y saltos de línea al inicio y al final, la respuesta coincide con `^[0-9]{6}$` (dígitos ASCII; no usar `\d`, que acepta dígitos Unicode). Código inexistente: formato válido, pero el código no está en el catálogo oficial del SCIAN en la versión fijada para el proyecto (registrada en `data/manifest.json`). Se reportan "% formato válido" y "% códigos inexistentes", ambos sobre el total de respuestas; las tres categorías suman 100%. La accuracy también se calcula sobre el total: formato inválido y código inexistente cuentan como error. Cada `results/*.json` guarda los conteos de las tres categorías, no solo los porcentajes.
+6. **`clee` nunca es entrada ni variable de ningún modelo**, incluido el baseline. Es un identificador que el INEGI asigna a cada establecimiento y que un negocio nuevo no tendría al momento de clasificarlo; la única entrada del clasificador es `nom_estab`. Además contiene la etiqueta: en 400,328 de 462,732 filas (86.51 %), los caracteres 6 a 11 de `clee` son iguales a `codigo_act` (medido el 2026-11-19; ver `results/2026-11-19_fase1_diagnostico-denue.json`).
 
 ## d. Seguridad
 
@@ -48,6 +48,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - `raz_social`: no se carga salvo decisión explícita de Samuel, porque puede contener nombres de personas físicas.
 - Antes de agregar capturas o textos al repo, revisar que no muestren llaves, tokens, correos, teléfonos ni contraseñas.
 - `docs/sesiones/`: sus archivos solo se versionan (se agregan a git) después de una revisión de datos sensibles (correos, llaves, datos personales) aprobada por Samuel. En los commits, los archivos se agregan por nombre, nunca con `git add .` ni `git add -A`.
+- Salvo que Samuel lo pida, Claude Code no imprime filas del DENUE en la terminal: solo conteos, códigos SCIAN y nombres de columnas.
 
 ## e. Forma de trabajo
 
@@ -58,6 +59,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - Nunca lanzar corridas en Kaggle (`kaggle kernels push`) sin aprobación de Samuel; antes de pedirla, estimar las horas de GPU.
 - Commits pequeños, con mensajes en español.
 - Registrar en `docs/claude-code-log.md`, con fecha, cada momento notable: un bug que Claude encontró, un bug que Claude introdujo o una decisión que Samuel corrigió.
+- En `docs/bitacora.md` y `docs/claude-code-log.md` se distingue quién propuso, quién redactó y quién aprobó cada cosa: Claude Code (la sesión en la terminal), el chat de Claude del proyecto (un chat aparte en claude.ai que a veces redacta instrucciones o el texto final de reglas) o Samuel. Fórmula: "X propuso / redactó …; Samuel lo aprobó". Por defecto, las instrucciones que Samuel pega las redactó el chat de Claude del proyecto y Samuel las aprobó; si Samuel indica otra cosa, se registra lo que él diga.
 
 ## f. Mapa de carpetas
 
@@ -66,8 +68,10 @@ denue-scian-finetune/
 ├── CLAUDE.md             # esta guía
 ├── README.md             # descripción pública y crédito al INEGI
 ├── LICENSE               # Apache-2.0
+├── pyproject.toml        # configuración de pytest
 ├── data/                 # datos derivados (ignorado; solo se suben .gitkeep y manifest.json)
 ├── src/                  # código Python del proyecto
+├── tests/                # pruebas con pytest (solo datos sintéticos, nunca datos reales)
 ├── notebooks/            # notebooks (entrenamiento en Kaggle)
 ├── evals/                # código y casos de evaluación
 ├── results/              # métricas en JSON: única fuente de números reportables
