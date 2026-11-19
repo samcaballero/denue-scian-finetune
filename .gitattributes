@@ -1,0 +1,6 @@
+# Finales de línea LF para datos y resultados, en el repo y en disco, en cualquier
+# sistema. Así un archivo con hash en data/manifest.json tiene los mismos bytes en
+# Windows (core.autocrlf=true) y en Kaggle (Linux).
+*.csv   text eol=lf
+*.jsonl text eol=lf
+*.json  text eol=lf
