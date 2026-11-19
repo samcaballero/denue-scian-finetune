@@ -11,6 +11,33 @@
       "filas": 462732,
       "codificacion": "latin-1",
       "fecha_registro": "2026-11-18"
+    },
+    "scian_2023_estructura": {
+      "ruta": "../datos-originales/scian/estructura2023.pdf",
+      "fuente": "INEGI, Estructura del SCIAN México 2023",
+      "url": "https://www.inegi.org.mx/contenidos/app/scian/estructura2023.pdf",
+      "sha256": "ed8531e84235e5b19e4d6ebdf9d267685004f307fabf76fcec0ddffae163c3c6",
+      "tamano_bytes": 2415469,
+      "cifrado": "AES-128, sin contraseña de apertura; permite extraer texto",
+      "fecha_descarga": "2026-11-19"
+    },
+    "scian_2018_estructura": {
+      "ruta": "../datos-originales/scian/estructura2018.pdf",
+      "fuente": "INEGI, Estructura del SCIAN México 2018",
+      "url": "https://www.inegi.org.mx/contenidos/app/SCIAN/estructura2018.pdf",
+      "sha256": "e7fce81120398a6c47709af6e1da268cd4cc5260f90a39cf197a683ff36022e6",
+      "tamano_bytes": 3343442,
+      "cifrado": "RC4 de 128 bits, sin contraseña de apertura; permite extraer texto",
+      "fecha_descarga": "2026-11-19"
+    },
+    "scian_tablas_comparativas_2023_2018": {
+      "ruta": "../datos-originales/scian/tablaxv.pdf",
+      "fuente": "INEGI, Tablas comparativas SCIAN México 2023-SCIAN México 2018",
+      "url": "https://www.inegi.org.mx/contenidos/app/scian/tablaxv.pdf",
+      "sha256": "b63b0983bdddfcde2e3ca55b1e1e8b7ad996b5a21a85d8356c0ed1b76dde7ccc",
+      "tamano_bytes": 5246670,
+      "cifrado": "AES-128, sin contraseña de apertura; permite extraer texto",
+      "fecha_descarga": "2026-11-19"
     }
   },
   "splits": {}
