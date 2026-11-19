@@ -4,7 +4,7 @@
 > (1) la fecha, el título y la evidencia de la parte 1 los indicó Samuel, porque esas líneas no tenían fecha en el archivo;
 > (2) en la parte 2 se restauraron los acentos de: último, falló, código, desinstaló, también, dejó, resolvió y técnicas.
 > Lo demás solo es formato Markdown: títulos, viñetas, rutas y comandos entre comillas invertidas y enlaces a las capturas.
-> La sección del 2026-11-18 la dictó Samuel durante la sesión de Claude Code de ese día.
+> La sección "Fase 0, cierre" del 2026-11-18 la dictó Samuel durante la sesión de Claude Code de ese día; la de "Fase 1, paso 1" la redactó Claude Code a partir del plan aprobado por Samuel.
 
 ## 2026-11-17 - Fase 0, parte 1
 
@@ -35,3 +35,11 @@
 - Hallazgos de Claude Code: ruta real del CSV, tamaño real de unos 248 MB, codificación latin-1, columnas de contacto excluidas y correo personal en el commit inicial.
 - Correo del commit inicial corregido: se reescribió el autor con el noreply de GitHub (commit 012e43a, mismo contenido). Pendiente: borrar y recrear el repo en GitHub para eliminar el commit viejo, y subir el historial limpio.
 - Evidencia: [2026-11-18_fase0_plan-claude-code.png](evidencia/2026-11-18_fase0_plan-claude-code.png) y [2026-11-18_fase0_hallazgos-claude-code.png](evidencia/2026-11-18_fase0_hallazgos-claude-code.png), para la diapositiva "Decisiones técnicas: qué propuso Claude Code y qué revisé yo".
+
+## 2026-11-18 - Fase 1, paso 1: entorno local de Python
+
+- Entorno virtual `.venv/` creado con `py -3.12` (Python 3.12.10). Solo para trabajo en CPU (pandas, scikit-learn); sin torch, transformers ni unsloth, porque el entrenamiento corre en Kaggle.
+- Paquetes principales: pandas 3.1.1, numpy 2.5.5, scikit-learn 1.9.1, matplotlib 3.11.2, pyarrow 26.0.1, pytest 9.2.0. Versiones exactas de todo el entorno en `requirements.txt`.
+- CSV original: 462,732 filas y 42 columnas, leído con latin-1. SHA-256, tamaño y número de filas registrados en `data/manifest.json`.
+- Diccionario de datos: codificación latin-1; diferencias con el encabezado del CSV: los mismos 42 campos con los mismos nombres; solo cambia el orden de `clee` (columna 2 en el CSV, última en el diccionario).
+- Reglas nuevas en `CLAUDE.md`: Python siempre con `.venv/Scripts/python`; etiqueta "CAMBIO DE DISEÑO" para cambios en modelos, tareas, splits, métricas o reglas de evaluación; el clasificador responde solo el código SCIAN de 6 dígitos y cada respuesta se clasifica como formato inválido, código inexistente o código existente ("% formato válido" y "% códigos inexistentes" sobre el total de respuestas); `docs/sesiones/` se versiona solo tras una revisión de datos sensibles aprobada por Samuel.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "descripcion": "Hashes SHA-256 de las fuentes y de los conjuntos congelados. Ver CLAUDE.md, sección c.",
+  "fuentes": {
+    "denue_cdmx": {
+      "ruta": "../datos-originales/conjunto_de_datos/denue_inegi_09_.csv",
+      "fuente": "INEGI, DENUE",
+      "edicion": "DENUE 05/2026",
+      "sha256": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+      "tamano_bytes": 260022563,
+      "filas": 462732,
+      "codificacion": "latin-1",
+      "fecha_registro": "2026-11-18"
+    }
+  },
+  "splits": {}
+}
