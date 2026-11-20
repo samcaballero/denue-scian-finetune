@@ -91,9 +91,18 @@ def _a_dict(serie) -> dict[str, int]:
     return {str(k): int(v) for k, v in sorted(serie.items())}
 
 
-def _top(filas_por_codigo: dict[str, int], n: int = 10) -> list[dict]:
+def _top(filas_por_codigo: dict[str, int], n: int | None = 10) -> list[dict]:
+    """Códigos con sus filas, de más a menos filas (todos si n es None)."""
     orden = sorted(filas_por_codigo.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
     return [{"codigo": c, "filas": f} for c, f in orden]
+
+
+def _con_pct(resumen: dict[str, dict[str, int]], total: int) -> dict[str, dict]:
+    """Agrega a cada categoría el porcentaje de filas sobre `total`."""
+    return {
+        k: {**v, "pct_filas": round(100 * v["filas"] / total, 2) if total else 0.0}
+        for k, v in resumen.items()
+    }
 
 
 def _git(*args: str) -> str:
@@ -124,6 +133,7 @@ def nombre_act_contra_titulos(pares: dict[tuple[str, str], int], catalogos: dict
 
     # Con qué versión coincide cada par (comparación laxa).
     cruce = {k: {"pares": 0, "filas": 0} for k in CATEGORIAS}
+    sin_coincidencia: dict[str, int] = {}
     for (codigo, nombre), filas in pares.items():
         clave = clave_titulo(nombre)
         en = {
@@ -137,6 +147,8 @@ def nombre_act_contra_titulos(pares: dict[tuple[str, str], int], catalogos: dict
         )
         cruce[k]["pares"] += 1
         cruce[k]["filas"] += filas
+        if k == "ninguna":
+            sin_coincidencia[codigo] = sin_coincidencia.get(codigo, 0) + filas
 
     nombres_por_codigo = Counter(codigo for codigo, _ in pares)
     varios = sorted(c for c, n in nombres_por_codigo.items() if n > 1)
@@ -145,6 +157,7 @@ def nombre_act_contra_titulos(pares: dict[tuple[str, str], int], catalogos: dict
         "codigos_con_mas_de_un_nombre_act": {"total": len(varios), "codigos": varios},
         "por_version": por_version,
         "coincidencia_laxa_por_par": cruce,
+        "codigos_cuyo_nombre_act_no_coincide_con_ninguna_version": _top(sin_coincidencia, n=None),
         "nota": "Comparación laxa: NFC, espacios colapsados, sin distinguir mayúsculas.",
     }
 
@@ -254,10 +267,15 @@ def main() -> None:
     clee = {
         "caracteres_1_indexados": "6 a 11",
         "fragmentos_que_no_son_6_digitos": int((~fragmento.str.fullmatch(SEIS_DIGITOS)).sum()),
-        "todas_las_filas": {"filas": len(df), **resumen_por_categoria(filas_frag, set_2023, set_2018)},
+        "todas_las_filas": {
+            "filas": len(df),
+            **_con_pct(resumen_por_categoria(filas_frag, set_2023, set_2018), len(df)),
+        },
         "filas_que_discrepan_de_codigo_act": {
             "filas": int(discrepa.sum()),
-            **resumen_por_categoria(filas_frag_discrepa, set_2023, set_2018),
+            **_con_pct(
+                resumen_por_categoria(filas_frag_discrepa, set_2023, set_2018), int(discrepa.sum())
+            ),
         },
         "top10_en_ninguna_version_todas_las_filas": _top(ninguna),
         "top10_solo_2018_en_filas_que_discrepan": _top(solo_2018_discrepa),
@@ -330,6 +348,10 @@ def main() -> None:
         print(f"  {v}: {res}")
     print(f"  coincidencia laxa por par: {nombre_act['coincidencia_laxa_por_par']}")
     print(f"  códigos con más de un nombre_act: {nombre_act['codigos_con_mas_de_un_nombre_act']['total']}")
+    print(
+        "  códigos cuyo nombre_act no coincide con ninguna versión: "
+        f"{nombre_act['codigos_cuyo_nombre_act_no_coincide_con_ninguna_version']}"
+    )
     print(
         f"Títulos distintos entre versiones: {cambios['con_titulo_distinto']} de "
         f"{cambios['clases_en_ambas_versiones']} clases comunes "
