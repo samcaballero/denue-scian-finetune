@@ -91,6 +91,7 @@ denue-scian-finetune/
     ├── bitacora.md         # bitácora del proyecto, con un encabezado por fecha
     ├── claude-code-log.md  # momentos notables del trabajo con Claude Code
     ├── evidencia/          # capturas de pantalla (revisadas antes de agregarse)
+    ├── figuras/            # figuras para la charla generadas por scripts (sin nombres de negocio)
     └── sesiones/           # sesiones importantes de Claude Code guardadas con /export
 ```
 
