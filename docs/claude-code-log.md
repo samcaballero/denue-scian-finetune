@@ -76,6 +76,10 @@ Momentos notables del trabajo con Claude Code: bugs que Claude encontró, bugs q
 - **`nombre_act` conserva títulos del SCIAN 2018.** En las 30 clases del DENUE que mantienen el código pero cambiaron de título en 2023, `nombre_act` coincide con el título 2018 en 9,469 filas y con el 2023 en ninguna. Refuerza la regla de la sección a de `CLAUDE.md`: la descripción de cada clase sale del catálogo, no de `nombre_act`.
 - **La hipótesis de `clee` del paso 2a solo se sostiene en parte.** En las 62,404 filas en que `clee` discrepa de `codigo_act`, su código no existe en ninguna de las dos versiones en el 21.11 % y solo existe en 2018 en el 2.11 %; en el 76.72 % existe en ambas versiones, así que esa diferencia no se explica por el cambio de versión.
 
-### Precisiones de Samuel al plan
+### Precisiones al plan
 
-- Si falla una validación de títulos, el error lista código y título de cada caso, y Claude Code se detiene en vez de relajar la validación.
+Las redactó el chat de Claude del proyecto y Samuel las aprobó.
+
+- Si falla una validación de títulos (mayúscula final, caracteres fuera de Latin-1 o título vacío), el error lista código y título de cada caso, y Claude Code se detiene a reportarlo en vez de relajar la validación.
+- Aprobación explícita para instalar `pypdfium2==5.15.2` y agregarlo a `requirements.txt`.
+- No versionar el catálogo de la otra versión (2018), con las razones que Claude Code dio en el plan.
