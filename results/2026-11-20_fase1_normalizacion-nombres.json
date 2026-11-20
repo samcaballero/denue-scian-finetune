@@ -1,0 +1,449 @@
+{
+  "fecha": "2026-11-20",
+  "experimento": "fase1_paso3_normalizacion_nombres",
+  "commit": "90907f7d800c77ada6b5a079cdb3b583d6f34827",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/grupos_nombres.py",
+    "cargador": "src/denue.py:cargar_denue",
+    "funcion": "src/normalizacion.py:normalizar_nombre",
+    "columnas": [
+      "nom_estab"
+    ],
+    "codificacion": "latin-1",
+    "variante_elegida": "C",
+    "python": "3.12.10",
+    "unicodedata_version": "15.0.0"
+  },
+  "semilla": 42,
+  "split": "ninguno: CSV completo (todavía no hay splits)",
+  "hash_split": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+  "hash_split_origen": "data/manifest.json, fuentes.denue_cdmx.sha256",
+  "tamano_muestra": 462732,
+  "horas_gpu": null,
+  "nom_estab": {
+    "nombres_distintos": 320440,
+    "con_minusculas_ascii": {
+      "nombres": 0,
+      "filas": 0
+    },
+    "con_espacios_dobles": {
+      "nombres": 18,
+      "filas": 18
+    },
+    "con_espacios_al_inicio_o_al_final": {
+      "nombres": 872,
+      "filas": 927
+    }
+  },
+  "caracteres": {
+    "U+00D1": {
+      "caracter": "Ñ",
+      "nombre_unicode": "LATIN CAPITAL LETTER N WITH TILDE",
+      "categoria": "Lu",
+      "nombres": 10158,
+      "filas": 12662
+    },
+    "U+002D": {
+      "caracter": "-",
+      "nombre_unicode": "HYPHEN-MINUS",
+      "categoria": "Pd",
+      "nombres": 1978,
+      "filas": 2020
+    },
+    "U+0026": {
+      "caracter": "&",
+      "nombre_unicode": "AMPERSAND",
+      "categoria": "Po",
+      "nombres": 1696,
+      "filas": 1793
+    },
+    "U+002E": {
+      "caracter": ".",
+      "nombre_unicode": "FULL STOP",
+      "categoria": "Po",
+      "nombres": 1449,
+      "filas": 1468
+    },
+    "U+00CD": {
+      "caracter": "Í",
+      "nombre_unicode": "LATIN CAPITAL LETTER I WITH ACUTE",
+      "categoria": "Lu",
+      "nombres": 196,
+      "filas": 775
+    },
+    "U+00D3": {
+      "caracter": "Ó",
+      "nombre_unicode": "LATIN CAPITAL LETTER O WITH ACUTE",
+      "categoria": "Lu",
+      "nombres": 288,
+      "filas": 578
+    },
+    "U+002C": {
+      "caracter": ",",
+      "nombre_unicode": "COMMA",
+      "categoria": "Po",
+      "nombres": 130,
+      "filas": 443
+    },
+    "U+00C9": {
+      "caracter": "É",
+      "nombre_unicode": "LATIN CAPITAL LETTER E WITH ACUTE",
+      "categoria": "Lu",
+      "nombres": 165,
+      "filas": 374
+    },
+    "U+00C1": {
+      "caracter": "Á",
+      "nombre_unicode": "LATIN CAPITAL LETTER A WITH ACUTE",
+      "categoria": "Lu",
+      "nombres": 101,
+      "filas": 274
+    },
+    "U+0028": {
+      "caracter": "(",
+      "nombre_unicode": "LEFT PARENTHESIS",
+      "categoria": "Ps",
+      "nombres": 121,
+      "filas": 122
+    },
+    "U+0029": {
+      "caracter": ")",
+      "nombre_unicode": "RIGHT PARENTHESIS",
+      "categoria": "Pe",
+      "nombres": 121,
+      "filas": 122
+    },
+    "U+0040": {
+      "caracter": "@",
+      "nombre_unicode": "COMMERCIAL AT",
+      "categoria": "Po",
+      "nombres": 99,
+      "filas": 103
+    },
+    "U+0023": {
+      "caracter": "#",
+      "nombre_unicode": "NUMBER SIGN",
+      "categoria": "Po",
+      "nombres": 49,
+      "filas": 49
+    },
+    "U+00DA": {
+      "caracter": "Ú",
+      "nombre_unicode": "LATIN CAPITAL LETTER U WITH ACUTE",
+      "categoria": "Lu",
+      "nombres": 23,
+      "filas": 39
+    },
+    "U+002F": {
+      "caracter": "/",
+      "nombre_unicode": "SOLIDUS",
+      "categoria": "Po",
+      "nombres": 28,
+      "filas": 29
+    },
+    "U+005F": {
+      "caracter": "_",
+      "nombre_unicode": "LOW LINE",
+      "categoria": "Pc",
+      "nombres": 28,
+      "filas": 28
+    },
+    "U+002B": {
+      "caracter": "+",
+      "nombre_unicode": "PLUS SIGN",
+      "categoria": "Sm",
+      "nombres": 8,
+      "filas": 8
+    },
+    "U+00C3": {
+      "caracter": "Ã",
+      "nombre_unicode": "LATIN CAPITAL LETTER A WITH TILDE",
+      "categoria": "Lu",
+      "nombres": 7,
+      "filas": 7
+    },
+    "U+003F": {
+      "caracter": "?",
+      "nombre_unicode": "QUESTION MARK",
+      "categoria": "Po",
+      "nombres": 6,
+      "filas": 6
+    },
+    "U+00DC": {
+      "caracter": "Ü",
+      "nombre_unicode": "LATIN CAPITAL LETTER U WITH DIAERESIS",
+      "categoria": "Lu",
+      "nombres": 1,
+      "filas": 4
+    }
+  },
+  "comparacion_variantes": {
+    "definiciones": {
+      "A": "todo signo se cambia por espacio",
+      "B": "todo signo se borra",
+      "C": "el punto y el apóstrofo (' y ’) se borran; el resto de signos se cambia por espacio"
+    },
+    "por_variante": {
+      "A": {
+        "llaves_distintas": 319893,
+        "filas_llave_vacia": 212,
+        "nombres_distintos_llave_vacia": 1
+      },
+      "B": {
+        "llaves_distintas": 319900,
+        "filas_llave_vacia": 212,
+        "nombres_distintos_llave_vacia": 1
+      },
+      "C": {
+        "llaves_distintas": 319876,
+        "filas_llave_vacia": 212,
+        "nombres_distintos_llave_vacia": 1
+      }
+    },
+    "fusiones": {
+      "A_en_B": {
+        "llaves_de_origen": 194,
+        "llaves_resultantes": 97,
+        "filas": 592
+      },
+      "B_en_A": {
+        "llaves_de_origen": 208,
+        "llaves_resultantes": 104,
+        "filas": 464
+      },
+      "A_en_C": {
+        "llaves_de_origen": 52,
+        "llaves_resultantes": 26,
+        "filas": 263
+      },
+      "C_en_A": {
+        "llaves_de_origen": 18,
+        "llaves_resultantes": 9,
+        "filas": 25
+      },
+      "B_en_C": {
+        "llaves_de_origen": 192,
+        "llaves_resultantes": 96,
+        "filas": 444
+      },
+      "C_en_B": {
+        "llaves_de_origen": 144,
+        "llaves_resultantes": 72,
+        "filas": 331
+      }
+    },
+    "nota_fusiones": "X_en_Y: llaves_de_origen = llaves de X que comparten llave de Y con otra llave de X; llaves_resultantes = llaves de Y que juntan más de una llave de X; filas = filas en esas llaves de Y.",
+    "nombres_con_llave_distinta": {
+      "A_B": {
+        "nombres": 2930,
+        "filas": 3018
+      },
+      "A_C": {
+        "nombres": 708,
+        "filas": 723
+      },
+      "B_C": {
+        "nombres": 2233,
+        "filas": 2306
+      }
+    },
+    "por_signo_frente_a_A": {
+      "U+002D": {
+        "caracter": "-",
+        "borrarlo_junta": {
+          "llaves_de_origen": 110,
+          "llaves_resultantes": 55,
+          "filas": 266
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 166,
+          "llaves_resultantes": 83,
+          "filas": 389
+        }
+      },
+      "U+0026": {
+        "caracter": "&",
+        "borrarlo_junta": {
+          "llaves_de_origen": 28,
+          "llaves_resultantes": 14,
+          "filas": 55
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 26,
+          "llaves_resultantes": 13,
+          "filas": 48
+        }
+      },
+      "U+002E": {
+        "caracter": ".",
+        "borrarlo_junta": {
+          "llaves_de_origen": 52,
+          "llaves_resultantes": 26,
+          "filas": 263
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 18,
+          "llaves_resultantes": 9,
+          "filas": 25
+        }
+      },
+      "U+002C": {
+        "caracter": ",",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+0028": {
+        "caracter": "(",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+0029": {
+        "caracter": ")",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+0040": {
+        "caracter": "@",
+        "borrarlo_junta": {
+          "llaves_de_origen": 2,
+          "llaves_resultantes": 1,
+          "filas": 6
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 4,
+          "llaves_resultantes": 2,
+          "filas": 12
+        }
+      },
+      "U+0023": {
+        "caracter": "#",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+002F": {
+        "caracter": "/",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+005F": {
+        "caracter": "_",
+        "borrarlo_junta": {
+          "llaves_de_origen": 2,
+          "llaves_resultantes": 1,
+          "filas": 2
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+002B": {
+        "caracter": "+",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      },
+      "U+003F": {
+        "caracter": "?",
+        "borrarlo_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        },
+        "espacio_junta": {
+          "llaves_de_origen": 0,
+          "llaves_resultantes": 0,
+          "filas": 0
+        }
+      }
+    }
+  },
+  "efecto_enie": {
+    "llaves_conservando_la_enie": 319913,
+    "llaves_con_enie_a_n": 319876,
+    "fusiones": {
+      "llaves_de_origen": 74,
+      "llaves_resultantes": 37,
+      "filas": 286
+    },
+    "nota": "Para conservar la Ñ se cambia por Ŋ (U+014A) antes de normalizar."
+  },
+  "variante_elegida": {
+    "variante": "C",
+    "nombres_distintos": 320440,
+    "llaves_distintas": 319876,
+    "filas_llave_vacia": 212,
+    "nombres_distintos_llave_vacia": 1,
+    "llaves_con_mas_de_un_nom_estab_distinto": 543,
+    "grupos_por_tamano_en_filas": {
+      "1": {
+        "grupos": 286829,
+        "filas": 286829
+      },
+      "2-9": {
+        "grupos": 30741,
+        "filas": 88777
+      },
+      "10-99": {
+        "grupos": 2151,
+        "filas": 49044
+      },
+      "100+": {
+        "grupos": 154,
+        "filas": 37870
+      }
+    },
+    "grupo_mas_grande_filas": 1917,
+    "nota": "Los grupos por tamaño y el grupo más grande no cuentan la llave vacía."
+  }
+}
