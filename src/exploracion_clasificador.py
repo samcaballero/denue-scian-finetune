@@ -54,6 +54,19 @@ from src.scian import (
     texto_de_paginas,
 )
 
+# Definiciones únicas de las marcas de subgrupo (regla 8); se importan aquí para que el
+# paso 4 y los splits usen la misma implementación.
+from src.subgrupos import (  # noqa: F401 (en_vocabulario y RE_MARCADOR se reexportan para las pruebas)
+    DEFINICIONES as DEFINICIONES_SUBGRUPOS,
+    MARCADOR,
+    RE_MARCADOR,
+    en_vocabulario,
+    es_generico,
+    quitar_marcador,
+    tiene_marcador,
+    vocabulario,
+)
+
 COLUMNAS = ["nom_estab", "codigo_act", "nombre_act"]
 VERSION = "2023"
 SEMILLA = 42
@@ -76,23 +89,15 @@ TRAMOS_TAMANO = (("2-9", 2, 9), ("10-99", 10, 99), ("100+", 100, None))
 CARPETA_FIGURAS = REPO_RAIZ / "docs" / "figuras"
 RESULTADO_PASO3 = REPO_RAIZ / "results" / "2026-11-20_fase1_normalizacion-nombres.json"
 
-# Frase con la que el DENUE marca a los negocios sin nombre comercial. No es ninguna
-# llave (ninguna llave es solo la frase), así que puede ir en el código y en results/.
-MARCADOR = "SIN NOMBRE"
-RE_MARCADOR = re.compile(r"\bSIN NOMBRE\b")
 RE_PALABRA_TRAS_SIN = re.compile(r"\bSIN (?=(\w+))")  # con lookahead para no saltarse casos
 
 DEFINICIONES = {
-    "marcador": 'La frase "SIN NOMBRE" como palabras completas en cualquier parte de la llave.',
+    "marcador": DEFINICIONES_SUBGRUPOS["sin_nombre"],
     "errata_marcador": (
         'Llave sin la frase "SIN NOMBRE" con "SIN" seguida de una palabra a distancia de edición 1 '
         'de "NOMBRE"; se cuenta aparte y no entra en el marcador.'
     ),
-    "generico": (
-        'Llave no vacía cuyas palabras, sin la frase "SIN NOMBRE", aparecen todas en el vocabulario '
-        "de los títulos normalizados del SCIAN 2023 de todos los niveles (se acepta la palabra con o "
-        "sin S o ES final), con al menos una palabra de 4 letras o más."
-    ),
+    "generico": DEFINICIONES_SUBGRUPOS["generico"],
     "techo": (
         "Suma, sobre las llaves no vacías con 2 o más filas, de las filas de la clase mayoritaria de "
         "cada llave, entre el total de filas de esas llaves."
@@ -221,15 +226,6 @@ def por_nivel(
 # --- Marcador, erratas, genéricos y títulos ---
 
 
-def tiene_marcador(llave: str) -> bool:
-    return bool(RE_MARCADOR.search(llave))
-
-
-def quitar_marcador(llave: str) -> str:
-    """La llave sin la frase "SIN NOMBRE" (el resto), con espacios colapsados."""
-    return " ".join(RE_MARCADOR.sub(" ", llave).split())
-
-
 def posicion_marcador(llave: str) -> str | None:
     """Dónde está la frase: sola, al final, al inicio o en medio (None si no está)."""
     if not tiene_marcador(llave):
@@ -257,30 +253,6 @@ def tiene_errata_marcador(llave: str) -> bool:
     if tiene_marcador(llave):
         return False
     return any(a_distancia_1(p, "NOMBRE") for p in RE_PALABRA_TRAS_SIN.findall(llave))
-
-
-def vocabulario(titulos: Iterable[str]) -> frozenset[str]:
-    """Palabras de los títulos normalizados con `normalizar_nombre()`."""
-    return frozenset(p for t in titulos for p in normalizar_nombre(t).split())
-
-
-def en_vocabulario(palabra: str, vocab: frozenset[str]) -> bool:
-    """La palabra, o la palabra con o sin S o ES final, está en el vocabulario."""
-    candidatas = {palabra, palabra + "S", palabra + "ES"}
-    if palabra.endswith("S"):
-        candidatas.add(palabra[:-1])
-    if palabra.endswith("ES"):
-        candidatas.add(palabra[:-2])
-    return bool(candidatas & vocab)
-
-
-def es_generico(llave: str, vocab: frozenset[str]) -> bool:
-    palabras = quitar_marcador(llave).split()
-    return (
-        bool(palabras)
-        and all(en_vocabulario(p, vocab) for p in palabras)
-        and any(len(p) >= 4 for p in palabras)
-    )
 
 
 def clasificar_titulo(llave: str, codigo: str, codigo_por_titulo: Mapping[str, str]) -> str | None:

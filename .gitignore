@@ -245,3 +245,5 @@ access_token
 kaggle-output/
 # Excepción: catálogo de clases del SCIAN de la versión fijada (ver data/manifest.json)
 !data/scian_2023_clases.csv
+# Excepción: vocabulario de los títulos del SCIAN de la versión fijada (ver data/manifest.json)
+!data/scian_2023_vocabulario.csv

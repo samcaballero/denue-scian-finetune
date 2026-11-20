@@ -64,6 +64,18 @@
       "sha256": "25032bcb792e2c4b4605716bac5cec9cacd5acb0038251ab6508caa4c8db3a31",
       "tamano_bytes": 63484,
       "fecha_registro": "2026-11-19"
+    },
+    "scian_2023_vocabulario": {
+      "ruta": "data/scian_2023_vocabulario.csv",
+      "origen": "fuentes.scian_2023_estructura",
+      "extractor": "src/subgrupos.py",
+      "descripcion": "Palabras de los títulos de todos los niveles (sector a clase) de la estructura oficial, normalizados con normalizar_nombre(); vocabulario de la marca de genérico (regla 8).",
+      "palabras": 1453,
+      "codificacion": "utf-8",
+      "fin_de_linea": "LF",
+      "sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb",
+      "tamano_bytes": 13653,
+      "fecha_registro": "2026-11-20"
     }
   },
   "splits": {}

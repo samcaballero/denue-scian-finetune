@@ -304,6 +304,19 @@ def leer_manifest(ruta_manifest: str | Path = RUTA_MANIFEST) -> dict:
         return json.load(f)
 
 
+def escribir_manifest(manifest: dict, ruta_manifest: str | Path = RUTA_MANIFEST) -> None:
+    """Escribe el manifest con el formato del repo: indentación 2, UTF-8 sin escapar, "\\n" final.
+
+    Escribe primero un archivo temporal y luego lo cambia de nombre, para no dejar un
+    manifest a medias si algo falla.
+    """
+    ruta = Path(ruta_manifest)
+    texto = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    temporal = ruta.with_name(ruta.name + ".tmp")
+    temporal.write_bytes(texto.encode("utf-8"))
+    temporal.replace(ruta)
+
+
 def archivo_verificado(entrada: dict) -> Path:
     """Ruta (relativa a la raíz del repo) de una entrada del manifest, con su SHA-256 verificado."""
     ruta = REPO_RAIZ / entrada["ruta"]
