@@ -1,6 +1,8 @@
 {
   "version": 1,
   "descripcion": "Hashes SHA-256 de las fuentes y de los conjuntos congelados. Ver CLAUDE.md, sección c.",
+  "scian_version": "2023",
+  "scian_version_evidencia": "results/2026-11-20_fase1_version-scian.json",
   "fuentes": {
     "denue_cdmx": {
       "ruta": "../datos-originales/conjunto_de_datos/denue_inegi_09_.csv",

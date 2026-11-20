@@ -13,7 +13,7 @@ Fuente: INEGI, DENUE (Directorio Estadístico Nacional de Unidades Económicas),
 
 **Aviso:** los datos usados en este proyecto fueron transformados a partir de la fuente original: normalización de textos, división en conjuntos (splits) de entrenamiento, validación y prueba, y ruido sintético agregado a las direcciones. Este proyecto no es un producto oficial del INEGI.
 
-Los datos no se incluyen en este repositorio.
+Los datos del DENUE no se incluyen en este repositorio. Sí se incluye `data/scian_2023_clases.csv`: el código y el título de las 1,086 clases del SCIAN 2023, extraídos de la estructura oficial publicada por el INEGI (https://www.inegi.org.mx/contenidos/app/scian/estructura2023.pdf), sin las marcas de los títulos, como la "T" de trilateral. Fuente: INEGI, Sistema de Clasificación Industrial de América del Norte, México SCIAN 2023.
 
 ## Licencia
 

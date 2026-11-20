@@ -243,3 +243,5 @@ kaggle.json
 access_token
 # Salidas descargadas de Kaggle
 kaggle-output/
+# Excepción: catálogo de clases del SCIAN de la versión fijada (ver data/manifest.json)
+!data/scian_2023_clases.csv
