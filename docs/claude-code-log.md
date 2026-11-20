@@ -83,3 +83,14 @@ Las redactó el chat de Claude del proyecto y Samuel las aprobó.
 - Si falla una validación de títulos (mayúscula final, caracteres fuera de Latin-1 o título vacío), el error lista código y título de cada caso, y Claude Code se detiene a reportarlo en vez de relajar la validación.
 - Aprobación explícita para instalar `pypdfium2==5.15.2` y agregarlo a `requirements.txt`.
 - No versionar el catálogo de la otra versión (2018), con las razones que Claude Code dio en el plan.
+
+## 2026-11-20 — Fase 1, paso 3: normalización de nombres para agrupar
+
+**Qué se hizo:** función única de normalización `src/normalizacion.py` con pruebas sobre texto sintético; comparación de tres políticas de puntuación sobre los `nom_estab` reales (solo conteos); script de llaves y tamaños de grupo con resultados en `results/2026-11-20_fase1_normalizacion-nombres.json`; regla 2 de `CLAUDE.md` precisada; dos decisiones del 2026-11-18 registradas en `CLAUDE.md`; captura del paso 2b copiada a `docs/evidencia/`. La instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Commits sin push.
+
+### Hallazgos
+
+- **La política de puntuación casi no cambia los grupos.** `nom_estab` ya viene en mayúsculas y casi sin signos: no tiene minúsculas ASCII, apóstrofos, º, ª ni espacios no separables. Entre las tres variantes, el número de llaves cambia en 24 como máximo (de 319,876 a 319,900, sobre 320,440 nombres distintos). Claude Code lo midió antes de recomendar una variante.
+- **Borrar el guion separa más nombres de los que junta.** Comparado con cambiarlo por espacio, borrarlo junta 110 llaves en 55, pero separa en 166 llaves lo que el espacio junta en 83. Con el punto pasa al revés: borrarlo junta 52 en 26 y separa solo 18 en 9. Por eso Claude Code recomendó la variante C (borrar el punto y el apóstrofo, y cambiar el resto por espacio) y no la B (borrarlo todo).
+- **Con NFKD, el acento suelto ´ se vuelve espacio.** NFKD descompone ´ (U+00B4) en un espacio y un acento combinante, así que "D´LUPITA" queda como "D LUPITA", mientras que "D'LUPITA" pierde el apóstrofo y queda "DLUPITA" (nombres sintéticos). No hay ´ en `nom_estab`; una prueba documenta el comportamiento.
+- **El baseline de diccionario no estaba en `CLAUDE.md`.** La instrucción del paso 3 mencionaba un "baseline de diccionario", pero `CLAUDE.md` solo nombraba el baseline TF-IDF + regresión logística. Claude Code lo señaló en el plan y no lo agregó por su cuenta, porque agregar un baseline es un CAMBIO DE DISEÑO. Samuel lo había aprobado el 2026-11-18, junto con la regla de reportar las filas de train excluidas por compartir llave con validación o test, que también faltaba. El chat de Claude del proyecto redactó los dos textos y Samuel los aprobó; quedaron en `CLAUDE.md` (sección a y regla 7 de la sección c) marcados como "CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-18; registrado el 2026-11-20".
