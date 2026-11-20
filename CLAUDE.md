@@ -23,9 +23,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - Las columnas del CSV se leen solo con el cargador único `cargar_denue()` de `src/denue.py`. El cargador verifica el SHA-256 contra `data/manifest.json`, rechaza `telefono`, `correoelec`, `www` y `raz_social`, y lee solo las columnas pedidas con `dtype=str` y `keep_default_na=False`: textos como "NA", "NULL" o "None" se conservan, y un campo vacío queda como `""`.
   - Columnas clave: `nom_estab` (nombre del negocio), `codigo_act` (clase SCIAN), `cod_postal`.
   - Las columnas de domicilio para la tarea 2 se definirán en la Fase 1 con el diccionario de datos.
-  - Versión del SCIAN: el diccionario de datos dice que `codigo_act` y `nombre_act` usan el SCIAN 2018, pero la edición se basa en los Censos Económicos 2024, que usan el SCIAN 2023. Pendiente: decidirla en el paso 2b por los códigos presentes y registrarla en `data/manifest.json`.
-- También de solo lectura: `../datos-originales/diccionario_de_datos/denue_diccionario_de_datos.csv` y `../datos-originales/metadatos/metadatos_denue.txt`.
-- Datos derivados: `data/` (ignorado por git, salvo `data/.gitkeep` y `data/manifest.json`).
+  - Versión del SCIAN: **SCIAN 2023**, decidida el 2026-11-20 (paso 2b) por los códigos presentes y registrada en `data/manifest.json` (`scian_version`). Evidencia: los 931 códigos distintos de `codigo_act` existen en el SCIAN 2023, y 31 de ellos (1,731 filas) no existen en el SCIAN 2018; ver `results/2026-11-20_fase1_version-scian.json`. El diccionario de datos dice SCIAN 2018; los códigos lo contradicen.
+- También de solo lectura: `../datos-originales/diccionario_de_datos/denue_diccionario_de_datos.csv`, `../datos-originales/metadatos/metadatos_denue.txt` y `../datos-originales/scian/` (estructuras del SCIAN 2023 y 2018 y tablas comparativas 2023-2018, PDF descargados del INEGI el 2026-11-19; URL, SHA-256 y tamaño en `data/manifest.json`).
+- Catálogo SCIAN: `data/scian_2023_clases.csv` (`codigo,titulo`; UTF-8; saltos de línea `\n`; ordenado por código), extraído de la estructura oficial con `src/scian.py`. Es la única fuente de los títulos de las clases y de la lista de códigos existentes de la regla 5. El de la otra versión queda en `data/` sin versionar, con su hash en el manifest.
+- Finales de línea: `.gitattributes` fija LF para `*.csv`, `*.jsonl` y `*.json`, y todo archivo con hash en el manifest se escribe con `\n`, para que su SHA-256 sea igual en Windows y en Kaggle.
+- Datos derivados: `data/` (ignorado por git, salvo `data/.gitkeep`, `data/manifest.json` y `data/scian_2023_clases.csv`).
 - Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
@@ -41,7 +43,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 ## d. Seguridad
 
 - Nunca leer, imprimir ni copiar `~/.kaggle/access_token` ni ninguna otra llave.
-- Nunca agregar a git datos, llaves, `.env` ni modelos. No forzar con `git add -f` lo que `.gitignore` excluye.
+- Nunca agregar a git datos, llaves, `.env` ni modelos. Única excepción de datos: el catálogo de clases del SCIAN de la versión fijada (`data/scian_2023_clases.csv`), con crédito al INEGI en `README.md`; la aprobó Samuel en el paso 2b. No forzar con `git add -f` lo que `.gitignore` excluye.
 - Nunca modificar `../datos-originales/`.
 - Columnas sensibles del DENUE:
   - `telefono`, `correoelec`, `www` (datos de contacto): nunca se cargan (quedan fuera de `usecols`) ni se muestran en ejemplos, notebooks, resultados o diapositivas.
@@ -69,7 +71,7 @@ denue-scian-finetune/
 ├── README.md             # descripción pública y crédito al INEGI
 ├── LICENSE               # Apache-2.0
 ├── pyproject.toml        # configuración de pytest
-├── data/                 # datos derivados (ignorado; solo se suben .gitkeep y manifest.json)
+├── data/                 # datos derivados (ignorado; solo se suben .gitkeep, manifest.json y el catálogo SCIAN)
 ├── src/                  # código Python del proyecto
 ├── tests/                # pruebas con pytest (solo datos sintéticos, nunca datos reales)
 ├── notebooks/            # notebooks (entrenamiento en Kaggle)
