@@ -59,7 +59,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - Hablar con Samuel en español y explicar cada término técnico entre paréntesis la primera vez que aparezca.
 - Plan numerado antes de cambios grandes; esperar aprobación.
 - **CAMBIO DE DISEÑO:** cualquier cambio en modelos, tareas, splits, métricas o reglas de evaluación se marca con la etiqueta "CAMBIO DE DISEÑO", se explica (qué cambia, por qué y qué afecta) y espera la aprobación explícita de Samuel antes de ejecutarse. Reordenar tareas está permitido, avisando.
-- Pedir permiso antes de instalar paquetes, borrar archivos, hacer commit o push.
+- Pedir permiso antes de instalar paquetes, borrar archivos o hacer commit.
+- El push lo hace siempre Samuel desde PowerShell, después de que el chat de Claude del proyecto revisa el reporte.
+- Candados en `.claude/settings.json` (versionado): reglas `deny` de permisos de Claude Code que rechazan `git push` y `git add .`, `git add -A`, `git add --all` y `git add -f`, en Bash y en PowerShell. No se modifican sin aprobación de Samuel.
+- Candado local en esta laptop: el hook `.git/hooks/pre-push` rechaza el push cuando existe la variable `CLAUDECODE`, que definen las shells de Claude Code y no la terminal de Samuel. No viaja con el repo: un clon nuevo no lo tiene. No se modifica sin aprobación de Samuel.
+- El modo automático solo se usa con un plan ya aprobado.
 - Nunca lanzar corridas en Kaggle (`kaggle kernels push`) sin aprobación de Samuel; antes de pedirla, estimar las horas de GPU.
 - Commits pequeños, con mensajes en español.
 - Registrar en `docs/claude-code-log.md`, con fecha, cada momento notable: un bug que Claude encontró, un bug que Claude introdujo o una decisión que Samuel corrigió.
@@ -69,6 +73,8 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 
 ```text
 denue-scian-finetune/
+├── .claude/
+│   └── settings.json     # candados de permisos de Claude Code (versionado)
 ├── CLAUDE.md             # esta guía
 ├── README.md             # descripción pública y crédito al INEGI
 ├── LICENSE               # Apache-2.0
