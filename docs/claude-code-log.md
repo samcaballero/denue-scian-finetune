@@ -114,3 +114,25 @@ Las redactó el chat de Claude del proyecto y Samuel las aprobó.
 
 - **Los negocios sin nombre comercial no tienen llave vacía: llevan una descripción y la frase "SIN NOMBRE".** La instrucción pedía proponer marcadores de "sin nombre" tras revisar las llaves más frecuentes, sin imprimirlas. Claude Code comparó las llaves con una lista de marcadores escrita a mano y contó cuántas llaves contienen cada frase, sin mostrar ninguna. Ninguna llave es solo un marcador, pero 43,979 filas (9.51 % de las filas con nombre) tienen "SIN NOMBRE" después de una descripción de la actividad, casi siempre al final. No son filas sin información: su entrada es una descripción escrita en lugar del nombre, y en 2,191 filas esa descripción es igual al título de su clase. Por eso Claude Code propuso tratarlas como un subgrupo que se mide aparte, y no como filas vacías.
 - **El catálogo versionado solo trae clases.** Los conteos y la figura por sector necesitan los títulos de los sectores. Claude Code los tomó de la estructura oficial 2023 con el extractor `src/scian.py`, que verifica el hash del PDF y el candado de conteos, y comprobó que sus 1,086 clases son idénticas a las de `data/scian_2023_clases.csv`, en vez de escribir los títulos a mano.
+
+## 2026-11-21 — Fase 1, paso 5: validación y test congelados
+
+**Qué se hizo:** regla 8 nueva y regla 2 precisada en `CLAUDE.md`; módulo único de subgrupos `src/subgrupos.py` con el vocabulario de los genéricos versionado; split del clasificador `src/splits.py` con semilla 42, punto de control con solo conteos y, tras la aprobación de Samuel, test y validación congelados con su hash en `data/manifest.json`. La instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Empezó el 2026-11-20. Commits sin push.
+
+### Hallazgos
+
+- **La regla 2 contradecía al procedimiento del split.** Decía que todas las filas de una llave van al mismo split, pero validación y test se sacan fila por fila y las demás filas de sus llaves se excluyen (la regla 7 ya lo suponía). Claude Code lo marcó en el plan como CAMBIO DE DISEÑO y propuso el texto nuevo; Samuel lo aprobó.
+- **El vocabulario en `.txt` habría cambiado de hash entre Windows y Kaggle.** `.gitattributes` solo fija LF para `*.csv`, `*.jsonl` y `*.json`; con `core.autocrlf=true`, un `.txt` versionado se escribe en Windows con CRLF. Claude Code propuso guardarlo como CSV para heredar la regla de LF.
+- **El CSV no viene ordenado por `id`, y los `id` tienen de 5 a 8 dígitos.** Ordenarlos como texto daría otro orden; el orden canónico usa el valor entero y una prueba cubre el caso.
+- **La marca de igual a título usa `nombre_act`, que describe la etiqueta.** Las marcas van en los splits solo para reportar; Claude Code propuso dejar escrito en la regla 8 que nunca son entrada de un modelo.
+- **Con el split por nombre, el baseline de diccionario siempre cae en la clase más frecuente global en validación y test,** porque ninguna llave de esos conjuntos está en train. No es un error: es lo que mide el experimento de split aleatorio contra split por nombre.
+- **`git check-ignore -v` devuelve 0 también cuando coincide una excepción.** Al comprobar la excepción del vocabulario en `.gitignore`, Claude Code vio que `git check-ignore -v` imprime la regla `!data/scian_2023_vocabulario.csv` y termina con código 0, como si el archivo estuviera ignorado; sin `-v`, el código 1 dice que no lo está. La función `esta_ignorado()` de `src/splits.py` usa `-q`, y una prueba cubre el caso del vocabulario.
+- **Bug de Claude Code: la revisión de privacidad iba después de escribir los splits.** En el primer borrador de `src/splits.py`, el resultado se revisaba contra las llaves del DENUE al final, después de escribir los splits y el manifest; un fallo habría dejado conjuntos congelados sin su resultado. Claude Code lo corrigió antes del commit: los hashes se calculan en memoria, el resultado se revisa antes de escribir nada y la revisión corre también en el punto de control.
+- **Validación no tiene la distribución natural.** En el punto de control, Claude Code vio que el 5.9 % de las filas de validación tiene la frase "SIN NOMBRE" y el 7.7 % son genéricas, contra el 9.51 % y el 10.84 % del universo (en test, 9.15 % y 10.55 %). La causa es el procedimiento: validación solo toma filas cuya llave no está en test, y test ya tocó casi todos los grupos grandes, que concentran esas marcas. Así, las decisiones que se tomen con validación se basan en una mezcla algo distinta de la del test. Claude Code lo señaló sin proponer cambios; Samuel lo aceptó y decidió no cambiar el procedimiento ni volver a sortear.
+
+### Precisiones al plan
+
+Las aprobó Samuel al aprobar el plan.
+
+- "Con y sin la frase" son dos subconjuntos (filas con la frase y filas sin ella), igual que genéricas y no genéricas; confirma la interpretación que Claude Code propuso en el plan.
+- La entrada del vocabulario en `data/manifest.json` la escribe el código (hash, tamaño y conteo calculados), no se copia a mano; el plan proponía registrarla a mano, como en el paso 2b.
