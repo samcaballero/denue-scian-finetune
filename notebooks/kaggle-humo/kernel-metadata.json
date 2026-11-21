@@ -1,0 +1,19 @@
+{
+  "id": "samcaballero/denue-scian-humo-6b",
+  "title": "DENUE SCIAN humo 6b",
+  "code_file": "humo_6b.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "samcaballero/denue-scian-humo"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "docker_image_pinning_type": "original"
+}
