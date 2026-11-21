@@ -20,6 +20,16 @@
       "Bash(git add * --force)",
       "Bash(git add * --force *)",
       "Bash(git -* add *)",
+      "Bash(*kaggle* datasets create*)",
+      "Bash(*kaggle* datasets version*)",
+      "Bash(*kaggle* datasets delete*)",
+      "Bash(*kaggle* d create*)",
+      "Bash(*kaggle* d version*)",
+      "Bash(*kaggle* d delete*)",
+      "Bash(*kaggle* kernels push*)",
+      "Bash(*kaggle* kernels update*)",
+      "Bash(*kaggle* k push*)",
+      "Bash(*kaggle* k update*)",
       "PowerShell(git push *)",
       "PowerShell(git -* push *)",
       "PowerShell(git -* push)",
@@ -38,7 +48,17 @@
       "PowerShell(git add --force *)",
       "PowerShell(git add * --force)",
       "PowerShell(git add * --force *)",
-      "PowerShell(git -* add *)"
+      "PowerShell(git -* add *)",
+      "PowerShell(*kaggle* datasets create*)",
+      "PowerShell(*kaggle* datasets version*)",
+      "PowerShell(*kaggle* datasets delete*)",
+      "PowerShell(*kaggle* d create*)",
+      "PowerShell(*kaggle* d version*)",
+      "PowerShell(*kaggle* d delete*)",
+      "PowerShell(*kaggle* kernels push*)",
+      "PowerShell(*kaggle* kernels update*)",
+      "PowerShell(*kaggle* k push*)",
+      "PowerShell(*kaggle* k update*)"
     ]
   }
 }
