@@ -1,0 +1,289 @@
+{
+  "fecha": "2026-11-21",
+  "experimento": "fase1_paso5_splits_clasificador",
+  "commit": "ef5be77a9f80c930fe4706f1f7052f84e70020fb",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/splits.py",
+    "cargador": "src/denue.py:cargar_denue",
+    "normalizacion": "src/normalizacion.py:normalizar_nombre",
+    "subgrupos": "src/subgrupos.py",
+    "definiciones_subgrupos": {
+      "sin_nombre": "La frase \"SIN NOMBRE\" como palabras completas en cualquier parte de la llave.",
+      "generico": "Llave no vacía cuyas palabras, sin la frase \"SIN NOMBRE\", aparecen todas en el vocabulario de los títulos normalizados del SCIAN 2023 de todos los niveles (se acepta la palabra con o sin S o ES final), con al menos una palabra de 4 letras o más.",
+      "igual_titulo": "Llave no vacía igual al título normalizado de una clase del catálogo SCIAN 2023 o a nombre_act normalizado de la misma fila."
+    },
+    "columnas_leidas": [
+      "id",
+      "nom_estab",
+      "codigo_act",
+      "nombre_act"
+    ],
+    "campos_de_los_archivos": [
+      "id",
+      "nom_estab",
+      "codigo_act",
+      "llave",
+      "sin_nombre",
+      "generico",
+      "igual_titulo"
+    ],
+    "codificacion": "latin-1",
+    "scian_version": "2023",
+    "catalogo": {
+      "ruta": "data/scian_2023_clases.csv",
+      "sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73"
+    },
+    "vocabulario": {
+      "ruta": "data/scian_2023_vocabulario.csv",
+      "sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+    },
+    "procedimiento": "Universo: filas del DENUE con normalizar_nombre(nom_estab) no vacía, en orden ascendente de int(id). perm = numpy.random.default_rng(42).permutation(len(universo)). Test: las filas perm[0:2000]. Validación: las primeras 1000 filas de perm[2000:] cuya llave no está en test. Train candidato: las filas cuya llave no está en test ni en validación. Excluidas: el resto (regla 7).",
+    "n_test": 2000,
+    "n_validacion": 1000,
+    "limite_regla7_pct": 10,
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5",
+      "pandas": "3.1.1"
+    }
+  },
+  "semilla": 42,
+  "split": "clasificador: test y validación congelados, train candidato sin congelar (data/splits/)",
+  "hash_split": {
+    "test": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+    "train_candidatos": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0"
+  },
+  "hash_split_origen": "data/manifest.json, splits",
+  "hash_fuente": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+  "tamano_muestra": {
+    "universo": 462520,
+    "test": 2000,
+    "validacion": 1000,
+    "train_candidatos": 418148,
+    "excluidas": 41372
+  },
+  "horas_gpu": null,
+  "poblacion": {
+    "todas_las_filas": 462732,
+    "llave_vacia_excluida": 212,
+    "universo": 462520
+  },
+  "subgrupos_en_el_universo": {
+    "universo": 462520,
+    "sin_nombre": 43979,
+    "generico": 50134,
+    "igual_titulo": 449,
+    "coinciden_con_el_paso_4": true
+  },
+  "conjuntos": {
+    "test": {
+      "filas": 2000,
+      "llaves": 1902,
+      "clases": 318,
+      "sin_nombre": 183,
+      "generico": 211,
+      "igual_titulo": 5
+    },
+    "validacion": {
+      "filas": 1000,
+      "llaves": 990,
+      "clases": 228,
+      "sin_nombre": 59,
+      "generico": 77,
+      "igual_titulo": 0
+    },
+    "train_candidatos": {
+      "filas": 418148,
+      "llaves": 316983,
+      "clases": 929,
+      "sin_nombre": 26702,
+      "generico": 31737,
+      "igual_titulo": 141
+    },
+    "excluidas": {
+      "filas": 41372,
+      "llaves": 989,
+      "clases": 318,
+      "sin_nombre": 17035,
+      "generico": 18109,
+      "igual_titulo": 303
+    }
+  },
+  "clases_fuera_de_train_candidato": {
+    "test": {
+      "filas": 0,
+      "clases": 0
+    },
+    "validacion": {
+      "filas": 0,
+      "clases": 0
+    }
+  },
+  "regla7": {
+    "filas_candidatas_train": 459520,
+    "filas_excluidas": 41372,
+    "pct_filas_candidatas": 9.0,
+    "por_llaves_de_test": 34457,
+    "por_llaves_de_validacion": 6915,
+    "llaves_tocadas": {
+      "test": 1902,
+      "validacion": 990
+    },
+    "llaves_que_excluyen_filas": 989,
+    "limite_pct": 10,
+    "pasa_del_limite": false,
+    "top_20_sin_llaves": [
+      {
+        "rango": 1,
+        "conjunto": "test",
+        "filas_del_grupo": 1917,
+        "filas_en_el_conjunto": 7,
+        "filas_excluidas": 1910
+      },
+      {
+        "rango": 2,
+        "conjunto": "test",
+        "filas_del_grupo": 1017,
+        "filas_en_el_conjunto": 3,
+        "filas_excluidas": 1014
+      },
+      {
+        "rango": 3,
+        "conjunto": "test",
+        "filas_del_grupo": 945,
+        "filas_en_el_conjunto": 10,
+        "filas_excluidas": 935
+      },
+      {
+        "rango": 4,
+        "conjunto": "test",
+        "filas_del_grupo": 695,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 694
+      },
+      {
+        "rango": 5,
+        "conjunto": "test",
+        "filas_del_grupo": 643,
+        "filas_en_el_conjunto": 3,
+        "filas_excluidas": 640
+      },
+      {
+        "rango": 6,
+        "conjunto": "test",
+        "filas_del_grupo": 636,
+        "filas_en_el_conjunto": 2,
+        "filas_excluidas": 634
+      },
+      {
+        "rango": 7,
+        "conjunto": "test",
+        "filas_del_grupo": 639,
+        "filas_en_el_conjunto": 6,
+        "filas_excluidas": 633
+      },
+      {
+        "rango": 8,
+        "conjunto": "test",
+        "filas_del_grupo": 541,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 540
+      },
+      {
+        "rango": 9,
+        "conjunto": "test",
+        "filas_del_grupo": 514,
+        "filas_en_el_conjunto": 6,
+        "filas_excluidas": 508
+      },
+      {
+        "rango": 10,
+        "conjunto": "test",
+        "filas_del_grupo": 477,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 476
+      },
+      {
+        "rango": 11,
+        "conjunto": "test",
+        "filas_del_grupo": 466,
+        "filas_en_el_conjunto": 2,
+        "filas_excluidas": 464
+      },
+      {
+        "rango": 12,
+        "conjunto": "test",
+        "filas_del_grupo": 465,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 464
+      },
+      {
+        "rango": 13,
+        "conjunto": "test",
+        "filas_del_grupo": 461,
+        "filas_en_el_conjunto": 2,
+        "filas_excluidas": 459
+      },
+      {
+        "rango": 14,
+        "conjunto": "test",
+        "filas_del_grupo": 456,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 455
+      },
+      {
+        "rango": 15,
+        "conjunto": "test",
+        "filas_del_grupo": 451,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 450
+      },
+      {
+        "rango": 16,
+        "conjunto": "test",
+        "filas_del_grupo": 440,
+        "filas_en_el_conjunto": 3,
+        "filas_excluidas": 437
+      },
+      {
+        "rango": 17,
+        "conjunto": "test",
+        "filas_del_grupo": 441,
+        "filas_en_el_conjunto": 5,
+        "filas_excluidas": 436
+      },
+      {
+        "rango": 18,
+        "conjunto": "test",
+        "filas_del_grupo": 437,
+        "filas_en_el_conjunto": 2,
+        "filas_excluidas": 435
+      },
+      {
+        "rango": 19,
+        "conjunto": "test",
+        "filas_del_grupo": 431,
+        "filas_en_el_conjunto": 2,
+        "filas_excluidas": 429
+      },
+      {
+        "rango": 20,
+        "conjunto": "test",
+        "filas_del_grupo": 424,
+        "filas_en_el_conjunto": 1,
+        "filas_excluidas": 423
+      }
+    ],
+    "archivo_local_de_llaves": {
+      "ruta": "data/2026-11-21_fase1_regla7-llaves.csv",
+      "nota": "Local e ignorado por git; contiene llaves normalizadas, nunca nom_estab original."
+    }
+  },
+  "verificacion": {
+    "regenerado_desde_cero_mismos_bytes": true,
+    "hash_releido_igual_al_generado": true
+  }
+}

@@ -78,5 +78,100 @@
       "fecha_registro": "2026-11-20"
     }
   },
-  "splits": {}
+  "splits": {
+    "clasificador_test": {
+      "ruta": "data/splits/test.jsonl",
+      "sha256": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c",
+      "tamano_bytes": 359164,
+      "filas": 2000,
+      "llaves": 1902,
+      "clases": 318,
+      "congelado": true,
+      "semilla": 42,
+      "procedimiento": "Universo: filas del DENUE con normalizar_nombre(nom_estab) no vacía, en orden ascendente de int(id). perm = numpy.random.default_rng(42).permutation(len(universo)). Test: las filas perm[0:2000]. Validación: las primeras 1000 filas de perm[2000:] cuya llave no está en test. Train candidato: las filas cuya llave no está en test ni en validación. Excluidas: el resto (regla 7).",
+      "script": "src/splits.py",
+      "commit_codigo": "ef5be77a9f80c930fe4706f1f7052f84e70020fb",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "denue_cdmx_sha256": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+        "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+      },
+      "fecha_registro": "2026-11-21"
+    },
+    "clasificador_validacion": {
+      "ruta": "data/splits/val.jsonl",
+      "sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+      "tamano_bytes": 179873,
+      "filas": 1000,
+      "llaves": 990,
+      "clases": 228,
+      "congelado": true,
+      "semilla": 42,
+      "procedimiento": "Universo: filas del DENUE con normalizar_nombre(nom_estab) no vacía, en orden ascendente de int(id). perm = numpy.random.default_rng(42).permutation(len(universo)). Test: las filas perm[0:2000]. Validación: las primeras 1000 filas de perm[2000:] cuya llave no está en test. Train candidato: las filas cuya llave no está en test ni en validación. Excluidas: el resto (regla 7).",
+      "script": "src/splits.py",
+      "commit_codigo": "ef5be77a9f80c930fe4706f1f7052f84e70020fb",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "denue_cdmx_sha256": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+        "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+      },
+      "fecha_registro": "2026-11-21"
+    },
+    "clasificador_train_candidatos": {
+      "ruta": "data/splits/train_candidatos.jsonl",
+      "sha256": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0",
+      "tamano_bytes": 75292447,
+      "filas": 418148,
+      "llaves": 316983,
+      "clases": 929,
+      "congelado": false,
+      "semilla": 42,
+      "procedimiento": "Universo: filas del DENUE con normalizar_nombre(nom_estab) no vacía, en orden ascendente de int(id). perm = numpy.random.default_rng(42).permutation(len(universo)). Test: las filas perm[0:2000]. Validación: las primeras 1000 filas de perm[2000:] cuya llave no está en test. Train candidato: las filas cuya llave no está en test ni en validación. Excluidas: el resto (regla 7).",
+      "script": "src/splits.py",
+      "commit_codigo": "ef5be77a9f80c930fe4706f1f7052f84e70020fb",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "denue_cdmx_sha256": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+        "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+      },
+      "fecha_registro": "2026-11-21",
+      "nota": "Sin congelar: el hard set y el tope por clase lo cambiarán."
+    }
+  }
 }
