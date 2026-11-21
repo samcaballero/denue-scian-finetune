@@ -173,5 +173,56 @@
       "fecha_registro": "2026-11-21",
       "nota": "Sin congelar: el hard set y el tope por clase lo cambiarán."
     }
+  },
+  "kaggle_datasets": {
+    "denue_scian_humo": {
+      "id_kaggle": "samcaballero/denue-scian-humo",
+      "titulo": "DENUE SCIAN prueba de humo",
+      "licencia": "other",
+      "privado": true,
+      "desechable": true,
+      "subida": "La hace Samuel con kaggle datasets create sin -u/--public (privado por omisión en la CLI 2.2.5).",
+      "carpeta": "../kaggle-datasets/denue-scian-humo",
+      "archivos": {
+        "humo_train.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-humo/humo_train.jsonl",
+          "origen": "splits.clasificador_train_candidatos",
+          "origen_sha256": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0",
+          "filas": 2000,
+          "clases": 334,
+          "tamano_bytes": 162934,
+          "sha256": "b68789187127ea8280153724ca668776e9a32f953de9210d3d2103ef1c0e3d2c"
+        },
+        "humo_val.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-humo/humo_val.jsonl",
+          "origen": "splits.clasificador_validacion",
+          "origen_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+          "filas": 200,
+          "clases": 94,
+          "tamano_bytes": 16290,
+          "sha256": "70db8e2a483e35ae7f851dbdbc88dd38937348028ecefc332c787e6917a5bcc0"
+        }
+      },
+      "metadata": {
+        "ruta": "../kaggle-datasets/denue-scian-humo/dataset-metadata.json",
+        "codificacion": "ascii",
+        "tamano_bytes": 400,
+        "sha256": "d26dd65c2248dd296b096e128569d94007645a0831c728ee2151285da8e5ae4e"
+      },
+      "semilla": 42,
+      "procedimiento": "Para cada archivo de origen (ordenado por int(id)), con un generador nuevo: idx = sort(numpy.random.default_rng(42).permutation(n)[:k]); humo_train.jsonl: k = 2000 de splits.clasificador_train_candidatos; humo_val.jsonl: k = 200 de splits.clasificador_validacion. Solo los campos id, nom_estab y codigo_act.",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "script": "src/muestra_humo.py",
+      "commit_codigo": "90bfc1127a939205b48b65394591298881affca1",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "fecha_registro": "2026-11-21",
+      "nota": "Prueba de punta a punta desechable con Qwen3-0.6B; sus números no se reportan. Puede incluir filas que después vayan al hard set: el modelo de prueba se desecha y no se usa para elegir nada."
+    }
   }
 }

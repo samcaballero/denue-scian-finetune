@@ -136,3 +136,38 @@ Las aprobó Samuel al aprobar el plan.
 
 - "Con y sin la frase" son dos subconjuntos (filas con la frase y filas sin ella), igual que genéricas y no genéricas; confirma la interpretación que Claude Code propuso en el plan.
 - La entrada del vocabulario en `data/manifest.json` la escribe el código (hash, tamaño y conteo calculados), no se copia a mano; el plan proponía registrarla a mano, como en el paso 2b.
+
+## 2026-11-21 — Fase 2, paso 6a: muestra de prueba y dataset privado en Kaggle
+
+**Qué se hizo:** candado de Kaggle en `.claude/settings.json` con su prueba (commit `f3e0b7d`); script `src/muestra_humo.py` con pruebas sobre datos sintéticos (commit `90bfc11`); muestra de 2,000 y 200 filas en una carpeta fuera del repo, con sus hashes en `data/manifest.json`; reglas de Kaggle en la sección e de `CLAUDE.md`. Samuel subió el dataset privado desde PowerShell y registró la cuota de GPU (ver la bitácora). La instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Commits sin push.
+
+### Proceso
+
+- **El plan se aprobó sin querer antes de la revisión del chat.** Samuel aprobó el plan antes de que el chat de Claude del proyecto lo revisara. Claude Code siguió en modo automático y se detuvo en el punto de control, como decía el plan, sin escribir la carpeta ni tocar el manifest. El chat revisó después, y Samuel aprobó el plan, el punto de control y los tres cambios de Claude Code al plan.
+- **El candado de Kaggle lo propuso el chat de Claude del proyecto y Samuel lo aprobó.** Motivo: con el modo automático, todo lo que saca algo de la laptop (subir datos o lanzar corridas que gastan la cuota de GPU) debe tener un candado técnico, igual que `git push`, y no solo la regla escrita de `CLAUDE.md`. Desde ahora Samuel ejecuta desde PowerShell `kaggle datasets create`, `kaggle datasets version` y `kaggle kernels push`. Claude Code escribió las reglas y las probó contra una carpeta y un dataset que no existen: rechazaron los 13 intentos.
+- **Regla de la API de Kaggle.** Claude Code señaló que las reglas `deny` solo revisan el texto del comando: un script de Python que llame a la API de Kaggle no queda cubierto. Propuso mencionar los candados de Kaggle en la sección e de `CLAUDE.md`; el chat redactó la regla ("Claude Code no escribe ni ejecuta scripts que llamen a la API de Kaggle para crear, versionar o borrar datasets ni para lanzar kernels") y Samuel la aprobó.
+
+### Cambios de Claude Code al plan
+
+Claude Code los hizo al implementar y los reportó en el punto de control; Samuel los aprobó.
+
+- **Candado más estricto.** El plan decía detenerse solo si un archivo de la carpeta tenía el hash de test e imprimir cualquier otra coincidencia; el script se detiene ante cualquier coincidencia con un hash del manifest.
+- **`--verificar` contra lo registrado.** Además del candado, compara los hashes de la carpeta con los de la entrada `kaggle_datasets.denue_scian_humo` del manifest, para correrlo justo antes de subir.
+- **Precondición del módulo versionado.** Ver el primer hallazgo.
+
+### Hallazgos
+
+- **El chequeo de árbol limpio no detecta un script nuevo sin commit.** Los scripts del proyecto comprueban el árbol con `git status --porcelain --untracked-files=no`, que no muestra los archivos sin versionar: un script nuevo, corrido antes de su commit, pasaría como "árbol limpio" y el manifest registraría un commit que no lo contiene. `src/muestra_humo.py` exige además `git ls-files --error-unmatch` y un status vacío del propio archivo antes de escribir. En los pasos anteriores no tuvo efecto: cada script tenía commit antes de escribir. Los scripts anteriores no se cambiaron.
+- **La ayuda de `kaggle datasets create` nombra mal el archivo de metadatos.** Dice `datasets-metadata.json`; el código de la CLI 2.2.5 busca `dataset-metadata.json`.
+- **`-t` (`--keep-tabular`) no hace nada en la CLI 2.2.5:** la línea que lo enviaría está comentada en el código.
+- **La CLI lee el metadata con la codificación por omisión de Windows (cp1252), no en UTF-8.** Por eso `dataset-metadata.json` se escribe en ASCII, con los acentos escapados.
+- **La privacidad la decide la bandera, no el JSON.** `kaggle datasets create` crea el dataset privado salvo que se pase `-u` (`--public`); un `isPrivate` en el metadata no lo lee.
+- **La CLI sube todos los archivos de la carpeta** salvo los de metadatos; de ahí el candado de la lista permitida.
+- **Alias de la CLI.** `d` (datasets), `k` (kernels) y `update` (para `kernels push`) hacen lo mismo que la forma larga; las reglas `deny` cubren las dos formas.
+- **La API de Kaggle responde 403, no 404, a un dataset o kernel que no existe** (`status` y `files`). Antes de subir, el 403 no distingue entre "no existe" y "no hay permiso".
+- **El `kaggle` que se usa es el global** (`Python312\Scripts\kaggle.exe`, versión 2.2.5), no uno del `.venv`, y no está en `requirements.txt`. Claude Code lo comprobó con `command -v kaggle`, `Get-Command kaggle -All` y `Test-Path .venv\Scripts\kaggle.exe`.
+
+### Incidente sin efecto
+
+- Antes de `--verificar`, Samuel escribió `kaggle datasets create` sin `-p` desde la raíz del repo; falló con "Metadata file not found" y no subió nada. Causa, según Samuel: el chat de Claude del proyecto listó los comandos con nombres cortos; desde ahora los da completos.
+- Claude Code confirmó en el código de la CLI que, sin `-p`, se usa la carpeta actual (`os.getcwd()`): falló solo porque la raíz del repo no tiene `dataset-metadata.json`. Si la carpeta actual hubiera tenido ese archivo, habría subido sus archivos. Las reglas `deny` no cubren este caso: solo actúan sobre los comandos de Claude Code, y este lo escribió Samuel en su terminal.

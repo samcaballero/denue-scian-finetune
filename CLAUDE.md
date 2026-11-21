@@ -67,6 +67,8 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - El push lo hace siempre Samuel desde PowerShell, después de que el chat de Claude del proyecto revisa el reporte.
 - Candados en `.claude/settings.json` (versionado): reglas `deny` de permisos de Claude Code que rechazan `git push` y `git add .`, `git add -A`, `git add --all` y `git add -f`, en Bash y en PowerShell. No se modifican sin aprobación de Samuel.
 - Candado local en esta laptop: el hook `.git/hooks/pre-push` rechaza el push cuando existe la variable `CLAUDECODE`, que definen las shells de Claude Code y no la terminal de Samuel. No viaja con el repo: un clon nuevo no lo tiene. No se modifica sin aprobación de Samuel.
+- Candados de Kaggle en `.claude/settings.json`: reglas `deny` que rechazan `kaggle datasets create`, `kaggle datasets version`, `kaggle datasets delete` y `kaggle kernels push`, también con los alias de la CLI (`d`, `k`, `update`) y con cualquier prefijo (ruta completa, `kaggle.exe`, `python -m kaggle`), en Bash y en PowerShell. `kaggle datasets create`, `kaggle datasets version` y `kaggle kernels push` los ejecuta Samuel desde PowerShell. No se modifican sin aprobación de Samuel.
+- Claude Code no escribe ni ejecuta scripts que llamen a la API de Kaggle para crear, versionar o borrar datasets ni para lanzar kernels: las reglas `deny` solo revisan el texto del comando y no cubren esa vía.
 - El modo automático solo se usa con un plan ya aprobado.
 - Nunca lanzar corridas en Kaggle (`kaggle kernels push`) sin aprobación de Samuel; antes de pedirla, estimar las horas de GPU.
 - Commits pequeños, con mensajes en español.
