@@ -171,3 +171,32 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
 
 - Antes de `--verificar`, Samuel escribió `kaggle datasets create` sin `-p` desde la raíz del repo; falló con "Metadata file not found" y no subió nada. Causa, según Samuel: el chat de Claude del proyecto listó los comandos con nombres cortos; desde ahora los da completos.
 - Claude Code confirmó en el código de la CLI que, sin `-p`, se usa la carpeta actual (`os.getcwd()`): falló solo porque la raíz del repo no tiene `dataset-metadata.json`. Si la carpeta actual hubiera tenido ese archivo, habría subido sus archivos. Las reglas `deny` no cubren este caso: solo actúan sobre los comandos de Claude Code, y este lo escribió Samuel en su terminal.
+
+## 2026-11-21 — Fase 2, paso 6b: kernel de la prueba de punta a punta
+
+**Qué se hizo:** módulo único del prompt (`src/prompt_clasificador.py`), módulo del kernel (`src/humo_kaggle.py`) y generador (`src/construir_kernel.py`), con 82 pruebas nuevas; el kernel generado y su metadata quedaron en `notebooks/kaggle-humo/`. La instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Commits sin push; el lanzamiento lo hace Samuel.
+
+### Proceso
+
+- **Revisión previa.** Antes de planear, Claude Code revisó la CLI de Kaggle 2.2.5 instalada y el código de unsloth 2026.11.9 y unsloth_zoo 2026.11.8, leído en memoria desde PyPI sin instalarlo. También revisó la documentación de Unsloth, con un agente de lectura web, y los repos y plantillas de Hugging Face.
+- **Ajustes al plan.** El chat de Claude del proyecto revisó el plan con ocho ajustes y Samuel lo aprobó. El chat recomendó la opción B (repos exactos de Qwen) y propuso las mediciones de lote; Samuel aprobó las dos. Claude Code propuso guardar el adaptador LoRA; Samuel lo aprobó.
+- **Simulacro.** Las etapas que necesitan GPU no se pueden probar con pytest en la laptop. Claude Code escribió, fuera del repo, un simulacro que corre `_correr()` completo con torch, Unsloth, Hugging Face y tokenizador falsos y con nombres inventados, en seis modos: normal, espejo distinto, sin memoria, reloj pasado, generación que no acepta `None` y tokens de más.
+  - El primer intento abortó en la comprobación de filas de más de 128 fichas, porque el tokenizador falso usaba un token por carácter. Era un error del simulacro, y confirmó que el kernel aborta antes de entrenar.
+
+### Hallazgos
+
+- **Unsloth cambia de repo y descarta la revisión.** Con `load_in_4bit=True`, `from_pretrained("Qwen/Qwen3-0.6B")` carga `unsloth/Qwen3-0.6B-unsloth-bnb-4bit` (`FLOAT_TO_INT_MAPPER`) e ignora `revision` con solo un aviso. Al 4B le pasa lo mismo. La documentación no lo menciona, ni menciona `use_exact_model_name`, que lo evita.
+- **La fusión para el GGUF no respeta `use_exact_model_name`.** `merge_and_overwrite_lora` llama a `get_model_name(config._name_or_path, load_in_4bit=False)`, que convierte `Qwen/Qwen3-0.6B` en `unsloth/Qwen3-0.6B` (`MAP_TO_UNSLOTH_16bit`). Además descarga la rama main de ese repo, sin fijar la revisión. Por eso aplica el camino de verificación tensor por tensor que pidió el chat.
+- **Cabeceras de los safetensors.** `Qwen/Qwen3-0.6B` y `unsloth/Qwen3-0.6B` tienen los mismos 310 tensores (nombre, tipo BF16 y forma). Solo el de Qwen trae `lm_head.weight` aparte (311 MB), y los dos `config.json` dicen `tie_word_embeddings: true`. Claude Code lo comprobó leyendo solo las cabeceras, con peticiones de rango.
+- **La plantilla de chat de los repos de Unsloth está reescrita.** Cambia `[::-1]` y `startswith` por otras construcciones, aunque para un mensaje de usuario con su respuesta da el mismo texto. El token de relleno también cambia: `<|vision_pad|>` en Unsloth y `<|endoftext|>` en Qwen.
+- **`kaggle kernels push` solo envía el archivo de código** (`kaggle_api_extended.py`, líneas 7242-7262). Por eso los módulos de `src/` van incrustados en el kernel.
+- **La T4 se pide con `machine_shape` `NvidiaTeslaT4`**, que es "GPU T4 x2" (línea 7279; `cli.py:3039`). En kagglesdk, `enable_gpu` está marcado como DEPRECATED.
+- **La documentación de Unsloth no tiene un procedimiento de instalación para Kaggle**, y `docs.unsloth.ai` redirige a `unsloth.ai/docs`.
+
+### Bug que Claude Code introdujo y encontró
+
+- **Entrenar en bf16 sobre la T4.** La primera versión de `src/humo_kaggle.py` decidía entre fp16 y bf16 con `torch.cuda.is_bf16_supported()`. En torch reciente esa función cuenta la emulación por omisión y puede responder `True` en una T4 (capacidad de cómputo 7.5): el kernel habría pedido bf16 en una GPU que no lo tiene nativo. Claude Code lo encontró al revisar el código, antes del commit. Ahora se decide por la capacidad de cómputo (bf16 nativo desde la 8.0), y una prueba falla si se vuelve a usar `is_bf16_supported`.
+
+### Pendiente
+
+- **Fase 5:** la guía indica que Bedrock Custom Model Import pide guardar el modelo con transformers 4.51.3, y aquí se usa 5.17.0. Lo registró el chat de Claude del proyecto; no se resuelve ahora.
