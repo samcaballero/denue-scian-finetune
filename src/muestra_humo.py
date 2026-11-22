@@ -160,14 +160,16 @@ def serializar(regs: Sequence[Mapping]) -> bytes:
     return "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in regs).encode("utf-8")
 
 
-def metadata_kaggle() -> bytes:
+def metadata_kaggle(
+    *, id_kaggle: str = ID_KAGGLE, titulo: str = TITULO, licencia: str = LICENCIA, descripcion: str = DESCRIPCION
+) -> bytes:
     """`dataset-metadata.json` en ASCII: la CLI lo lee con `open()` sin codificación (cp1252 en Windows)."""
-    duenio, _, slug = ID_KAGGLE.partition("/")
+    duenio, _, slug = id_kaggle.partition("/")
     if not duenio or "/" in slug or not 6 <= len(slug) <= 50:
         raise ErrorMuestra("El id de Kaggle debe ser dueño/slug, con un slug de 6 a 50 caracteres.")
-    if not 6 <= len(TITULO) <= 50:
+    if not 6 <= len(titulo) <= 50:
         raise ErrorMuestra("El título debe tener de 6 a 50 caracteres.")
-    meta = {"title": TITULO, "id": ID_KAGGLE, "licenses": [{"name": LICENCIA}], "description": DESCRIPCION}
+    meta = {"title": titulo, "id": id_kaggle, "licenses": [{"name": licencia}], "description": descripcion}
     return (json.dumps(meta, ensure_ascii=True, indent=2) + "\n").encode("ascii")
 
 
@@ -231,25 +233,29 @@ def verificar_fuera_del_repo(carpeta: Path, raiz: Path = REPO_RAIZ) -> None:
         raise ErrorCandado(f"La carpeta {c} está dentro del repo; debe quedar fuera.")
 
 
-def _comparar_con_test(hashes: Mapping[str, str], sha_test: str) -> None:
+def _comparar_con_test(hashes: Mapping[str, str], sha_test: str, permitidos: frozenset[str] = PERMITIDOS) -> None:
     nombres = set(hashes)
-    if nombres != PERMITIDOS:
+    if nombres != permitidos:
         raise ErrorCandado(
-            f"Archivos no permitidos: {sorted(nombres - PERMITIDOS)}; faltan: {sorted(PERMITIDOS - nombres)}."
+            f"Archivos no permitidos: {sorted(nombres - permitidos)}; faltan: {sorted(permitidos - nombres)}."
         )
     iguales = sorted(n for n, h in hashes.items() if h == sha_test)
     if iguales:
         raise ErrorCandado(f"{iguales} tiene el SHA-256 del test congelado; me detengo (regla 3).")
 
 
-def candado_bytes(datos: Mapping[str, bytes], sha_test: str) -> dict[str, str]:
+def candado_bytes(
+    datos: Mapping[str, bytes], sha_test: str, permitidos: frozenset[str] = PERMITIDOS
+) -> dict[str, str]:
     """Candado sobre los bytes en memoria; devuelve el SHA-256 de cada archivo."""
     hashes = {n: sha256_bytes(b) for n, b in datos.items()}
-    _comparar_con_test(hashes, sha_test)
+    _comparar_con_test(hashes, sha_test, permitidos)
     return hashes
 
 
-def candado_carpeta(carpeta: Path, sha_test: str, raiz: Path = REPO_RAIZ) -> dict[str, str]:
+def candado_carpeta(
+    carpeta: Path, sha_test: str, raiz: Path = REPO_RAIZ, permitidos: frozenset[str] = PERMITIDOS
+) -> dict[str, str]:
     """Candado sobre la carpeta escrita: fuera del repo, solo los archivos permitidos y sin el hash de test."""
     carpeta = Path(carpeta)
     verificar_fuera_del_repo(carpeta, raiz)
@@ -260,19 +266,21 @@ def candado_carpeta(carpeta: Path, sha_test: str, raiz: Path = REPO_RAIZ) -> dic
     if raras:
         raise ErrorCandado(f"Hay subcarpetas o enlaces en la carpeta: {raras}.")
     hashes = {e: sha256_archivo(carpeta / e) for e in entradas}
-    _comparar_con_test(hashes, sha_test)
+    _comparar_con_test(hashes, sha_test, permitidos)
     return hashes
 
 
 # --- Escritura y manifest ---
 
 
-def escribir_carpeta(datos: Mapping[str, bytes], carpeta: Path, raiz: Path = REPO_RAIZ) -> None:
+def escribir_carpeta(
+    datos: Mapping[str, bytes], carpeta: Path, raiz: Path = REPO_RAIZ, permitidos: frozenset[str] = PERMITIDOS
+) -> None:
     """Escribe los archivos en binario; se niega si la carpeta ya tiene algo o está en el repo."""
     carpeta = Path(carpeta)
     verificar_fuera_del_repo(carpeta, raiz)
-    if set(datos) - PERMITIDOS:
-        raise ErrorCandado(f"Archivos no permitidos: {sorted(set(datos) - PERMITIDOS)}.")
+    if set(datos) - permitidos:
+        raise ErrorCandado(f"Archivos no permitidos: {sorted(set(datos) - permitidos)}.")
     if carpeta.exists() and any(carpeta.iterdir()):
         raise ErrorMuestra(f"La carpeta {carpeta} ya tiene archivos; no se sobrescribe.")
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -325,22 +333,22 @@ def entrada_kaggle(
     }
 
 
-def agregar_entrada(manifest: Mapping, entrada: Mapping) -> dict:
+def agregar_entrada(manifest: Mapping, entrada: Mapping, nombre: str = ENTRADA) -> dict:
     """Copia del manifest con la entrada nueva; ninguna otra sección cambia."""
-    if ENTRADA in manifest.get(SECCION, {}):
-        raise ErrorMuestra(f"El manifest ya tiene {SECCION}.{ENTRADA}; no se sobrescribe.")
+    if nombre in manifest.get(SECCION, {}):
+        raise ErrorMuestra(f"El manifest ya tiene {SECCION}.{nombre}; no se sobrescribe.")
     nuevo = copy.deepcopy(dict(manifest))
-    nuevo.setdefault(SECCION, {})[ENTRADA] = copy.deepcopy(dict(entrada))
-    otras_iguales(manifest, nuevo)
+    nuevo.setdefault(SECCION, {})[nombre] = copy.deepcopy(dict(entrada))
+    otras_iguales(manifest, nuevo, nombre)
     return nuevo
 
 
-def otras_iguales(antes: Mapping, despues: Mapping) -> None:
+def otras_iguales(antes: Mapping, despues: Mapping, nombre: str = ENTRADA) -> None:
     """Falla si cambió alguna sección del manifest distinta de la de Kaggle o de la propia entrada."""
     claves = (set(antes) | set(despues)) - {SECCION}
     cambiadas = sorted(k for k in claves if antes.get(k) != despues.get(k))
-    otras = {k: v for k, v in antes.get(SECCION, {}).items() if k != ENTRADA}
-    if cambiadas or {k: v for k, v in despues.get(SECCION, {}).items() if k != ENTRADA} != otras:
+    otras = {k: v for k, v in antes.get(SECCION, {}).items() if k != nombre}
+    if cambiadas or {k: v for k, v in despues.get(SECCION, {}).items() if k != nombre} != otras:
         raise ErrorMuestra(f"Cambiarían otras secciones del manifest: {cambiadas or [SECCION]}.")
 
 
