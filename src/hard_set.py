@@ -28,6 +28,10 @@ Uso:
   .venv/Scripts/python -m src.hard_set leer CSV [CSV ...]      # lectura de vuelta y PARADA 2; no escribe
   .venv/Scripts/python -m src.hard_set congelar CSV [CSV ...]  # hard.jsonl, train sin hard, manifest y results
 
+Cada CSV curado debe estar dentro de data/, ignorado por git y con un nombre que termine en
+-curado.csv. La lectura tolera lo que guardan Excel y Google Sheets (BOM o no, UTF-8, UTF-16
+o cp1252, coma, punto y coma o tabulador, CRLF, comillas y saltos de línea dentro de celdas).
+
 Nunca abre el archivo de test ni construye su ruta: del test solo usa el SHA-256 y las filas
 que registra el manifest. En la terminal solo van conteos y códigos SCIAN, nunca nombres,
 llaves ni ids.
@@ -585,6 +589,23 @@ def validar_curacion(
     return sorted(incluidas, key=lambda ct: int(ct[0].id))
 
 
+SUFIJO_CURADO = "-curado.csv"
+
+
+def verificar_ruta_curada(ruta: Path, carpeta_datos: Path = REPO_RAIZ / "data") -> None:
+    """El CSV curado (trae nom_estab) debe estar dentro de data/, ignorado por git y terminar en -curado.csv."""
+    p = Path(ruta)
+    p = p if p.is_absolute() else REPO_RAIZ / p
+    if not p.name.endswith(SUFIJO_CURADO):
+        raise ErrorCuracion(f"El nombre del CSV curado debe terminar en {SUFIJO_CURADO}.")
+    if Path(carpeta_datos).resolve() not in p.resolve().parents:
+        raise ErrorCuracion("El CSV curado debe estar dentro de data/.")
+    if not esta_ignorado(p):
+        raise ErrorCuracion("El CSV curado no está ignorado por git; no se lee.")
+    if not p.is_file():
+        raise ErrorCuracion("No existe el CSV curado en esa ruta.")
+
+
 def leer_archivos(rutas: Sequence[Path]) -> tuple[list[Marca], list[dict]]:
     """Marcas de todos los CSV curados y la ruta y el SHA-256 de cada uno."""
     marcas, archivos = [], []
@@ -814,7 +835,9 @@ def imprimir_hard(res: Mapping) -> None:
 
 
 def _leer_y_validar(rutas: Sequence[str], ent: Entradas, gen: Generacion) -> tuple[list, list[dict], list[Marca]]:
-    marcas, archivos = leer_archivos([Path(r) for r in rutas])
+    for r in rutas:
+        verificar_ruta_curada(Path(r))
+    marcas, archivos = leer_archivos([Path(r) if Path(r).is_absolute() else REPO_RAIZ / r for r in rutas])
     try:
         incluidas = validar_curacion(marcas, gen.candidatos, ent.llaves_val)
     except ErrorConteo as e:

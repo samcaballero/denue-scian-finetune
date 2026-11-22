@@ -411,6 +411,63 @@ def test_leer_exige_las_columnas():
         leer_curacion("id,incluir,tipo,tipo\nid-1,S,ambiguo,x\n".encode())
 
 
+NOMBRE_GOOGLE = "2026-11-22_fase1_hard-candidatos-r1 - Hoja 1-curado.csv"
+
+
+def _csv_google(marcas: list[tuple[str, str, str]], fin: str = "\r\n", salto_final: bool = False) -> bytes:
+    """Como lo descarga Google Sheets: UTF-8 sin BOM, comas, comillas solo donde hacen falta."""
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator=fin)
+    w.writerow(COLUMNAS_CSV)
+    for k, (id_, inc, tipo) in enumerate(marcas):
+        nombre = f'Café "La Ñandú", inventado {k}'  # comas y comillas dentro de la celda
+        nota = 'dice "sí",\nsegunda línea' if k == 0 else ""  # nota de varias líneas (Ctrl+Enter)
+        w.writerow([id_, nombre, "461110", "Clase, inventada", "i_clases_mezcladas", "2",
+                    "461110 (1) Clase", "722511 (1) Otra", "", inc, tipo, nota])
+    texto = buf.getvalue()
+    return (texto if salto_final else texto[: -len(fin)]).encode("utf-8")
+
+
+@pytest.mark.parametrize("fin,salto_final", [("\r\n", False), ("\r\n", True), ("\n", False), ("\n", True)])
+def test_leer_tolera_lo_que_descarga_google_sheets(tmp_path, fin, salto_final):
+    datos = _csv_google(MARCAS_EXCEL, fin, salto_final)
+    assert not datos.startswith(b"\xef\xbb\xbf") and b'"Caf' in datos and b'""' in datos
+    ruta = tmp_path / "data" / NOMBRE_GOOGLE  # nombre con espacios y " - Hoja 1"
+    ruta.parent.mkdir()
+    ruta.write_bytes(datos)
+    marcas, archivos = leer_archivos([ruta])
+    assert _resumen(marcas) == ESPERADO_EXCEL
+    # El registro 1 ocupa dos líneas (nota con salto); la numeración es por registro, no por línea.
+    assert {m.id: m.registro for m in marcas} == {"5": 1, "3": 2, "9": 3, "7": 4, "11": 5}
+    assert archivos == [{"ruta": NOMBRE_GOOGLE, "sha256": _sha(datos), "tamano_bytes": len(datos)}]
+
+
+def test_ruta_del_csv_curado(tmp_path, monkeypatch):
+    datos_dir = tmp_path / "data"
+    datos_dir.mkdir()
+    for nombre in (NOMBRE_GOOGLE, "x - Hoja 1.csv", "x-curado.csv"):
+        (datos_dir / nombre).write_bytes(b"id,incluir,tipo\n")
+    (tmp_path / "fuera-curado.csv").write_bytes(b"id,incluir,tipo\n")
+    monkeypatch.setattr(hs, "esta_ignorado", lambda r: True)
+    hs.verificar_ruta_curada(datos_dir / NOMBRE_GOOGLE, datos_dir)
+    with pytest.raises(ErrorCuracion, match="-curado.csv"):
+        hs.verificar_ruta_curada(datos_dir / "x - Hoja 1.csv", datos_dir)
+    with pytest.raises(ErrorCuracion, match="data/"):
+        hs.verificar_ruta_curada(tmp_path / "fuera-curado.csv", datos_dir)
+    with pytest.raises(ErrorCuracion, match="No existe"):
+        hs.verificar_ruta_curada(datos_dir / "otro-curado.csv", datos_dir)
+    monkeypatch.setattr(hs, "esta_ignorado", lambda r: False)
+    with pytest.raises(ErrorCuracion, match="ignorado"):
+        hs.verificar_ruta_curada(datos_dir / "x-curado.csv", datos_dir)
+
+
+def test_el_nombre_de_google_queda_ignorado_por_git_en_data():
+    from src.splits import esta_ignorado
+
+    assert esta_ignorado(f"data/{NOMBRE_GOOGLE}")
+    assert esta_ignorado("data/2026-11-22_fase1_hard-candidatos-r1-curado.csv")
+
+
 def _marcas(cands, n_si: int, tipo="ambiguo"):
     return [Marca("x.csv", k, c.id, k <= n_si, tipo if k <= n_si else None, False) for k, c in enumerate(cands, 1)]
 
