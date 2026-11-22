@@ -33,6 +33,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - Splits del clasificador: `data/splits/` (ignorado por git), con ruta, SHA-256, semilla y procedimiento en `data/manifest.json` (`splits`).
   - Generados con `src/splits.py`: `test.jsonl` y `val.jsonl` congelados y `train_candidatos.jsonl` sin congelar.
   - Generados con `src/hard_set.py`: `hard.jsonl`, el hard set del clasificador (105 filas curadas por una IA (Gemini) con ajustes del chat de Claude del proyecto, cada una con su tipo, ambiguo o indirecto; congelado), y `train_candidatos_sin_hard.jsonl`, que es train candidato sin ninguna fila de las llaves del hard set (sin congelar; de él parte el tope por clase).
+  - Generado con `src/tope_clase.py`: `train_final.jsonl`, el train de los modelos del clasificador y de los baselines. Sale de `train_candidatos_sin_hard.jsonl` con un tope de 1,000 filas por clase, sorteadas con semilla 42 (187,350 filas y 929 clases). Está congelado: no se regenera ni cambia, pero a diferencia de test y hard sí se lee para entrenar.
+- Datasets de Kaggle: carpetas en `../kaggle-datasets/`, fuera del repo, con sus hashes en `data/manifest.json` (`kaggle_datasets`).
+  - `denue-scian-clasificador` (dataset privado `samcaballero/denue-scian-clasificador`, armado con `src/paquete_clasificador.py`): `train_final.jsonl` y `val.jsonl` completos, solo con `id`, `nom_estab` y `codigo_act`. Su candado rechaza cualquier archivo con el hash de test, de hard o de otra entrada del manifest.
+  - `denue-scian-humo`: la muestra desechable de la prueba de punta a punta (`src/muestra_humo.py`).
+  - La subida la hace Samuel con `kaggle datasets create -p` y la ruta absoluta de la carpeta.
 - Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 

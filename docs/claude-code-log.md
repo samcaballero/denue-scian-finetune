@@ -275,3 +275,41 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
   - No cambió ninguna decisión ni ningún archivo.
   - El `sha256sum` de los dos archivos, justo después de escribirlos, solo calculó su hash, como ya hace `congelar` al releerlos.
   - En adelante, una revisión así se hace dentro de `congelar`, con los datos en memoria y antes de escribir.
+
+## 2026-11-22 — Fase 1, paso 8: tope por clase, train final y paquete para Kaggle
+
+**Qué se hizo:**
+- Punto de control de cinco topes y PARADA 1.
+- Con el tope de 1,000, `train_final.jsonl` y el paquete para el dataset privado de Kaggle. Claude Code no subió nada.
+- El código está en `src/tope_clase.py` y `src/paquete_clasificador.py`, con 39 pruebas.
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con tres ajustes y Samuel lo aprobó. El tope lo recomendó el chat y lo aprobó Samuel.
+- Los commits están sin push.
+
+### Proceso
+
+- **Sorteo anidado.** La instrucción pedía sortear con `default_rng(42)` solo en las clases que pasan del tope.
+  - Claude Code propuso en el plan sacar una permutación en todas las clases, aunque no se recorten. Así el sorteo de una clase no depende del tope y los trains de topes distintos quedan anidados.
+  - Se aprobó con el plan.
+- **Ajustes del chat al plan.** Dos columnas más en la tabla: la TVD contra train sin tope, que no tiene el ruido de una validación de 1,000 filas, y el % de validación en clases recortadas.
+- **Límite de sesión de Kaggle.** Claude Code confirmó en la documentación oficial que una sesión de GPU dura como máximo 12 h, antes de usarlo en la tabla. Con ese dato se descartó el train sin tope para el 4B.
+- **Reutilización del candado.** En vez de copiar el candado de `src/muestra_humo.py`, Claude Code le agregó parámetros con valores por omisión. Las 34 pruebas de la prueba de humo pasaron sin tocarlas.
+- **Commit (c) partido en dos.** `src/paquete_clasificador.py --escribir` exige el árbol limpio, y el manifest ya traía la entrada del train final.
+  - Primero se hizo el commit del manifest y de `results/` del train final (`85dd2e3`). Después se escribió el paquete, y sus hashes van en un commit aparte (`49e78b8`).
+  - El plan preveía un solo commit (c); se avisa en el reporte.
+- **Commits, con los archivos agregados por nombre:**
+  - `bd783d7`: código y pruebas;
+  - `7857e84`: tope de 1,000;
+  - `85dd2e3`: train final en el manifest y resultados;
+  - `49e78b8`: hashes del paquete en el manifest;
+  - y el de esta bitácora, este registro y la sección b de `CLAUDE.md`.
+
+### Hallazgos
+
+- **La TVD contra validación tiene un piso alto.** Sin tope ya vale 0.21, porque validación tiene 1,000 filas y 228 de las 929 clases. Por eso la TVD contra train sin tope es la que mide de verdad cuánto se aleja cada tope de la distribución natural.
+- **Con tope, la "clase más grande" es un empate.** Todas las clases recortadas quedan con exactamente el tope de filas, y la tabla muestra la de menor código.
+- **209 clases tienen menos de 10 filas con cualquier tope.** El tope no ayuda a la cola más corta: solo reduce las clases grandes.
+
+### Errores de Claude Code
+
+- **Una prueba comprobaba que no se sobrescribiera después de `monkeypatch.undo()`.** Para entonces, la revisión de git ya era la real y no aceptaba la ruta temporal. pytest falló antes del commit, y Claude Code movió la comprobación antes de `undo()`. No era un error del código del proyecto.
+- **Un filtro de la terminal ocultó la tabla.** Al correr `--escribir`, Claude Code filtró la salida con un `grep` que quitaba las líneas que empiezan con espacios y dígitos, y con ellas las filas de la tabla. No cambió ningún archivo: Claude Code comprobó la tabla completa en `results/` antes del commit.

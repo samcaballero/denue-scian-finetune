@@ -267,3 +267,47 @@
 - Cuota de GPU de Kaggle: quedan 29 h 47 min de 30, o sea, Kaggle descontó 13 minutos por la prueba de punta a punta del paso 6c. El dato llegó en la instrucción del paso. `results/2026-11-21_fase2_prueba-humo.json` registró 0.27 h (16 minutos, la mayor de las mediciones) y no se modifica.
 - Números en `results/2026-11-22_fase1_hard-set.json`.
 - PARADA: los commits del paso están sin push; el push lo hace Samuel.
+
+## 2026-11-22 - Fase 1, paso 8: tope por clase, train final y paquete para Kaggle
+
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan. El chat lo revisó con tres ajustes y Samuel lo aprobó:
+  - dos columnas más en la tabla del punto de control: la distancia de variación total contra train sin tope y el % de validación en clases recortadas;
+  - aplicar en el último commit el texto de la sección b de `CLAUDE.md` que propusiera Claude Code;
+  - esperar la decisión del tope en la PARADA 1.
+- Para qué sirve el tope: que las clases grandes no ahoguen a la cola larga del train. Validación y test conservan la distribución natural.
+- Procedimiento (`src/tope_clase.py`, semilla 42), propuesto por Claude Code en el plan y aprobado con él:
+  - Parte de `train_candidatos_sin_hard.jsonl`, con su SHA-256 verificado antes de parsear. Agrupa las filas por clase, las ordena por `int(id)` dentro de cada clase y recorre las clases en orden de código.
+  - Un solo `numpy.random.default_rng(42)`. En cada clase, aunque no se recorte, calcula `perm = rng.permutation(n_clase)` y conserva las filas de `sort(perm[:min(n_clase, tope)])`.
+  - Como todas las clases consumen el generador igual con cualquier tope, el sorteo de una clase no depende del tope y los trains quedan anidados: cada tope menor es subconjunto del mayor (el código lo comprueba).
+  - El resultado no depende del orden de lectura; una prueba baraja las filas de entrada y obtiene los mismos bytes.
+- Punto de control (PARADA 1), en `results/2026-11-22_fase1_train-final.json`. Horas de GPU por época, solo de entrenamiento, con las tasas de lote 32 de la prueba de punta a punta. TVD es la distancia de variación total: la fracción de filas que habría que cambiar de clase para que dos distribuciones fueran iguales.
+
+  | Tope | Filas | Clases recortadas | h/época 0.6B | h/época 4B | TVD contra validación | TVD contra train sin tope | % de validación en clases recortadas |
+  |---:|---:|---:|---:|---:|---:|---:|---:|
+  | 100 | 47,079 | 328 | 0.26 | 1.54 | 0.6504 | 0.5787 | 97.10 |
+  | 200 | 74,325 | 238 | 0.41 | 2.42 | 0.6075 | 0.5269 | 94.80 |
+  | 500 | 128,984 | 143 | 0.70 | 4.21 | 0.5318 | 0.4470 | 88.20 |
+  | 1,000 | 187,350 | 95 | 1.02 | 6.11 | 0.4643 | 0.3760 | 80.70 |
+  | sin tope | 417,956 | 0 | 2.28 | 13.63 | 0.2092 | 0 | 0 |
+
+  - Con todos los topes quedan las 929 clases, y 209 tienen menos de 10 filas; ningún tope las toca.
+  - Validación tiene 1,000 filas, así que la TVD contra validación tiene un piso de ruido de 0.21 (la fila sin tope).
+  - Una sesión de GPU de Kaggle dura como máximo 12 h; Claude Code lo confirmó en la documentación oficial (https://www.kaggle.com/docs/notebooks). Sin tope, una época del 4B no cabe.
+- Decisión: tope de 1,000 filas por clase. El chat de Claude del proyecto lo recomendó y Samuel lo aprobó.
+  - Motivo: es el tope más alto con el que una época del 4B (6.11 h; 6.15 h con el costo fijo) cabe en una sesión de 12 h, y el que menos se aleja de la distribución natural (TVD 0.376).
+  - Costo aceptado: el 80.7 % de las filas de validación está en clases recortadas. Los baselines entrenan con el mismo train.
+- `data/splits/train_final.jsonl`, ignorado por git y congelado: no se regenera ni cambia, pero a diferencia de test y hard sí se lee para entrenar.
+  - 187,350 filas, 158,687 llaves, 929 clases y 95 clases recortadas; 34,331,964 bytes; SHA-256 `fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e`.
+  - Por marca de subgrupo: 11,990 filas con "SIN NOMBRE", 15,317 genéricas y 89 iguales a un título.
+  - Se generó desde el commit `7857e84`. Antes de escribirlo se generó dos veces desde cero, con los mismos bytes, y después se releyó su hash. El manifest lo registra en `splits.clasificador_train_final`.
+- Paquete para Kaggle (`src/paquete_clasificador.py`), en `C:\sca\fine-tuning\proyecto-denue\kaggle-datasets\denue-scian-clasificador\`, fuera del repo. Lleva `train_final.jsonl` y `val.jsonl` completos, solo con `id`, `nom_estab` y `codigo_act`, más `dataset-metadata.json` con el crédito al INEGI.
+  - `train_final.jsonl`: 187,350 filas, 15,583,913 bytes, SHA-256 `6f3d0b1ce5472ad96581d27605b1a19e868431e537686da72825da0ef136b917`.
+  - `val.jsonl`: 1,000 filas, 81,500 bytes, SHA-256 `5d778ba77b2ceee3f2ad5b9d094970c6ac6aaf6a529e9e20df9131d38d8723f3`.
+  - `dataset-metadata.json`: 469 bytes en ASCII, SHA-256 `1378b45709007716a83b399cdee5736b09a9f1dd2ffa1149356be9e5e800abe2`; id `samcaballero/denue-scian-clasificador`, privado.
+  - El candado rechaza archivos fuera de la lista y cualquier archivo con el hash de test, de hard o de otra entrada del manifest; de test y hard solo lee el hash del manifest. `--verificar` pasa.
+  - Train y validación no comparten ids ni llaves, y ninguna clase de validación falta en train.
+  - Los hashes están en `kaggle_datasets.denue_scian_clasificador`. Claude Code no subió nada; la subida la hace Samuel.
+- `src/muestra_humo.py`: Claude Code le agregó parámetros con valores por omisión, para reutilizar su candado y su metadata. La prueba de humo no cambia.
+- `CLAUDE.md`, sección b: describe `train_final.jsonl` y los datasets de Kaggle. Claude Code redactó el texto y lo aplicó por instrucción del chat, aprobada por Samuel; se muestra en el reporte final para revisarlo.
+- Pruebas: 39 nuevas con datos inventados; pasan las 524 del repo. Dos de ellas espían `open` y confirman que ni el tope ni el paquete abren `test.jsonl` ni `hard.jsonl`.
+- PARADA: los commits del paso están sin push; el push y la subida a Kaggle los hace Samuel.
