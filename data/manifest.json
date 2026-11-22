@@ -299,6 +299,37 @@
       ],
       "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
       "nota": "Sin congelar: el tope por clase parte de este archivo y nunca abre hard.jsonl."
+    },
+    "clasificador_train_final": {
+      "ruta": "data/splits/train_final.jsonl",
+      "sha256": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e",
+      "tamano_bytes": 34331964,
+      "filas": 187350,
+      "llaves": 158687,
+      "clases": 929,
+      "tope": 1000,
+      "congelado": true,
+      "semilla": 42,
+      "procedimiento": "Origen: splits.clasificador_train_candidatos_sin_hard (SHA-256 verificado antes de parsear). Filas agrupadas por codigo_act; en cada clase, en orden de int(id); clases en orden ascendente de código. rng = numpy.random.default_rng(42); en cada clase, aunque no se recorte, perm = rng.permutation(n_clase), y se conservan las filas de sort(perm[:min(n_clase, tope)]). Tope: 1,000. Train final: las filas conservadas, en orden de int(id). Todas las clases consumen el generador igual con cualquier tope, así que los trains de topes distintos quedan anidados.",
+      "script": "src/tope_clase.py",
+      "commit_codigo": "7857e84550abb3f5cf25b86c6fbfb776488e91a0",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "train_candidatos_sin_hard_sha256": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc"
+      },
+      "fecha_registro": "2026-11-22",
+      "nota": "Congelado: no se regenera ni cambia; es el train de los modelos del clasificador. A diferencia de test y hard, sí se lee para entrenar y sube a Kaggle reducido a id, nom_estab y codigo_act."
     }
   },
   "kaggle_datasets": {

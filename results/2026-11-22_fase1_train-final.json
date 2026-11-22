@@ -1,0 +1,4010 @@
+{
+  "fecha": "2026-11-22",
+  "experimento": "fase1_paso8_tope_por_clase",
+  "commit": "7857e84550abb3f5cf25b86c6fbfb776488e91a0",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/tope_clase.py",
+    "procedimiento": "Origen: splits.clasificador_train_candidatos_sin_hard (SHA-256 verificado antes de parsear). Filas agrupadas por codigo_act; en cada clase, en orden de int(id); clases en orden ascendente de código. rng = numpy.random.default_rng(42); en cada clase, aunque no se recorte, perm = rng.permutation(n_clase), y se conservan las filas de sort(perm[:min(n_clase, tope)]). Tope: 1,000. Train final: las filas conservadas, en orden de int(id). Todas las clases consumen el generador igual con cualquier tope, así que los trains de topes distintos quedan anidados.",
+    "tope": 1000,
+    "topes_comparados": [
+      100,
+      200,
+      500,
+      1000,
+      null
+    ],
+    "min_filas_clase": 10,
+    "tasas": {
+      "origen": "results/2026-11-21_fase2_prueba-humo.json",
+      "lote": 32,
+      "por_modelo": {
+        "qwen3_0.6b": {
+          "modelo": "Qwen/Qwen3-0.6B",
+          "lote": 32,
+          "ejemplos_por_s": 50.895,
+          "costo_fijo_s": 99.3
+        },
+        "qwen3_4b": {
+          "modelo": "Qwen/Qwen3-4B",
+          "lote": 32,
+          "ejemplos_por_s": 8.515,
+          "costo_fijo_s": 153.5
+        }
+      }
+    },
+    "limite_sesion_kaggle_h": 12,
+    "fuente_limite_sesion": "https://www.kaggle.com/docs/notebooks",
+    "definiciones": {
+      "tvd": "Distancia de variación total: la mitad de la suma, sobre todas las clases, de la diferencia absoluta entre la proporción de filas de la clase en una distribución y en la otra. Es la fracción de filas que habría que cambiar de clase para que las dos distribuciones fueran iguales: 0 si son idénticas, 1 si no comparten ninguna clase.",
+      "horas_gpu_por_epoca": "Horas de GPU por época = filas / (ejemplos/s) / 3600, con las tasas de lote 32 medidas en la prueba de punta a punta; con_costo_fijo suma el costo fijo medido por corrida (instalación, imports, descarga y carga)."
+    },
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5"
+    }
+  },
+  "semilla": 42,
+  "split": "clasificador: train final con tope por clase (data/splits/train_final.jsonl)",
+  "hash_split": {
+    "train_final": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e"
+  },
+  "hash_split_origen": "data/manifest.json, splits.clasificador_train_final",
+  "hash_origen": {
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+  },
+  "tamano_muestra": {
+    "train_final": 187350,
+    "train_candidatos_sin_hard": 417956,
+    "validacion": 1000
+  },
+  "horas_gpu": null,
+  "contexto": {
+    "train_candidatos_sin_hard": {
+      "filas": 417956,
+      "llaves": 316878,
+      "clases": 929
+    },
+    "validacion": {
+      "filas": 1000,
+      "clases": 228
+    },
+    "validacion_clases_ausentes_de_train": 0,
+    "validacion_filas_de_clases_ausentes_de_train": 0
+  },
+  "comparacion_de_topes": [
+    {
+      "tope": 100,
+      "filas": 47079,
+      "llaves": 43782,
+      "clases": 929,
+      "clases_con_menos_de_10_filas": 209,
+      "clases_recortadas": 328,
+      "clase_mas_grande": {
+        "codigo": "221312",
+        "filas": 100,
+        "pct_filas": 0.21
+      },
+      "horas_gpu_por_epoca": {
+        "qwen3_0.6b": {
+          "entrenamiento": 0.26,
+          "con_costo_fijo": 0.28,
+          "pasa_del_limite_de_sesion": false
+        },
+        "qwen3_4b": {
+          "entrenamiento": 1.54,
+          "con_costo_fijo": 1.58,
+          "pasa_del_limite_de_sesion": false
+        }
+      },
+      "tvd_contra_validacion": 0.6504,
+      "tvd_contra_train_sin_tope": 0.5787,
+      "validacion_filas_de_clases_recortadas": 971,
+      "validacion_pct_filas_de_clases_recortadas": 97.1,
+      "filas_por_marca": {
+        "sin_nombre": 2324,
+        "generico": 3252,
+        "igual_titulo": 24
+      }
+    },
+    {
+      "tope": 200,
+      "filas": 74325,
+      "llaves": 67558,
+      "clases": 929,
+      "clases_con_menos_de_10_filas": 209,
+      "clases_recortadas": 238,
+      "clase_mas_grande": {
+        "codigo": "221312",
+        "filas": 200,
+        "pct_filas": 0.27
+      },
+      "horas_gpu_por_epoca": {
+        "qwen3_0.6b": {
+          "entrenamiento": 0.41,
+          "con_costo_fijo": 0.43,
+          "pasa_del_limite_de_sesion": false
+        },
+        "qwen3_4b": {
+          "entrenamiento": 2.42,
+          "con_costo_fijo": 2.47,
+          "pasa_del_limite_de_sesion": false
+        }
+      },
+      "tvd_contra_validacion": 0.6075,
+      "tvd_contra_train_sin_tope": 0.5269,
+      "validacion_filas_de_clases_recortadas": 948,
+      "validacion_pct_filas_de_clases_recortadas": 94.8,
+      "filas_por_marca": {
+        "sin_nombre": 3926,
+        "generico": 5335,
+        "igual_titulo": 40
+      }
+    },
+    {
+      "tope": 500,
+      "filas": 128984,
+      "llaves": 112907,
+      "clases": 929,
+      "clases_con_menos_de_10_filas": 209,
+      "clases_recortadas": 143,
+      "clase_mas_grande": {
+        "codigo": "311520",
+        "filas": 500,
+        "pct_filas": 0.39
+      },
+      "horas_gpu_por_epoca": {
+        "qwen3_0.6b": {
+          "entrenamiento": 0.7,
+          "con_costo_fijo": 0.73,
+          "pasa_del_limite_de_sesion": false
+        },
+        "qwen3_4b": {
+          "entrenamiento": 4.21,
+          "con_costo_fijo": 4.25,
+          "pasa_del_limite_de_sesion": false
+        }
+      },
+      "tvd_contra_validacion": 0.5318,
+      "tvd_contra_train_sin_tope": 0.447,
+      "validacion_filas_de_clases_recortadas": 882,
+      "validacion_pct_filas_de_clases_recortadas": 88.2,
+      "filas_por_marca": {
+        "sin_nombre": 7606,
+        "generico": 10038,
+        "igual_titulo": 70
+      }
+    },
+    {
+      "tope": 1000,
+      "filas": 187350,
+      "llaves": 158687,
+      "clases": 929,
+      "clases_con_menos_de_10_filas": 209,
+      "clases_recortadas": 95,
+      "clase_mas_grande": {
+        "codigo": "311812",
+        "filas": 1000,
+        "pct_filas": 0.53
+      },
+      "horas_gpu_por_epoca": {
+        "qwen3_0.6b": {
+          "entrenamiento": 1.02,
+          "con_costo_fijo": 1.05,
+          "pasa_del_limite_de_sesion": false
+        },
+        "qwen3_4b": {
+          "entrenamiento": 6.11,
+          "con_costo_fijo": 6.15,
+          "pasa_del_limite_de_sesion": false
+        }
+      },
+      "tvd_contra_validacion": 0.4643,
+      "tvd_contra_train_sin_tope": 0.376,
+      "validacion_filas_de_clases_recortadas": 807,
+      "validacion_pct_filas_de_clases_recortadas": 80.7,
+      "filas_por_marca": {
+        "sin_nombre": 11990,
+        "generico": 15317,
+        "igual_titulo": 89
+      }
+    },
+    {
+      "tope": null,
+      "filas": 417956,
+      "llaves": 316878,
+      "clases": 929,
+      "clases_con_menos_de_10_filas": 209,
+      "clases_recortadas": 0,
+      "clase_mas_grande": {
+        "codigo": "461110",
+        "filas": 34243,
+        "pct_filas": 8.19
+      },
+      "horas_gpu_por_epoca": {
+        "qwen3_0.6b": {
+          "entrenamiento": 2.28,
+          "con_costo_fijo": 2.31,
+          "pasa_del_limite_de_sesion": false
+        },
+        "qwen3_4b": {
+          "entrenamiento": 13.63,
+          "con_costo_fijo": 13.68,
+          "pasa_del_limite_de_sesion": true
+        }
+      },
+      "tvd_contra_validacion": 0.2092,
+      "tvd_contra_train_sin_tope": 0.0,
+      "validacion_filas_de_clases_recortadas": 0,
+      "validacion_pct_filas_de_clases_recortadas": 0.0,
+      "filas_por_marca": {
+        "sin_nombre": 26702,
+        "generico": 31728,
+        "igual_titulo": 141
+      }
+    }
+  ],
+  "train_final": {
+    "tope": 1000,
+    "filas": 187350,
+    "llaves": 158687,
+    "clases": 929,
+    "clases_con_menos_de_10_filas": 209,
+    "clases_recortadas": 95,
+    "clase_mas_grande": {
+      "codigo": "311812",
+      "filas": 1000,
+      "pct_filas": 0.53
+    },
+    "horas_gpu_por_epoca": {
+      "qwen3_0.6b": {
+        "entrenamiento": 1.02,
+        "con_costo_fijo": 1.05,
+        "pasa_del_limite_de_sesion": false
+      },
+      "qwen3_4b": {
+        "entrenamiento": 6.11,
+        "con_costo_fijo": 6.15,
+        "pasa_del_limite_de_sesion": false
+      }
+    },
+    "tvd_contra_validacion": 0.4643,
+    "tvd_contra_train_sin_tope": 0.376,
+    "validacion_filas_de_clases_recortadas": 807,
+    "validacion_pct_filas_de_clases_recortadas": 80.7,
+    "filas_por_marca": {
+      "sin_nombre": 11990,
+      "generico": 15317,
+      "igual_titulo": 89
+    },
+    "por_clase": {
+      "112515": {
+        "antes": 15,
+        "despues": 15
+      },
+      "112519": {
+        "antes": 15,
+        "despues": 15
+      },
+      "115111": {
+        "antes": 11,
+        "despues": 11
+      },
+      "115113": {
+        "antes": 5,
+        "despues": 5
+      },
+      "115119": {
+        "antes": 2,
+        "despues": 2
+      },
+      "211111": {
+        "antes": 5,
+        "despues": 5
+      },
+      "211112": {
+        "antes": 2,
+        "despues": 2
+      },
+      "212210": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212221": {
+        "antes": 4,
+        "despues": 4
+      },
+      "212222": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212231": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212311": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212321": {
+        "antes": 3,
+        "despues": 3
+      },
+      "212392": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212393": {
+        "antes": 2,
+        "despues": 2
+      },
+      "212398": {
+        "antes": 1,
+        "despues": 1
+      },
+      "212399": {
+        "antes": 2,
+        "despues": 2
+      },
+      "213111": {
+        "antes": 12,
+        "despues": 12
+      },
+      "213119": {
+        "antes": 5,
+        "despues": 5
+      },
+      "221111": {
+        "antes": 40,
+        "despues": 40
+      },
+      "221112": {
+        "antes": 6,
+        "despues": 6
+      },
+      "221113": {
+        "antes": 29,
+        "despues": 29
+      },
+      "221114": {
+        "antes": 44,
+        "despues": 44
+      },
+      "221119": {
+        "antes": 2,
+        "despues": 2
+      },
+      "221121": {
+        "antes": 11,
+        "despues": 11
+      },
+      "221122": {
+        "antes": 59,
+        "despues": 59
+      },
+      "221123": {
+        "antes": 90,
+        "despues": 90
+      },
+      "221210": {
+        "antes": 10,
+        "despues": 10
+      },
+      "221311": {
+        "antes": 5,
+        "despues": 5
+      },
+      "221312": {
+        "antes": 372,
+        "despues": 372
+      },
+      "236111": {
+        "antes": 189,
+        "despues": 189
+      },
+      "236112": {
+        "antes": 101,
+        "despues": 101
+      },
+      "236113": {
+        "antes": 21,
+        "despues": 21
+      },
+      "236211": {
+        "antes": 55,
+        "despues": 55
+      },
+      "236212": {
+        "antes": 3,
+        "despues": 3
+      },
+      "236221": {
+        "antes": 233,
+        "despues": 233
+      },
+      "236222": {
+        "antes": 13,
+        "despues": 13
+      },
+      "237111": {
+        "antes": 30,
+        "despues": 30
+      },
+      "237113": {
+        "antes": 4,
+        "despues": 4
+      },
+      "237121": {
+        "antes": 14,
+        "despues": 14
+      },
+      "237122": {
+        "antes": 11,
+        "despues": 11
+      },
+      "237123": {
+        "antes": 4,
+        "despues": 4
+      },
+      "237131": {
+        "antes": 48,
+        "despues": 48
+      },
+      "237132": {
+        "antes": 19,
+        "despues": 19
+      },
+      "237133": {
+        "antes": 2,
+        "despues": 2
+      },
+      "237211": {
+        "antes": 1,
+        "despues": 1
+      },
+      "237212": {
+        "antes": 28,
+        "despues": 28
+      },
+      "237213": {
+        "antes": 4,
+        "despues": 4
+      },
+      "237311": {
+        "antes": 9,
+        "despues": 9
+      },
+      "237312": {
+        "antes": 66,
+        "despues": 66
+      },
+      "237313": {
+        "antes": 1,
+        "despues": 1
+      },
+      "237991": {
+        "antes": 2,
+        "despues": 2
+      },
+      "237992": {
+        "antes": 6,
+        "despues": 6
+      },
+      "237993": {
+        "antes": 22,
+        "despues": 22
+      },
+      "237994": {
+        "antes": 15,
+        "despues": 15
+      },
+      "237999": {
+        "antes": 1,
+        "despues": 1
+      },
+      "238110": {
+        "antes": 14,
+        "despues": 14
+      },
+      "238121": {
+        "antes": 6,
+        "despues": 6
+      },
+      "238122": {
+        "antes": 11,
+        "despues": 11
+      },
+      "238130": {
+        "antes": 15,
+        "despues": 15
+      },
+      "238190": {
+        "antes": 48,
+        "despues": 48
+      },
+      "238210": {
+        "antes": 124,
+        "despues": 124
+      },
+      "238221": {
+        "antes": 272,
+        "despues": 272
+      },
+      "238222": {
+        "antes": 39,
+        "despues": 39
+      },
+      "238290": {
+        "antes": 27,
+        "despues": 27
+      },
+      "238311": {
+        "antes": 18,
+        "despues": 18
+      },
+      "238312": {
+        "antes": 7,
+        "despues": 7
+      },
+      "238320": {
+        "antes": 10,
+        "despues": 10
+      },
+      "238330": {
+        "antes": 17,
+        "despues": 17
+      },
+      "238340": {
+        "antes": 10,
+        "despues": 10
+      },
+      "238350": {
+        "antes": 8,
+        "despues": 8
+      },
+      "238390": {
+        "antes": 51,
+        "despues": 51
+      },
+      "238910": {
+        "antes": 14,
+        "despues": 14
+      },
+      "238990": {
+        "antes": 17,
+        "despues": 17
+      },
+      "311110": {
+        "antes": 10,
+        "despues": 10
+      },
+      "311212": {
+        "antes": 10,
+        "despues": 10
+      },
+      "311213": {
+        "antes": 2,
+        "despues": 2
+      },
+      "311214": {
+        "antes": 179,
+        "despues": 179
+      },
+      "311221": {
+        "antes": 2,
+        "despues": 2
+      },
+      "311222": {
+        "antes": 15,
+        "despues": 15
+      },
+      "311230": {
+        "antes": 7,
+        "despues": 7
+      },
+      "311311": {
+        "antes": 7,
+        "despues": 7
+      },
+      "311319": {
+        "antes": 1,
+        "despues": 1
+      },
+      "311340": {
+        "antes": 183,
+        "despues": 183
+      },
+      "311350": {
+        "antes": 60,
+        "despues": 60
+      },
+      "311412": {
+        "antes": 9,
+        "despues": 9
+      },
+      "311421": {
+        "antes": 2,
+        "despues": 2
+      },
+      "311422": {
+        "antes": 35,
+        "despues": 35
+      },
+      "311423": {
+        "antes": 68,
+        "despues": 68
+      },
+      "311511": {
+        "antes": 1,
+        "despues": 1
+      },
+      "311512": {
+        "antes": 4,
+        "despues": 4
+      },
+      "311513": {
+        "antes": 35,
+        "despues": 35
+      },
+      "311520": {
+        "antes": 819,
+        "despues": 819
+      },
+      "311611": {
+        "antes": 4,
+        "despues": 4
+      },
+      "311612": {
+        "antes": 11,
+        "despues": 11
+      },
+      "311613": {
+        "antes": 54,
+        "despues": 54
+      },
+      "311614": {
+        "antes": 13,
+        "despues": 13
+      },
+      "311710": {
+        "antes": 5,
+        "despues": 5
+      },
+      "311811": {
+        "antes": 13,
+        "despues": 13
+      },
+      "311812": {
+        "antes": 3579,
+        "despues": 1000
+      },
+      "311813": {
+        "antes": 91,
+        "despues": 91
+      },
+      "311820": {
+        "antes": 58,
+        "despues": 58
+      },
+      "311830": {
+        "antes": 5667,
+        "despues": 1000
+      },
+      "311910": {
+        "antes": 406,
+        "despues": 406
+      },
+      "311921": {
+        "antes": 3,
+        "despues": 3
+      },
+      "311922": {
+        "antes": 21,
+        "despues": 21
+      },
+      "311924": {
+        "antes": 6,
+        "despues": 6
+      },
+      "311930": {
+        "antes": 38,
+        "despues": 38
+      },
+      "311940": {
+        "antes": 20,
+        "despues": 20
+      },
+      "311991": {
+        "antes": 4,
+        "despues": 4
+      },
+      "311992": {
+        "antes": 1,
+        "despues": 1
+      },
+      "311993": {
+        "antes": 13,
+        "despues": 13
+      },
+      "311999": {
+        "antes": 23,
+        "despues": 23
+      },
+      "312111": {
+        "antes": 14,
+        "despues": 14
+      },
+      "312112": {
+        "antes": 2947,
+        "despues": 1000
+      },
+      "312113": {
+        "antes": 26,
+        "despues": 26
+      },
+      "312120": {
+        "antes": 13,
+        "despues": 13
+      },
+      "312131": {
+        "antes": 6,
+        "despues": 6
+      },
+      "312132": {
+        "antes": 4,
+        "despues": 4
+      },
+      "312141": {
+        "antes": 2,
+        "despues": 2
+      },
+      "312144": {
+        "antes": 4,
+        "despues": 4
+      },
+      "312145": {
+        "antes": 9,
+        "despues": 9
+      },
+      "312149": {
+        "antes": 5,
+        "despues": 5
+      },
+      "312222": {
+        "antes": 1,
+        "despues": 1
+      },
+      "313111": {
+        "antes": 9,
+        "despues": 9
+      },
+      "313112": {
+        "antes": 13,
+        "despues": 13
+      },
+      "313113": {
+        "antes": 13,
+        "despues": 13
+      },
+      "313210": {
+        "antes": 34,
+        "despues": 34
+      },
+      "313220": {
+        "antes": 26,
+        "despues": 26
+      },
+      "313230": {
+        "antes": 1,
+        "despues": 1
+      },
+      "313240": {
+        "antes": 9,
+        "despues": 9
+      },
+      "313310": {
+        "antes": 43,
+        "despues": 43
+      },
+      "313320": {
+        "antes": 11,
+        "despues": 11
+      },
+      "314110": {
+        "antes": 6,
+        "despues": 6
+      },
+      "314120": {
+        "antes": 95,
+        "despues": 95
+      },
+      "314911": {
+        "antes": 5,
+        "despues": 5
+      },
+      "314912": {
+        "antes": 63,
+        "despues": 63
+      },
+      "314991": {
+        "antes": 348,
+        "despues": 348
+      },
+      "314992": {
+        "antes": 9,
+        "despues": 9
+      },
+      "314993": {
+        "antes": 1,
+        "despues": 1
+      },
+      "314999": {
+        "antes": 7,
+        "despues": 7
+      },
+      "315121": {
+        "antes": 9,
+        "despues": 9
+      },
+      "315122": {
+        "antes": 4,
+        "despues": 4
+      },
+      "315123": {
+        "antes": 44,
+        "despues": 44
+      },
+      "315210": {
+        "antes": 5,
+        "despues": 5
+      },
+      "315221": {
+        "antes": 27,
+        "despues": 27
+      },
+      "315222": {
+        "antes": 19,
+        "despues": 19
+      },
+      "315223": {
+        "antes": 225,
+        "despues": 225
+      },
+      "315224": {
+        "antes": 49,
+        "despues": 49
+      },
+      "315225": {
+        "antes": 559,
+        "despues": 559
+      },
+      "315229": {
+        "antes": 335,
+        "despues": 335
+      },
+      "315991": {
+        "antes": 6,
+        "despues": 6
+      },
+      "315999": {
+        "antes": 47,
+        "despues": 47
+      },
+      "316110": {
+        "antes": 9,
+        "despues": 9
+      },
+      "316211": {
+        "antes": 42,
+        "despues": 42
+      },
+      "316212": {
+        "antes": 14,
+        "despues": 14
+      },
+      "316213": {
+        "antes": 37,
+        "despues": 37
+      },
+      "316214": {
+        "antes": 3,
+        "despues": 3
+      },
+      "316219": {
+        "antes": 3,
+        "despues": 3
+      },
+      "316991": {
+        "antes": 101,
+        "despues": 101
+      },
+      "316999": {
+        "antes": 31,
+        "despues": 31
+      },
+      "321111": {
+        "antes": 1,
+        "despues": 1
+      },
+      "321112": {
+        "antes": 10,
+        "despues": 10
+      },
+      "321210": {
+        "antes": 13,
+        "despues": 13
+      },
+      "321910": {
+        "antes": 759,
+        "despues": 759
+      },
+      "321920": {
+        "antes": 59,
+        "despues": 59
+      },
+      "321991": {
+        "antes": 5,
+        "despues": 5
+      },
+      "321992": {
+        "antes": 66,
+        "despues": 66
+      },
+      "321993": {
+        "antes": 26,
+        "despues": 26
+      },
+      "321999": {
+        "antes": 32,
+        "despues": 32
+      },
+      "322122": {
+        "antes": 8,
+        "despues": 8
+      },
+      "322132": {
+        "antes": 9,
+        "despues": 9
+      },
+      "322210": {
+        "antes": 117,
+        "despues": 117
+      },
+      "322220": {
+        "antes": 51,
+        "despues": 51
+      },
+      "322230": {
+        "antes": 49,
+        "despues": 49
+      },
+      "322291": {
+        "antes": 10,
+        "despues": 10
+      },
+      "322299": {
+        "antes": 214,
+        "despues": 214
+      },
+      "323111": {
+        "antes": 127,
+        "despues": 127
+      },
+      "323119": {
+        "antes": 2845,
+        "despues": 1000
+      },
+      "323120": {
+        "antes": 151,
+        "despues": 151
+      },
+      "324110": {
+        "antes": 2,
+        "despues": 2
+      },
+      "324120": {
+        "antes": 2,
+        "despues": 2
+      },
+      "324191": {
+        "antes": 14,
+        "despues": 14
+      },
+      "325110": {
+        "antes": 1,
+        "despues": 1
+      },
+      "325120": {
+        "antes": 6,
+        "despues": 6
+      },
+      "325130": {
+        "antes": 10,
+        "despues": 10
+      },
+      "325180": {
+        "antes": 22,
+        "despues": 22
+      },
+      "325190": {
+        "antes": 28,
+        "despues": 28
+      },
+      "325211": {
+        "antes": 35,
+        "despues": 35
+      },
+      "325212": {
+        "antes": 5,
+        "despues": 5
+      },
+      "325220": {
+        "antes": 3,
+        "despues": 3
+      },
+      "325310": {
+        "antes": 12,
+        "despues": 12
+      },
+      "325320": {
+        "antes": 15,
+        "despues": 15
+      },
+      "325411": {
+        "antes": 3,
+        "despues": 3
+      },
+      "325412": {
+        "antes": 206,
+        "despues": 206
+      },
+      "325510": {
+        "antes": 39,
+        "despues": 39
+      },
+      "325520": {
+        "antes": 23,
+        "despues": 23
+      },
+      "325610": {
+        "antes": 136,
+        "despues": 136
+      },
+      "325620": {
+        "antes": 76,
+        "despues": 76
+      },
+      "325910": {
+        "antes": 10,
+        "despues": 10
+      },
+      "325991": {
+        "antes": 1,
+        "despues": 1
+      },
+      "325992": {
+        "antes": 4,
+        "despues": 4
+      },
+      "325993": {
+        "antes": 43,
+        "despues": 43
+      },
+      "325999": {
+        "antes": 29,
+        "despues": 29
+      },
+      "326110": {
+        "antes": 120,
+        "despues": 120
+      },
+      "326120": {
+        "antes": 20,
+        "despues": 20
+      },
+      "326130": {
+        "antes": 27,
+        "despues": 27
+      },
+      "326140": {
+        "antes": 10,
+        "despues": 10
+      },
+      "326150": {
+        "antes": 20,
+        "despues": 20
+      },
+      "326160": {
+        "antes": 55,
+        "despues": 55
+      },
+      "326191": {
+        "antes": 111,
+        "despues": 111
+      },
+      "326192": {
+        "antes": 23,
+        "despues": 23
+      },
+      "326193": {
+        "antes": 117,
+        "despues": 117
+      },
+      "326194": {
+        "antes": 73,
+        "despues": 73
+      },
+      "326198": {
+        "antes": 40,
+        "despues": 40
+      },
+      "326199": {
+        "antes": 61,
+        "despues": 61
+      },
+      "326211": {
+        "antes": 5,
+        "despues": 5
+      },
+      "326212": {
+        "antes": 2,
+        "despues": 2
+      },
+      "326220": {
+        "antes": 14,
+        "despues": 14
+      },
+      "326290": {
+        "antes": 59,
+        "despues": 59
+      },
+      "327111": {
+        "antes": 76,
+        "despues": 76
+      },
+      "327112": {
+        "antes": 2,
+        "despues": 2
+      },
+      "327121": {
+        "antes": 9,
+        "despues": 9
+      },
+      "327122": {
+        "antes": 7,
+        "despues": 7
+      },
+      "327123": {
+        "antes": 2,
+        "despues": 2
+      },
+      "327211": {
+        "antes": 10,
+        "despues": 10
+      },
+      "327213": {
+        "antes": 5,
+        "despues": 5
+      },
+      "327214": {
+        "antes": 3,
+        "despues": 3
+      },
+      "327215": {
+        "antes": 19,
+        "despues": 19
+      },
+      "327216": {
+        "antes": 3,
+        "despues": 3
+      },
+      "327219": {
+        "antes": 50,
+        "despues": 50
+      },
+      "327310": {
+        "antes": 7,
+        "despues": 7
+      },
+      "327320": {
+        "antes": 33,
+        "despues": 33
+      },
+      "327330": {
+        "antes": 62,
+        "despues": 62
+      },
+      "327391": {
+        "antes": 12,
+        "despues": 12
+      },
+      "327399": {
+        "antes": 13,
+        "despues": 13
+      },
+      "327420": {
+        "antes": 20,
+        "despues": 20
+      },
+      "327910": {
+        "antes": 7,
+        "despues": 7
+      },
+      "327991": {
+        "antes": 84,
+        "despues": 84
+      },
+      "327999": {
+        "antes": 5,
+        "despues": 5
+      },
+      "331111": {
+        "antes": 1,
+        "despues": 1
+      },
+      "331112": {
+        "antes": 1,
+        "despues": 1
+      },
+      "331210": {
+        "antes": 17,
+        "despues": 17
+      },
+      "331220": {
+        "antes": 33,
+        "despues": 33
+      },
+      "331310": {
+        "antes": 8,
+        "despues": 8
+      },
+      "331412": {
+        "antes": 3,
+        "despues": 3
+      },
+      "331419": {
+        "antes": 2,
+        "despues": 2
+      },
+      "331420": {
+        "antes": 9,
+        "despues": 9
+      },
+      "331490": {
+        "antes": 4,
+        "despues": 4
+      },
+      "331510": {
+        "antes": 21,
+        "despues": 21
+      },
+      "331520": {
+        "antes": 16,
+        "despues": 16
+      },
+      "332110": {
+        "antes": 53,
+        "despues": 53
+      },
+      "332211": {
+        "antes": 33,
+        "despues": 33
+      },
+      "332212": {
+        "antes": 38,
+        "despues": 38
+      },
+      "332310": {
+        "antes": 116,
+        "despues": 116
+      },
+      "332320": {
+        "antes": 1645,
+        "despues": 1000
+      },
+      "332410": {
+        "antes": 3,
+        "despues": 3
+      },
+      "332420": {
+        "antes": 19,
+        "despues": 19
+      },
+      "332430": {
+        "antes": 14,
+        "despues": 14
+      },
+      "332510": {
+        "antes": 31,
+        "despues": 31
+      },
+      "332610": {
+        "antes": 70,
+        "despues": 70
+      },
+      "332710": {
+        "antes": 480,
+        "despues": 480
+      },
+      "332720": {
+        "antes": 31,
+        "despues": 31
+      },
+      "332810": {
+        "antes": 111,
+        "despues": 111
+      },
+      "332910": {
+        "antes": 17,
+        "despues": 17
+      },
+      "332991": {
+        "antes": 1,
+        "despues": 1
+      },
+      "332999": {
+        "antes": 73,
+        "despues": 73
+      },
+      "333111": {
+        "antes": 2,
+        "despues": 2
+      },
+      "333112": {
+        "antes": 1,
+        "despues": 1
+      },
+      "333120": {
+        "antes": 3,
+        "despues": 3
+      },
+      "333241": {
+        "antes": 3,
+        "despues": 3
+      },
+      "333242": {
+        "antes": 14,
+        "despues": 14
+      },
+      "333243": {
+        "antes": 49,
+        "despues": 49
+      },
+      "333244": {
+        "antes": 2,
+        "despues": 2
+      },
+      "333245": {
+        "antes": 30,
+        "despues": 30
+      },
+      "333246": {
+        "antes": 1,
+        "despues": 1
+      },
+      "333249": {
+        "antes": 28,
+        "despues": 28
+      },
+      "333319": {
+        "antes": 35,
+        "despues": 35
+      },
+      "333411": {
+        "antes": 34,
+        "despues": 34
+      },
+      "333412": {
+        "antes": 23,
+        "despues": 23
+      },
+      "333510": {
+        "antes": 24,
+        "despues": 24
+      },
+      "333610": {
+        "antes": 4,
+        "despues": 4
+      },
+      "333910": {
+        "antes": 17,
+        "despues": 17
+      },
+      "333920": {
+        "antes": 19,
+        "despues": 19
+      },
+      "333991": {
+        "antes": 3,
+        "despues": 3
+      },
+      "333992": {
+        "antes": 10,
+        "despues": 10
+      },
+      "333993": {
+        "antes": 3,
+        "despues": 3
+      },
+      "333999": {
+        "antes": 24,
+        "despues": 24
+      },
+      "334110": {
+        "antes": 4,
+        "despues": 4
+      },
+      "334210": {
+        "antes": 2,
+        "despues": 2
+      },
+      "334220": {
+        "antes": 8,
+        "despues": 8
+      },
+      "334290": {
+        "antes": 3,
+        "despues": 3
+      },
+      "334310": {
+        "antes": 3,
+        "despues": 3
+      },
+      "334410": {
+        "antes": 25,
+        "despues": 25
+      },
+      "334511": {
+        "antes": 1,
+        "despues": 1
+      },
+      "334519": {
+        "antes": 32,
+        "despues": 32
+      },
+      "334610": {
+        "antes": 3,
+        "despues": 3
+      },
+      "335131": {
+        "antes": 19,
+        "despues": 19
+      },
+      "335132": {
+        "antes": 27,
+        "despues": 27
+      },
+      "335210": {
+        "antes": 12,
+        "despues": 12
+      },
+      "335220": {
+        "antes": 13,
+        "despues": 13
+      },
+      "335311": {
+        "antes": 14,
+        "despues": 14
+      },
+      "335312": {
+        "antes": 36,
+        "despues": 36
+      },
+      "335910": {
+        "antes": 2,
+        "despues": 2
+      },
+      "335920": {
+        "antes": 11,
+        "despues": 11
+      },
+      "335930": {
+        "antes": 15,
+        "despues": 15
+      },
+      "335991": {
+        "antes": 1,
+        "despues": 1
+      },
+      "335999": {
+        "antes": 13,
+        "despues": 13
+      },
+      "336110": {
+        "antes": 4,
+        "despues": 4
+      },
+      "336120": {
+        "antes": 5,
+        "despues": 5
+      },
+      "336210": {
+        "antes": 13,
+        "despues": 13
+      },
+      "336310": {
+        "antes": 4,
+        "despues": 4
+      },
+      "336320": {
+        "antes": 5,
+        "despues": 5
+      },
+      "336330": {
+        "antes": 4,
+        "despues": 4
+      },
+      "336340": {
+        "antes": 15,
+        "despues": 15
+      },
+      "336350": {
+        "antes": 4,
+        "despues": 4
+      },
+      "336360": {
+        "antes": 20,
+        "despues": 20
+      },
+      "336370": {
+        "antes": 22,
+        "despues": 22
+      },
+      "336390": {
+        "antes": 20,
+        "despues": 20
+      },
+      "336410": {
+        "antes": 2,
+        "despues": 2
+      },
+      "336510": {
+        "antes": 4,
+        "despues": 4
+      },
+      "336610": {
+        "antes": 10,
+        "despues": 10
+      },
+      "336991": {
+        "antes": 1,
+        "despues": 1
+      },
+      "336992": {
+        "antes": 15,
+        "despues": 15
+      },
+      "336999": {
+        "antes": 1,
+        "despues": 1
+      },
+      "337110": {
+        "antes": 135,
+        "despues": 135
+      },
+      "337120": {
+        "antes": 1004,
+        "despues": 1000
+      },
+      "337210": {
+        "antes": 178,
+        "despues": 178
+      },
+      "337910": {
+        "antes": 21,
+        "despues": 21
+      },
+      "337920": {
+        "antes": 49,
+        "despues": 49
+      },
+      "339111": {
+        "antes": 193,
+        "despues": 193
+      },
+      "339112": {
+        "antes": 27,
+        "despues": 27
+      },
+      "339113": {
+        "antes": 155,
+        "despues": 155
+      },
+      "339911": {
+        "antes": 2,
+        "despues": 2
+      },
+      "339912": {
+        "antes": 140,
+        "despues": 140
+      },
+      "339913": {
+        "antes": 102,
+        "despues": 102
+      },
+      "339914": {
+        "antes": 63,
+        "despues": 63
+      },
+      "339920": {
+        "antes": 24,
+        "despues": 24
+      },
+      "339930": {
+        "antes": 71,
+        "despues": 71
+      },
+      "339940": {
+        "antes": 76,
+        "despues": 76
+      },
+      "339950": {
+        "antes": 114,
+        "despues": 114
+      },
+      "339991": {
+        "antes": 16,
+        "despues": 16
+      },
+      "339992": {
+        "antes": 17,
+        "despues": 17
+      },
+      "339993": {
+        "antes": 30,
+        "despues": 30
+      },
+      "339994": {
+        "antes": 37,
+        "despues": 37
+      },
+      "339995": {
+        "antes": 7,
+        "despues": 7
+      },
+      "339999": {
+        "antes": 361,
+        "despues": 361
+      },
+      "431110": {
+        "antes": 389,
+        "despues": 389
+      },
+      "431121": {
+        "antes": 115,
+        "despues": 115
+      },
+      "431122": {
+        "antes": 79,
+        "despues": 79
+      },
+      "431123": {
+        "antes": 133,
+        "despues": 133
+      },
+      "431130": {
+        "antes": 960,
+        "despues": 960
+      },
+      "431140": {
+        "antes": 65,
+        "despues": 65
+      },
+      "431150": {
+        "antes": 177,
+        "despues": 177
+      },
+      "431160": {
+        "antes": 136,
+        "despues": 136
+      },
+      "431170": {
+        "antes": 20,
+        "despues": 20
+      },
+      "431180": {
+        "antes": 140,
+        "despues": 140
+      },
+      "431191": {
+        "antes": 28,
+        "despues": 28
+      },
+      "431192": {
+        "antes": 33,
+        "despues": 33
+      },
+      "431193": {
+        "antes": 34,
+        "despues": 34
+      },
+      "431194": {
+        "antes": 6,
+        "despues": 6
+      },
+      "431199": {
+        "antes": 70,
+        "despues": 70
+      },
+      "431211": {
+        "antes": 105,
+        "despues": 105
+      },
+      "431212": {
+        "antes": 98,
+        "despues": 98
+      },
+      "431213": {
+        "antes": 23,
+        "despues": 23
+      },
+      "431220": {
+        "antes": 19,
+        "despues": 19
+      },
+      "432111": {
+        "antes": 269,
+        "despues": 269
+      },
+      "432112": {
+        "antes": 13,
+        "despues": 13
+      },
+      "432113": {
+        "antes": 74,
+        "despues": 74
+      },
+      "432119": {
+        "antes": 93,
+        "despues": 93
+      },
+      "432120": {
+        "antes": 372,
+        "despues": 372
+      },
+      "432130": {
+        "antes": 98,
+        "despues": 98
+      },
+      "433110": {
+        "antes": 347,
+        "despues": 347
+      },
+      "433210": {
+        "antes": 208,
+        "despues": 208
+      },
+      "433220": {
+        "antes": 130,
+        "despues": 130
+      },
+      "433311": {
+        "antes": 17,
+        "despues": 17
+      },
+      "433312": {
+        "antes": 157,
+        "despues": 157
+      },
+      "433313": {
+        "antes": 89,
+        "despues": 89
+      },
+      "433410": {
+        "antes": 298,
+        "despues": 298
+      },
+      "433420": {
+        "antes": 56,
+        "despues": 56
+      },
+      "433430": {
+        "antes": 38,
+        "despues": 38
+      },
+      "433510": {
+        "antes": 152,
+        "despues": 152
+      },
+      "434111": {
+        "antes": 120,
+        "despues": 120
+      },
+      "434112": {
+        "antes": 230,
+        "despues": 230
+      },
+      "434211": {
+        "antes": 1150,
+        "despues": 1000
+      },
+      "434219": {
+        "antes": 199,
+        "despues": 199
+      },
+      "434221": {
+        "antes": 414,
+        "despues": 414
+      },
+      "434222": {
+        "antes": 333,
+        "despues": 333
+      },
+      "434223": {
+        "antes": 333,
+        "despues": 333
+      },
+      "434224": {
+        "antes": 477,
+        "despues": 477
+      },
+      "434225": {
+        "antes": 992,
+        "despues": 992
+      },
+      "434226": {
+        "antes": 120,
+        "despues": 120
+      },
+      "434227": {
+        "antes": 68,
+        "despues": 68
+      },
+      "434228": {
+        "antes": 34,
+        "despues": 34
+      },
+      "434229": {
+        "antes": 248,
+        "despues": 248
+      },
+      "434230": {
+        "antes": 63,
+        "despues": 63
+      },
+      "434240": {
+        "antes": 127,
+        "despues": 127
+      },
+      "434311": {
+        "antes": 611,
+        "despues": 611
+      },
+      "434312": {
+        "antes": 328,
+        "despues": 328
+      },
+      "434313": {
+        "antes": 36,
+        "despues": 36
+      },
+      "434314": {
+        "antes": 292,
+        "despues": 292
+      },
+      "434319": {
+        "antes": 120,
+        "despues": 120
+      },
+      "435110": {
+        "antes": 77,
+        "despues": 77
+      },
+      "435210": {
+        "antes": 64,
+        "despues": 64
+      },
+      "435220": {
+        "antes": 340,
+        "despues": 340
+      },
+      "435311": {
+        "antes": 276,
+        "despues": 276
+      },
+      "435312": {
+        "antes": 216,
+        "despues": 216
+      },
+      "435313": {
+        "antes": 886,
+        "despues": 886
+      },
+      "435319": {
+        "antes": 550,
+        "despues": 550
+      },
+      "435411": {
+        "antes": 294,
+        "despues": 294
+      },
+      "435412": {
+        "antes": 153,
+        "despues": 153
+      },
+      "435419": {
+        "antes": 564,
+        "despues": 564
+      },
+      "436111": {
+        "antes": 22,
+        "despues": 22
+      },
+      "436112": {
+        "antes": 267,
+        "despues": 267
+      },
+      "437311": {
+        "antes": 6,
+        "despues": 6
+      },
+      "437312": {
+        "antes": 33,
+        "despues": 33
+      },
+      "437313": {
+        "antes": 18,
+        "despues": 18
+      },
+      "461110": {
+        "antes": 34243,
+        "despues": 1000
+      },
+      "461121": {
+        "antes": 5892,
+        "despues": 1000
+      },
+      "461122": {
+        "antes": 5702,
+        "despues": 1000
+      },
+      "461123": {
+        "antes": 631,
+        "despues": 631
+      },
+      "461130": {
+        "antes": 8446,
+        "despues": 1000
+      },
+      "461140": {
+        "antes": 2684,
+        "despues": 1000
+      },
+      "461150": {
+        "antes": 4043,
+        "despues": 1000
+      },
+      "461160": {
+        "antes": 6136,
+        "despues": 1000
+      },
+      "461170": {
+        "antes": 1465,
+        "despues": 1000
+      },
+      "461190": {
+        "antes": 3723,
+        "despues": 1000
+      },
+      "461211": {
+        "antes": 682,
+        "despues": 682
+      },
+      "461212": {
+        "antes": 1023,
+        "despues": 1000
+      },
+      "461213": {
+        "antes": 1131,
+        "despues": 1000
+      },
+      "461220": {
+        "antes": 166,
+        "despues": 166
+      },
+      "462111": {
+        "antes": 309,
+        "despues": 309
+      },
+      "462112": {
+        "antes": 2721,
+        "despues": 1000
+      },
+      "462210": {
+        "antes": 248,
+        "despues": 248
+      },
+      "463111": {
+        "antes": 878,
+        "despues": 878
+      },
+      "463112": {
+        "antes": 501,
+        "despues": 501
+      },
+      "463113": {
+        "antes": 1460,
+        "despues": 1000
+      },
+      "463211": {
+        "antes": 10444,
+        "despues": 1000
+      },
+      "463212": {
+        "antes": 668,
+        "despues": 668
+      },
+      "463213": {
+        "antes": 981,
+        "despues": 981
+      },
+      "463214": {
+        "antes": 1386,
+        "despues": 1000
+      },
+      "463215": {
+        "antes": 2276,
+        "despues": 1000
+      },
+      "463216": {
+        "antes": 1068,
+        "despues": 1000
+      },
+      "463217": {
+        "antes": 192,
+        "despues": 192
+      },
+      "463218": {
+        "antes": 149,
+        "despues": 149
+      },
+      "463310": {
+        "antes": 2690,
+        "despues": 1000
+      },
+      "464111": {
+        "antes": 6157,
+        "despues": 1000
+      },
+      "464112": {
+        "antes": 838,
+        "despues": 838
+      },
+      "464113": {
+        "antes": 2140,
+        "despues": 1000
+      },
+      "464121": {
+        "antes": 2500,
+        "despues": 1000
+      },
+      "464122": {
+        "antes": 381,
+        "despues": 381
+      },
+      "465111": {
+        "antes": 3897,
+        "despues": 1000
+      },
+      "465112": {
+        "antes": 2103,
+        "despues": 1000
+      },
+      "465211": {
+        "antes": 338,
+        "despues": 338
+      },
+      "465212": {
+        "antes": 2330,
+        "despues": 1000
+      },
+      "465213": {
+        "antes": 267,
+        "despues": 267
+      },
+      "465214": {
+        "antes": 107,
+        "despues": 107
+      },
+      "465215": {
+        "antes": 2081,
+        "despues": 1000
+      },
+      "465216": {
+        "antes": 341,
+        "despues": 341
+      },
+      "465311": {
+        "antes": 10641,
+        "despues": 1000
+      },
+      "465312": {
+        "antes": 551,
+        "despues": 551
+      },
+      "465313": {
+        "antes": 1157,
+        "despues": 1000
+      },
+      "465911": {
+        "antes": 2765,
+        "despues": 1000
+      },
+      "465912": {
+        "antes": 4762,
+        "despues": 1000
+      },
+      "465913": {
+        "antes": 609,
+        "despues": 609
+      },
+      "465914": {
+        "antes": 1149,
+        "despues": 1000
+      },
+      "465915": {
+        "antes": 1594,
+        "despues": 1000
+      },
+      "465919": {
+        "antes": 1020,
+        "despues": 1000
+      },
+      "466111": {
+        "antes": 1791,
+        "despues": 1000
+      },
+      "466112": {
+        "antes": 788,
+        "despues": 788
+      },
+      "466113": {
+        "antes": 18,
+        "despues": 18
+      },
+      "466114": {
+        "antes": 1053,
+        "despues": 1000
+      },
+      "466211": {
+        "antes": 750,
+        "despues": 750
+      },
+      "466212": {
+        "antes": 4139,
+        "despues": 1000
+      },
+      "466311": {
+        "antes": 419,
+        "despues": 419
+      },
+      "466312": {
+        "antes": 4075,
+        "despues": 1000
+      },
+      "466313": {
+        "antes": 169,
+        "despues": 169
+      },
+      "466314": {
+        "antes": 320,
+        "despues": 320
+      },
+      "466319": {
+        "antes": 1026,
+        "despues": 1000
+      },
+      "466410": {
+        "antes": 1518,
+        "despues": 1000
+      },
+      "467111": {
+        "antes": 6066,
+        "despues": 1000
+      },
+      "467112": {
+        "antes": 498,
+        "despues": 498
+      },
+      "467113": {
+        "antes": 1472,
+        "despues": 1000
+      },
+      "467114": {
+        "antes": 1742,
+        "despues": 1000
+      },
+      "467115": {
+        "antes": 3715,
+        "despues": 1000
+      },
+      "467116": {
+        "antes": 19,
+        "despues": 19
+      },
+      "467117": {
+        "antes": 259,
+        "despues": 259
+      },
+      "468111": {
+        "antes": 314,
+        "despues": 314
+      },
+      "468112": {
+        "antes": 219,
+        "despues": 219
+      },
+      "468211": {
+        "antes": 3627,
+        "despues": 1000
+      },
+      "468212": {
+        "antes": 858,
+        "despues": 858
+      },
+      "468213": {
+        "antes": 412,
+        "despues": 412
+      },
+      "468311": {
+        "antes": 726,
+        "despues": 726
+      },
+      "468319": {
+        "antes": 18,
+        "despues": 18
+      },
+      "468411": {
+        "antes": 423,
+        "despues": 423
+      },
+      "468412": {
+        "antes": 61,
+        "despues": 61
+      },
+      "468413": {
+        "antes": 11,
+        "despues": 11
+      },
+      "468414": {
+        "antes": 9,
+        "despues": 9
+      },
+      "468419": {
+        "antes": 156,
+        "despues": 156
+      },
+      "468420": {
+        "antes": 440,
+        "despues": 440
+      },
+      "469110": {
+        "antes": 89,
+        "despues": 89
+      },
+      "481111": {
+        "antes": 37,
+        "despues": 37
+      },
+      "481112": {
+        "antes": 40,
+        "despues": 40
+      },
+      "481210": {
+        "antes": 18,
+        "despues": 18
+      },
+      "482110": {
+        "antes": 5,
+        "despues": 5
+      },
+      "483111": {
+        "antes": 7,
+        "despues": 7
+      },
+      "483112": {
+        "antes": 7,
+        "despues": 7
+      },
+      "483113": {
+        "antes": 3,
+        "despues": 3
+      },
+      "484111": {
+        "antes": 4,
+        "despues": 4
+      },
+      "484119": {
+        "antes": 66,
+        "despues": 66
+      },
+      "484121": {
+        "antes": 13,
+        "despues": 13
+      },
+      "484129": {
+        "antes": 420,
+        "despues": 420
+      },
+      "484210": {
+        "antes": 188,
+        "despues": 188
+      },
+      "484221": {
+        "antes": 8,
+        "despues": 8
+      },
+      "484222": {
+        "antes": 8,
+        "despues": 8
+      },
+      "484223": {
+        "antes": 6,
+        "despues": 6
+      },
+      "484224": {
+        "antes": 1,
+        "despues": 1
+      },
+      "484229": {
+        "antes": 38,
+        "despues": 38
+      },
+      "484231": {
+        "antes": 9,
+        "despues": 9
+      },
+      "484232": {
+        "antes": 32,
+        "despues": 32
+      },
+      "484233": {
+        "antes": 31,
+        "despues": 31
+      },
+      "484239": {
+        "antes": 62,
+        "despues": 62
+      },
+      "485111": {
+        "antes": 140,
+        "despues": 140
+      },
+      "485113": {
+        "antes": 68,
+        "despues": 68
+      },
+      "485114": {
+        "antes": 372,
+        "despues": 372
+      },
+      "485115": {
+        "antes": 10,
+        "despues": 10
+      },
+      "485210": {
+        "antes": 189,
+        "despues": 189
+      },
+      "485320": {
+        "antes": 24,
+        "despues": 24
+      },
+      "485410": {
+        "antes": 16,
+        "despues": 16
+      },
+      "485510": {
+        "antes": 47,
+        "despues": 47
+      },
+      "485990": {
+        "antes": 5,
+        "despues": 5
+      },
+      "486210": {
+        "antes": 25,
+        "despues": 25
+      },
+      "486910": {
+        "antes": 2,
+        "despues": 2
+      },
+      "487110": {
+        "antes": 15,
+        "despues": 15
+      },
+      "487210": {
+        "antes": 5,
+        "despues": 5
+      },
+      "487990": {
+        "antes": 2,
+        "despues": 2
+      },
+      "488111": {
+        "antes": 4,
+        "despues": 4
+      },
+      "488112": {
+        "antes": 13,
+        "despues": 13
+      },
+      "488190": {
+        "antes": 28,
+        "despues": 28
+      },
+      "488210": {
+        "antes": 3,
+        "despues": 3
+      },
+      "488310": {
+        "antes": 6,
+        "despues": 6
+      },
+      "488320": {
+        "antes": 11,
+        "despues": 11
+      },
+      "488330": {
+        "antes": 4,
+        "despues": 4
+      },
+      "488390": {
+        "antes": 4,
+        "despues": 4
+      },
+      "488410": {
+        "antes": 60,
+        "despues": 60
+      },
+      "488491": {
+        "antes": 9,
+        "despues": 9
+      },
+      "488492": {
+        "antes": 43,
+        "despues": 43
+      },
+      "488493": {
+        "antes": 6,
+        "despues": 6
+      },
+      "488511": {
+        "antes": 328,
+        "despues": 328
+      },
+      "488519": {
+        "antes": 389,
+        "despues": 389
+      },
+      "488990": {
+        "antes": 28,
+        "despues": 28
+      },
+      "491110": {
+        "antes": 84,
+        "despues": 84
+      },
+      "492110": {
+        "antes": 461,
+        "despues": 461
+      },
+      "492210": {
+        "antes": 158,
+        "despues": 158
+      },
+      "493111": {
+        "antes": 13,
+        "despues": 13
+      },
+      "493119": {
+        "antes": 79,
+        "despues": 79
+      },
+      "493120": {
+        "antes": 29,
+        "despues": 29
+      },
+      "493130": {
+        "antes": 2,
+        "despues": 2
+      },
+      "493190": {
+        "antes": 12,
+        "despues": 12
+      },
+      "512111": {
+        "antes": 60,
+        "despues": 60
+      },
+      "512112": {
+        "antes": 21,
+        "despues": 21
+      },
+      "512113": {
+        "antes": 44,
+        "despues": 44
+      },
+      "512120": {
+        "antes": 11,
+        "despues": 11
+      },
+      "512130": {
+        "antes": 120,
+        "despues": 120
+      },
+      "512190": {
+        "antes": 22,
+        "despues": 22
+      },
+      "512230": {
+        "antes": 10,
+        "despues": 10
+      },
+      "512240": {
+        "antes": 22,
+        "despues": 22
+      },
+      "512250": {
+        "antes": 11,
+        "despues": 11
+      },
+      "512290": {
+        "antes": 9,
+        "despues": 9
+      },
+      "513111": {
+        "antes": 10,
+        "despues": 10
+      },
+      "513112": {
+        "antes": 33,
+        "despues": 33
+      },
+      "513121": {
+        "antes": 29,
+        "despues": 29
+      },
+      "513122": {
+        "antes": 22,
+        "despues": 22
+      },
+      "513131": {
+        "antes": 42,
+        "despues": 42
+      },
+      "513132": {
+        "antes": 35,
+        "despues": 35
+      },
+      "513141": {
+        "antes": 4,
+        "despues": 4
+      },
+      "513142": {
+        "antes": 1,
+        "despues": 1
+      },
+      "513191": {
+        "antes": 8,
+        "despues": 8
+      },
+      "513192": {
+        "antes": 9,
+        "despues": 9
+      },
+      "513210": {
+        "antes": 39,
+        "despues": 39
+      },
+      "516110": {
+        "antes": 71,
+        "despues": 71
+      },
+      "516120": {
+        "antes": 27,
+        "despues": 27
+      },
+      "516210": {
+        "antes": 21,
+        "despues": 21
+      },
+      "517311": {
+        "antes": 221,
+        "despues": 221
+      },
+      "517312": {
+        "antes": 214,
+        "despues": 214
+      },
+      "517410": {
+        "antes": 16,
+        "despues": 16
+      },
+      "517910": {
+        "antes": 144,
+        "despues": 144
+      },
+      "518210": {
+        "antes": 44,
+        "despues": 44
+      },
+      "519211": {
+        "antes": 22,
+        "despues": 22
+      },
+      "519212": {
+        "antes": 288,
+        "despues": 288
+      },
+      "519290": {
+        "antes": 11,
+        "despues": 11
+      },
+      "521110": {
+        "antes": 13,
+        "despues": 13
+      },
+      "522110": {
+        "antes": 1539,
+        "despues": 1000
+      },
+      "522210": {
+        "antes": 115,
+        "despues": 115
+      },
+      "522220": {
+        "antes": 33,
+        "despues": 33
+      },
+      "522310": {
+        "antes": 8,
+        "despues": 8
+      },
+      "522320": {
+        "antes": 79,
+        "despues": 79
+      },
+      "522390": {
+        "antes": 9,
+        "despues": 9
+      },
+      "522440": {
+        "antes": 41,
+        "despues": 41
+      },
+      "522451": {
+        "antes": 172,
+        "despues": 172
+      },
+      "522452": {
+        "antes": 377,
+        "despues": 377
+      },
+      "522460": {
+        "antes": 302,
+        "despues": 302
+      },
+      "522490": {
+        "antes": 65,
+        "despues": 65
+      },
+      "522510": {
+        "antes": 41,
+        "despues": 41
+      },
+      "523110": {
+        "antes": 49,
+        "despues": 49
+      },
+      "523121": {
+        "antes": 12,
+        "despues": 12
+      },
+      "523122": {
+        "antes": 174,
+        "despues": 174
+      },
+      "523210": {
+        "antes": 8,
+        "despues": 8
+      },
+      "523910": {
+        "antes": 30,
+        "despues": 30
+      },
+      "523990": {
+        "antes": 33,
+        "despues": 33
+      },
+      "524110": {
+        "antes": 203,
+        "despues": 203
+      },
+      "524120": {
+        "antes": 1,
+        "despues": 1
+      },
+      "524130": {
+        "antes": 31,
+        "despues": 31
+      },
+      "524210": {
+        "antes": 429,
+        "despues": 429
+      },
+      "524220": {
+        "antes": 41,
+        "despues": 41
+      },
+      "531111": {
+        "antes": 47,
+        "despues": 47
+      },
+      "531112": {
+        "antes": 45,
+        "despues": 45
+      },
+      "531113": {
+        "antes": 1130,
+        "despues": 1000
+      },
+      "531114": {
+        "antes": 502,
+        "despues": 502
+      },
+      "531115": {
+        "antes": 11,
+        "despues": 11
+      },
+      "531116": {
+        "antes": 32,
+        "despues": 32
+      },
+      "531119": {
+        "antes": 140,
+        "despues": 140
+      },
+      "531210": {
+        "antes": 789,
+        "despues": 789
+      },
+      "531311": {
+        "antes": 761,
+        "despues": 761
+      },
+      "531319": {
+        "antes": 173,
+        "despues": 173
+      },
+      "532110": {
+        "antes": 144,
+        "despues": 144
+      },
+      "532121": {
+        "antes": 4,
+        "despues": 4
+      },
+      "532122": {
+        "antes": 19,
+        "despues": 19
+      },
+      "532210": {
+        "antes": 3,
+        "despues": 3
+      },
+      "532281": {
+        "antes": 122,
+        "despues": 122
+      },
+      "532282": {
+        "antes": 669,
+        "despues": 669
+      },
+      "532289": {
+        "antes": 55,
+        "despues": 55
+      },
+      "532310": {
+        "antes": 75,
+        "despues": 75
+      },
+      "532411": {
+        "antes": 124,
+        "despues": 124
+      },
+      "532412": {
+        "antes": 7,
+        "despues": 7
+      },
+      "532420": {
+        "antes": 41,
+        "despues": 41
+      },
+      "532491": {
+        "antes": 14,
+        "despues": 14
+      },
+      "532492": {
+        "antes": 83,
+        "despues": 83
+      },
+      "532493": {
+        "antes": 74,
+        "despues": 74
+      },
+      "533110": {
+        "antes": 14,
+        "despues": 14
+      },
+      "541110": {
+        "antes": 1729,
+        "despues": 1000
+      },
+      "541120": {
+        "antes": 205,
+        "despues": 205
+      },
+      "541190": {
+        "antes": 352,
+        "despues": 352
+      },
+      "541211": {
+        "antes": 1042,
+        "despues": 1000
+      },
+      "541219": {
+        "antes": 65,
+        "despues": 65
+      },
+      "541310": {
+        "antes": 322,
+        "despues": 322
+      },
+      "541320": {
+        "antes": 20,
+        "despues": 20
+      },
+      "541330": {
+        "antes": 342,
+        "despues": 342
+      },
+      "541340": {
+        "antes": 47,
+        "despues": 47
+      },
+      "541350": {
+        "antes": 36,
+        "despues": 36
+      },
+      "541360": {
+        "antes": 50,
+        "despues": 50
+      },
+      "541370": {
+        "antes": 16,
+        "despues": 16
+      },
+      "541380": {
+        "antes": 89,
+        "despues": 89
+      },
+      "541410": {
+        "antes": 101,
+        "despues": 101
+      },
+      "541420": {
+        "antes": 33,
+        "despues": 33
+      },
+      "541430": {
+        "antes": 410,
+        "despues": 410
+      },
+      "541490": {
+        "antes": 33,
+        "despues": 33
+      },
+      "541510": {
+        "antes": 678,
+        "despues": 678
+      },
+      "541610": {
+        "antes": 1053,
+        "despues": 1000
+      },
+      "541620": {
+        "antes": 110,
+        "despues": 110
+      },
+      "541690": {
+        "antes": 144,
+        "despues": 144
+      },
+      "541711": {
+        "antes": 59,
+        "despues": 59
+      },
+      "541712": {
+        "antes": 16,
+        "despues": 16
+      },
+      "541721": {
+        "antes": 8,
+        "despues": 8
+      },
+      "541722": {
+        "antes": 14,
+        "despues": 14
+      },
+      "541810": {
+        "antes": 538,
+        "despues": 538
+      },
+      "541820": {
+        "antes": 40,
+        "despues": 40
+      },
+      "541830": {
+        "antes": 7,
+        "despues": 7
+      },
+      "541840": {
+        "antes": 14,
+        "despues": 14
+      },
+      "541850": {
+        "antes": 68,
+        "despues": 68
+      },
+      "541860": {
+        "antes": 15,
+        "despues": 15
+      },
+      "541870": {
+        "antes": 17,
+        "despues": 17
+      },
+      "541890": {
+        "antes": 212,
+        "despues": 212
+      },
+      "541910": {
+        "antes": 93,
+        "despues": 93
+      },
+      "541920": {
+        "antes": 1001,
+        "despues": 1000
+      },
+      "541930": {
+        "antes": 15,
+        "despues": 15
+      },
+      "541941": {
+        "antes": 2182,
+        "despues": 1000
+      },
+      "541942": {
+        "antes": 18,
+        "despues": 18
+      },
+      "541943": {
+        "antes": 7,
+        "despues": 7
+      },
+      "541990": {
+        "antes": 27,
+        "despues": 27
+      },
+      "551111": {
+        "antes": 105,
+        "despues": 105
+      },
+      "551112": {
+        "antes": 87,
+        "despues": 87
+      },
+      "561110": {
+        "antes": 360,
+        "despues": 360
+      },
+      "561210": {
+        "antes": 67,
+        "despues": 67
+      },
+      "561310": {
+        "antes": 129,
+        "despues": 129
+      },
+      "561320": {
+        "antes": 43,
+        "despues": 43
+      },
+      "561330": {
+        "antes": 178,
+        "despues": 178
+      },
+      "561410": {
+        "antes": 29,
+        "despues": 29
+      },
+      "561421": {
+        "antes": 2,
+        "despues": 2
+      },
+      "561422": {
+        "antes": 126,
+        "despues": 126
+      },
+      "561431": {
+        "antes": 911,
+        "despues": 911
+      },
+      "561432": {
+        "antes": 1952,
+        "despues": 1000
+      },
+      "561440": {
+        "antes": 63,
+        "despues": 63
+      },
+      "561450": {
+        "antes": 14,
+        "despues": 14
+      },
+      "561490": {
+        "antes": 18,
+        "despues": 18
+      },
+      "561510": {
+        "antes": 421,
+        "despues": 421
+      },
+      "561520": {
+        "antes": 42,
+        "despues": 42
+      },
+      "561590": {
+        "antes": 15,
+        "despues": 15
+      },
+      "561610": {
+        "antes": 279,
+        "despues": 279
+      },
+      "561620": {
+        "antes": 170,
+        "despues": 170
+      },
+      "561710": {
+        "antes": 31,
+        "despues": 31
+      },
+      "561720": {
+        "antes": 115,
+        "despues": 115
+      },
+      "561730": {
+        "antes": 18,
+        "despues": 18
+      },
+      "561740": {
+        "antes": 8,
+        "despues": 8
+      },
+      "561790": {
+        "antes": 12,
+        "despues": 12
+      },
+      "561910": {
+        "antes": 21,
+        "despues": 21
+      },
+      "561920": {
+        "antes": 49,
+        "despues": 49
+      },
+      "561990": {
+        "antes": 111,
+        "despues": 111
+      },
+      "562111": {
+        "antes": 12,
+        "despues": 12
+      },
+      "562121": {
+        "antes": 34,
+        "despues": 34
+      },
+      "562122": {
+        "antes": 45,
+        "despues": 45
+      },
+      "562211": {
+        "antes": 1,
+        "despues": 1
+      },
+      "562221": {
+        "antes": 7,
+        "despues": 7
+      },
+      "562222": {
+        "antes": 1,
+        "despues": 1
+      },
+      "562911": {
+        "antes": 3,
+        "despues": 3
+      },
+      "562921": {
+        "antes": 35,
+        "despues": 35
+      },
+      "562922": {
+        "antes": 2,
+        "despues": 2
+      },
+      "562998": {
+        "antes": 10,
+        "despues": 10
+      },
+      "562999": {
+        "antes": 10,
+        "despues": 10
+      },
+      "611111": {
+        "antes": 979,
+        "despues": 979
+      },
+      "611112": {
+        "antes": 1255,
+        "despues": 1000
+      },
+      "611121": {
+        "antes": 341,
+        "despues": 341
+      },
+      "611122": {
+        "antes": 1915,
+        "despues": 1000
+      },
+      "611131": {
+        "antes": 83,
+        "despues": 83
+      },
+      "611132": {
+        "antes": 610,
+        "despues": 610
+      },
+      "611141": {
+        "antes": 5,
+        "despues": 5
+      },
+      "611142": {
+        "antes": 180,
+        "despues": 180
+      },
+      "611151": {
+        "antes": 34,
+        "despues": 34
+      },
+      "611152": {
+        "antes": 2,
+        "despues": 2
+      },
+      "611161": {
+        "antes": 123,
+        "despues": 123
+      },
+      "611162": {
+        "antes": 204,
+        "despues": 204
+      },
+      "611171": {
+        "antes": 765,
+        "despues": 765
+      },
+      "611172": {
+        "antes": 111,
+        "despues": 111
+      },
+      "611181": {
+        "antes": 51,
+        "despues": 51
+      },
+      "611182": {
+        "antes": 308,
+        "despues": 308
+      },
+      "611211": {
+        "antes": 51,
+        "despues": 51
+      },
+      "611212": {
+        "antes": 13,
+        "despues": 13
+      },
+      "611311": {
+        "antes": 397,
+        "despues": 397
+      },
+      "611312": {
+        "antes": 422,
+        "despues": 422
+      },
+      "611411": {
+        "antes": 5,
+        "despues": 5
+      },
+      "611421": {
+        "antes": 29,
+        "despues": 29
+      },
+      "611422": {
+        "antes": 9,
+        "despues": 9
+      },
+      "611431": {
+        "antes": 19,
+        "despues": 19
+      },
+      "611511": {
+        "antes": 244,
+        "despues": 244
+      },
+      "611512": {
+        "antes": 57,
+        "despues": 57
+      },
+      "611611": {
+        "antes": 557,
+        "despues": 557
+      },
+      "611612": {
+        "antes": 49,
+        "despues": 49
+      },
+      "611621": {
+        "antes": 632,
+        "despues": 632
+      },
+      "611622": {
+        "antes": 39,
+        "despues": 39
+      },
+      "611631": {
+        "antes": 220,
+        "despues": 220
+      },
+      "611632": {
+        "antes": 7,
+        "despues": 7
+      },
+      "611691": {
+        "antes": 587,
+        "despues": 587
+      },
+      "611698": {
+        "antes": 139,
+        "despues": 139
+      },
+      "611699": {
+        "antes": 21,
+        "despues": 21
+      },
+      "611710": {
+        "antes": 17,
+        "despues": 17
+      },
+      "621111": {
+        "antes": 1520,
+        "despues": 1000
+      },
+      "621112": {
+        "antes": 120,
+        "despues": 120
+      },
+      "621113": {
+        "antes": 3055,
+        "despues": 1000
+      },
+      "621114": {
+        "antes": 14,
+        "despues": 14
+      },
+      "621115": {
+        "antes": 265,
+        "despues": 265
+      },
+      "621116": {
+        "antes": 269,
+        "despues": 269
+      },
+      "621211": {
+        "antes": 4316,
+        "despues": 1000
+      },
+      "621212": {
+        "antes": 37,
+        "despues": 37
+      },
+      "621311": {
+        "antes": 415,
+        "despues": 415
+      },
+      "621320": {
+        "antes": 652,
+        "despues": 652
+      },
+      "621331": {
+        "antes": 620,
+        "despues": 620
+      },
+      "621332": {
+        "antes": 18,
+        "despues": 18
+      },
+      "621341": {
+        "antes": 528,
+        "despues": 528
+      },
+      "621342": {
+        "antes": 23,
+        "despues": 23
+      },
+      "621391": {
+        "antes": 314,
+        "despues": 314
+      },
+      "621398": {
+        "antes": 1339,
+        "despues": 1000
+      },
+      "621399": {
+        "antes": 12,
+        "despues": 12
+      },
+      "621411": {
+        "antes": 30,
+        "despues": 30
+      },
+      "621412": {
+        "antes": 1,
+        "despues": 1
+      },
+      "621421": {
+        "antes": 43,
+        "despues": 43
+      },
+      "621422": {
+        "antes": 17,
+        "despues": 17
+      },
+      "621491": {
+        "antes": 48,
+        "despues": 48
+      },
+      "621492": {
+        "antes": 3,
+        "despues": 3
+      },
+      "621511": {
+        "antes": 805,
+        "despues": 805
+      },
+      "621512": {
+        "antes": 6,
+        "despues": 6
+      },
+      "621610": {
+        "antes": 7,
+        "despues": 7
+      },
+      "621910": {
+        "antes": 18,
+        "despues": 18
+      },
+      "621991": {
+        "antes": 5,
+        "despues": 5
+      },
+      "621992": {
+        "antes": 3,
+        "despues": 3
+      },
+      "622111": {
+        "antes": 143,
+        "despues": 143
+      },
+      "622112": {
+        "antes": 121,
+        "despues": 121
+      },
+      "622211": {
+        "antes": 9,
+        "despues": 9
+      },
+      "622212": {
+        "antes": 5,
+        "despues": 5
+      },
+      "622311": {
+        "antes": 78,
+        "despues": 78
+      },
+      "622312": {
+        "antes": 24,
+        "despues": 24
+      },
+      "623111": {
+        "antes": 12,
+        "despues": 12
+      },
+      "623112": {
+        "antes": 4,
+        "despues": 4
+      },
+      "623211": {
+        "antes": 17,
+        "despues": 17
+      },
+      "623212": {
+        "antes": 1,
+        "despues": 1
+      },
+      "623221": {
+        "antes": 34,
+        "despues": 34
+      },
+      "623222": {
+        "antes": 11,
+        "despues": 11
+      },
+      "623311": {
+        "antes": 86,
+        "despues": 86
+      },
+      "623312": {
+        "antes": 21,
+        "despues": 21
+      },
+      "623991": {
+        "antes": 107,
+        "despues": 107
+      },
+      "623992": {
+        "antes": 24,
+        "despues": 24
+      },
+      "624111": {
+        "antes": 84,
+        "despues": 84
+      },
+      "624112": {
+        "antes": 464,
+        "despues": 464
+      },
+      "624121": {
+        "antes": 22,
+        "despues": 22
+      },
+      "624122": {
+        "antes": 103,
+        "despues": 103
+      },
+      "624191": {
+        "antes": 1299,
+        "despues": 1000
+      },
+      "624198": {
+        "antes": 29,
+        "despues": 29
+      },
+      "624199": {
+        "antes": 160,
+        "despues": 160
+      },
+      "624211": {
+        "antes": 108,
+        "despues": 108
+      },
+      "624212": {
+        "antes": 350,
+        "despues": 350
+      },
+      "624221": {
+        "antes": 11,
+        "despues": 11
+      },
+      "624222": {
+        "antes": 13,
+        "despues": 13
+      },
+      "624231": {
+        "antes": 3,
+        "despues": 3
+      },
+      "624232": {
+        "antes": 1,
+        "despues": 1
+      },
+      "624311": {
+        "antes": 10,
+        "despues": 10
+      },
+      "624312": {
+        "antes": 13,
+        "despues": 13
+      },
+      "624411": {
+        "antes": 334,
+        "despues": 334
+      },
+      "624412": {
+        "antes": 261,
+        "despues": 261
+      },
+      "711111": {
+        "antes": 36,
+        "despues": 36
+      },
+      "711112": {
+        "antes": 5,
+        "despues": 5
+      },
+      "711121": {
+        "antes": 16,
+        "despues": 16
+      },
+      "711122": {
+        "antes": 1,
+        "despues": 1
+      },
+      "711131": {
+        "antes": 43,
+        "despues": 43
+      },
+      "711132": {
+        "antes": 2,
+        "despues": 2
+      },
+      "711191": {
+        "antes": 10,
+        "despues": 10
+      },
+      "711211": {
+        "antes": 1,
+        "despues": 1
+      },
+      "711212": {
+        "antes": 6,
+        "despues": 6
+      },
+      "711311": {
+        "antes": 128,
+        "despues": 128
+      },
+      "711312": {
+        "antes": 275,
+        "despues": 275
+      },
+      "711320": {
+        "antes": 23,
+        "despues": 23
+      },
+      "711410": {
+        "antes": 13,
+        "despues": 13
+      },
+      "711510": {
+        "antes": 90,
+        "despues": 90
+      },
+      "712111": {
+        "antes": 90,
+        "despues": 90
+      },
+      "712112": {
+        "antes": 112,
+        "despues": 112
+      },
+      "712120": {
+        "antes": 1,
+        "despues": 1
+      },
+      "712131": {
+        "antes": 12,
+        "despues": 12
+      },
+      "712132": {
+        "antes": 8,
+        "despues": 8
+      },
+      "712190": {
+        "antes": 5,
+        "despues": 5
+      },
+      "713111": {
+        "antes": 30,
+        "despues": 30
+      },
+      "713112": {
+        "antes": 67,
+        "despues": 67
+      },
+      "713113": {
+        "antes": 10,
+        "despues": 10
+      },
+      "713114": {
+        "antes": 15,
+        "despues": 15
+      },
+      "713120": {
+        "antes": 666,
+        "despues": 666
+      },
+      "713291": {
+        "antes": 448,
+        "despues": 448
+      },
+      "713299": {
+        "antes": 45,
+        "despues": 45
+      },
+      "713910": {
+        "antes": 8,
+        "despues": 8
+      },
+      "713930": {
+        "antes": 2,
+        "despues": 2
+      },
+      "713941": {
+        "antes": 55,
+        "despues": 55
+      },
+      "713942": {
+        "antes": 10,
+        "despues": 10
+      },
+      "713943": {
+        "antes": 1979,
+        "despues": 1000
+      },
+      "713944": {
+        "antes": 266,
+        "despues": 266
+      },
+      "713950": {
+        "antes": 13,
+        "despues": 13
+      },
+      "713991": {
+        "antes": 132,
+        "despues": 132
+      },
+      "713992": {
+        "antes": 49,
+        "despues": 49
+      },
+      "713998": {
+        "antes": 130,
+        "despues": 130
+      },
+      "713999": {
+        "antes": 7,
+        "despues": 7
+      },
+      "721111": {
+        "antes": 411,
+        "despues": 411
+      },
+      "721112": {
+        "antes": 331,
+        "despues": 331
+      },
+      "721113": {
+        "antes": 99,
+        "despues": 99
+      },
+      "721190": {
+        "antes": 46,
+        "despues": 46
+      },
+      "721210": {
+        "antes": 6,
+        "despues": 6
+      },
+      "721311": {
+        "antes": 56,
+        "despues": 56
+      },
+      "721312": {
+        "antes": 43,
+        "despues": 43
+      },
+      "722310": {
+        "antes": 82,
+        "despues": 82
+      },
+      "722320": {
+        "antes": 145,
+        "despues": 145
+      },
+      "722330": {
+        "antes": 67,
+        "despues": 67
+      },
+      "722411": {
+        "antes": 71,
+        "despues": 71
+      },
+      "722412": {
+        "antes": 1028,
+        "despues": 1000
+      },
+      "722511": {
+        "antes": 7516,
+        "despues": 1000
+      },
+      "722512": {
+        "antes": 1703,
+        "despues": 1000
+      },
+      "722513": {
+        "antes": 8682,
+        "despues": 1000
+      },
+      "722514": {
+        "antes": 9792,
+        "despues": 1000
+      },
+      "722515": {
+        "antes": 8974,
+        "despues": 1000
+      },
+      "722516": {
+        "antes": 1628,
+        "despues": 1000
+      },
+      "722517": {
+        "antes": 3697,
+        "despues": 1000
+      },
+      "722518": {
+        "antes": 6373,
+        "despues": 1000
+      },
+      "722519": {
+        "antes": 3170,
+        "despues": 1000
+      },
+      "811111": {
+        "antes": 4421,
+        "despues": 1000
+      },
+      "811112": {
+        "antes": 1324,
+        "despues": 1000
+      },
+      "811113": {
+        "antes": 239,
+        "despues": 239
+      },
+      "811114": {
+        "antes": 328,
+        "despues": 328
+      },
+      "811115": {
+        "antes": 492,
+        "despues": 492
+      },
+      "811116": {
+        "antes": 159,
+        "despues": 159
+      },
+      "811119": {
+        "antes": 1286,
+        "despues": 1000
+      },
+      "811121": {
+        "antes": 1781,
+        "despues": 1000
+      },
+      "811122": {
+        "antes": 231,
+        "despues": 231
+      },
+      "811123": {
+        "antes": 23,
+        "despues": 23
+      },
+      "811129": {
+        "antes": 226,
+        "despues": 226
+      },
+      "811191": {
+        "antes": 1497,
+        "despues": 1000
+      },
+      "811192": {
+        "antes": 1167,
+        "despues": 1000
+      },
+      "811199": {
+        "antes": 639,
+        "despues": 639
+      },
+      "811211": {
+        "antes": 1056,
+        "despues": 1000
+      },
+      "811219": {
+        "antes": 1754,
+        "despues": 1000
+      },
+      "811311": {
+        "antes": 10,
+        "despues": 10
+      },
+      "811312": {
+        "antes": 868,
+        "despues": 868
+      },
+      "811313": {
+        "antes": 75,
+        "despues": 75
+      },
+      "811314": {
+        "antes": 123,
+        "despues": 123
+      },
+      "811410": {
+        "antes": 1190,
+        "despues": 1000
+      },
+      "811420": {
+        "antes": 805,
+        "despues": 805
+      },
+      "811430": {
+        "antes": 1027,
+        "despues": 1000
+      },
+      "811491": {
+        "antes": 1376,
+        "despues": 1000
+      },
+      "811492": {
+        "antes": 1001,
+        "despues": 1000
+      },
+      "811493": {
+        "antes": 656,
+        "despues": 656
+      },
+      "811499": {
+        "antes": 2352,
+        "despues": 1000
+      },
+      "812110": {
+        "antes": 21667,
+        "despues": 1000
+      },
+      "812120": {
+        "antes": 47,
+        "despues": 47
+      },
+      "812130": {
+        "antes": 1002,
+        "despues": 1000
+      },
+      "812210": {
+        "antes": 5035,
+        "despues": 1000
+      },
+      "812310": {
+        "antes": 500,
+        "despues": 500
+      },
+      "812321": {
+        "antes": 19,
+        "despues": 19
+      },
+      "812322": {
+        "antes": 102,
+        "despues": 102
+      },
+      "812410": {
+        "antes": 1804,
+        "despues": 1000
+      },
+      "812910": {
+        "antes": 132,
+        "despues": 132
+      },
+      "812990": {
+        "antes": 979,
+        "despues": 979
+      },
+      "813110": {
+        "antes": 206,
+        "despues": 206
+      },
+      "813120": {
+        "antes": 293,
+        "despues": 293
+      },
+      "813130": {
+        "antes": 112,
+        "despues": 112
+      },
+      "813140": {
+        "antes": 10,
+        "despues": 10
+      },
+      "813210": {
+        "antes": 3088,
+        "despues": 1000
+      },
+      "813230": {
+        "antes": 814,
+        "despues": 814
+      },
+      "931110": {
+        "antes": 20,
+        "despues": 20
+      },
+      "931210": {
+        "antes": 1019,
+        "despues": 1000
+      },
+      "931310": {
+        "antes": 192,
+        "despues": 192
+      },
+      "931411": {
+        "antes": 149,
+        "despues": 149
+      },
+      "931412": {
+        "antes": 696,
+        "despues": 696
+      },
+      "931510": {
+        "antes": 227,
+        "despues": 227
+      },
+      "931610": {
+        "antes": 999,
+        "despues": 999
+      },
+      "931710": {
+        "antes": 14,
+        "despues": 14
+      },
+      "931810": {
+        "antes": 84,
+        "despues": 84
+      },
+      "932110": {
+        "antes": 17,
+        "despues": 17
+      }
+    }
+  },
+  "advertencias": [
+    "Las horas de GPU son estimaciones con las tasas de una muestra de 2,000 filas; el train completo puede tener filas más largas.",
+    "La TVD contra validación tiene ruido de muestreo (validación tiene 1,000 filas): la fila sin tope da su piso.",
+    "Una sesión de GPU de Kaggle dura como máximo 12 h (https://www.kaggle.com/docs/notebooks)."
+  ],
+  "verificacion": {
+    "regenerado_desde_cero_mismos_bytes": true,
+    "hash_releido_igual_al_generado": true
+  }
+}
