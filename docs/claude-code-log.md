@@ -200,3 +200,27 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
 ### Pendiente
 
 - **Fase 5:** la guía indica que Bedrock Custom Model Import pide guardar el modelo con transformers 4.51.3, y aquí se usa 5.17.0. Lo registró el chat de Claude del proyecto; no se resuelve ahora.
+
+## 2026-11-21 — Fase 2, paso 6c: salida de la prueba de punta a punta y métricas locales
+
+**Qué se hizo:** descarga de la salida del kernel, revisión de nombres, resumen por etapa, métricas de la regla 5, rendimiento y estimación de horas de GPU. El código nuevo es `src/metricas_clasificador.py` y `src/evaluar_humo.py`, con 76 pruebas nuevas. El resultado es `results/2026-11-21_fase2_prueba-humo.json`, no reportable. La instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con tres ajustes y Samuel lo aprobó.
+
+### Proceso
+
+- **Primero la privacidad.** Claude Code comprobó con `git check-ignore -q` que la carpeta de descarga estaba ignorada antes de bajar nada. Después de bajar, verificó los hashes contra los que calculó el kernel y buscó los nombres de las muestras antes de mostrar cualquier contenido del log o de las mediciones.
+- **Precisión de la regla 5.** Claude Code propuso que "quitar espacios y saltos de línea" significara solo el espacio ASCII, `\r` y `\n`. El chat de Claude del proyecto la revisó y Samuel la aprobó; quedó escrita en `CLAUDE.md`.
+- **Un commit más de los dos del plan.** Al ver que el modelo respondía casi siempre lo mismo, Claude Code agregó la concentración de las respuestas al resultado, para que ese número quede en `results/` (regla 4). Fue un commit de código aparte (`73dea2d`), además de los dos aprobados, y se avisa aquí y en el reporte.
+- **El texto de la bitácora y del registro se agregó con la herramienta de edición.** El primer intento, con un solo comando de shell, falló antes de escribir, igual que en el 6b.
+
+### Hallazgos
+
+- **El 0.6B de prueba colapsó a la clase mayoritaria.** Respondió 461110 en 199 de 200 filas y 461111 (inexistente) en la otra. La accuracy de 7.5 % es exactamente la frecuencia de 461110 en la muestra de validación. El formato quedó bien aprendido (100 % válido), pero no la clasificación. Conviene vigilarlo en el entrenamiento real.
+- **pip bajó transformers.** La imagen de Kaggle traía transformers 5.20.2 y la versión fijada 5.17.0 la reemplazó. También cambiaron peft (0.21.2 a 0.21.3) y torchao (0.10.0 a 0.18.0). torch (2.11.0+cu130) quedó el de la imagen. En Kaggle se usa Python 3.13.16; en la laptop, 3.12.10.
+- **En el 0.6B, el lote 64 no es más rápido que el 32** (50.4 frente a 50.9 ejemplos/s): la GPU ya va saturada. La VRAM pico quedó muy por debajo de los 15 GB de la T4 (4,886 MiB como máximo, en el 4B con lote 32). Lotes mayores caben, pero no se midieron.
+- **Las duraciones no cuadran del todo.** El script duró 11.9 minutos, entre el `lastRunTime` de la CLI y el primer `COMPLETE` observado pasaron 14.3 minutos, y la página de Kaggle dice 16 minutos. Se registra la mayor (0.27 h) hasta que Samuel vea la cuota.
+- **Avisos del log sin efecto:** Hugging Face advierte de peticiones sin token y de que `HF_HUB_ENABLE_HF_TRANSFER` está obsoleto, y nbconvert da dos `SyntaxWarning` al convertir el script a HTML. No hubo `Traceback` ni errores de memoria.
+- **Revisión de duplicados pedida durante la corrida:** `docs/bitacora.md` y este registro no tenían secciones ni viñetas duplicadas. Lo repetido en la terminal era la salida de un comando que falló antes de escribir.
+
+### Bug que Claude Code introdujo y encontró
+
+- **El estado de una etapa quedaba pisado.** En `resumen_etapas`, la etapa `estado_final` pasaba el estado del kernel como dato con el nombre `estado`, que sobrescribía el campo `estado` ("ok" o "fallo") de la etapa. Claude Code lo vio en la primera corrida en seco, antes del commit, porque la salida decía `estado_final: completo` en vez de "ok". Ahora el dato se llama `estado_del_kernel`, `_etapa` rechaza los nombres reservados y una prueba lo comprueba.

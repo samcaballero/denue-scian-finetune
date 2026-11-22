@@ -170,3 +170,50 @@
 - 82 pruebas nuevas de pytest pasan sobre datos sintéticos (339 en total en el repo). Una de ellas comprueba que el kernel escrito es exactamente lo que se generaría hoy. Además, Claude Code corrió fuera del repo un simulacro de todas las etapas con torch, Unsloth y Hugging Face falsos, en seis modos (normal, espejo distinto, sin memoria, reloj pasado, generación que no acepta `None` y tokens de más), y comprobó que el JSON de mediciones no lleva nombres.
 - Pendiente para la Fase 5: la guía indica que Bedrock Custom Model Import pide guardar el modelo con transformers 4.51.3, y aquí se usa 5.17.0. No se resuelve ahora. Lo registró el chat de Claude del proyecto.
 - PARADA: el kernel está escrito, probado y con commit, sin push. Falta que Samuel lo lance con `kaggle kernels push` desde PowerShell.
+
+## 2026-11-21 - Fase 2, paso 6c: salida de la prueba de punta a punta y métricas locales
+
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con tres ajustes (la precisión de la regla 5 en `CLAUDE.md`, la captura de la corrida y la lista de commits pendientes de push) y Samuel lo aprobó.
+- Corrida: Samuel lanzó `samcaballero/denue-scian-humo-6b` (versión 1) desde PowerShell y terminó con `COMPLETE`. El script corrió de 22:51:43 a 23:03:37 UTC (714 s); la última marca del log está en 723.6 s, y la página de Kaggle dice 16 minutos. Se registran 0.27 horas de GPU, la mayor de las mediciones; falta que Samuel confirme la cuota que descontó Kaggle.
+- Descarga: con `kaggle kernels output` a `kaggle-output/humo-6b/`, ignorada por git. Bajaron 11 archivos (437,455,673 bytes, casi todo del GGUF). Los 9 de los que el kernel calculó un SHA-256 coinciden con lo bajado. Ninguno tiene un SHA-256 del manifest, o sea, no salieron datos.
+- Revisión de nombres, hecha antes de mirar el log o las mediciones. Se buscaron las 2,200 filas de las dos muestras, con su hash verificado contra el manifest:
+  - No aparece ningún `nom_estab` ni ninguna llave de varias palabras en el log, en `humo_mediciones.json`, en las predicciones ni en los demás archivos, y el kernel no tapó nada.
+  - Hay coincidencias de una sola palabra (una llave de 5 letras): en `pip_freeze_antes.txt` (líneas 727 y 728), en `pip_freeze_despues.txt` (732 y 733) y en el README del adaptador (línea 36). Son listas de paquetes y la plantilla de la tarjeta del modelo, no datos del DENUE. Quedan para que Samuel las revise.
+- Etapas: las 12 terminaron bien.
+  - GPU: dos T4 en la sesión y solo una visible para torch.
+  - Datos y versiones: hashes de los datos verificados y versiones fijadas instaladas; torch 2.11.0 viene de la imagen.
+  - Revisiones: las tres de Hugging Face, y no se descargó nada más.
+  - Plantilla y tokens: (a) a (d) bien; ninguna fila pasa de 128 fichas (el máximo es 104), y en la tabla del ejemplo inventado solo llevan etiqueta los 6 dígitos y `<|im_end|>`.
+  - Entrenamiento: en fp16; la pérdida bajó de 2.30 a 0.88 (promedio de los primeros y de los últimos 10 pasos).
+  - Espejo: sus 310 tensores son idénticos a los oficiales, con el `lm_head` atado a los embeddings.
+  - GGUF: exportado, con la plantilla igual a la del tokenizador.
+  - 4B: corrió 50 pasos con lote 16 y otra medición con lote 32.
+  - Detalle en `results/2026-11-21_fase2_prueba-humo.json`.
+- Métricas de la regla 5 (no reportables en la charla), sobre 200 respuestas:
+  - 0 con formato inválido, 1 código inexistente (0.5 %) y 199 códigos existentes; formato válido, 100 %;
+  - 15 aciertos: accuracy de 7.5 %.
+  - El modelo respondió 461110 (abarrotes) en 199 de las 200 filas. Es la clase más frecuente de `humo_train` (162 de 2,000 filas) y aparece en 15 filas de la validación: el modelo colapsó a la clase mayoritaria.
+  - La cadena de punta a punta funciona, pero con 2,000 filas y 125 pasos el modelo de prueba no aprendió nada más que esa clase.
+- Rendimiento en una T4, sin los 5 pasos de calentamiento:
+  - 0.6B: 42.9 ejemplos/s con lote 16, 50.9 con lote 32 y 50.4 con lote 64.
+  - 4B: 7.9 ejemplos/s con lote 16 y 8.5 con lote 32.
+  - VRAM pico reservada: 4,886 MiB como máximo (4B con lote 32).
+- Horas de GPU estimadas para 1 época, con el lote más rápido (32 en los dos modelos):
+
+  | Filas de train | 0.6B | 4B |
+  |---:|---:|---:|
+  | 50,000 | 0.27 h | 1.63 h |
+  | 75,000 | 0.41 h | 2.45 h |
+  | 130,000 | 0.71 h | 4.24 h |
+  | 190,000 | 1.04 h | 6.20 h |
+
+  A cada corrida se suma un costo fijo medido de 99 s en el 0.6B y 154 s en el 4B. Son solo estimaciones; el lote y el tope por clase los deciden el chat y Samuel.
+- Precisión de la regla 5 en `CLAUDE.md`: en las orillas solo se quitan el espacio ASCII, `\r` y `\n`, y los dígitos válidos son solo los ASCII. Claude Code la propuso, el chat de Claude del proyecto la revisó y Samuel la aprobó.
+- Código:
+  - `src/metricas_clasificador.py` es la única implementación de la regla 5, para todas las evaluaciones;
+  - `src/evaluar_humo.py` es el script del paso, que no abre nunca `test.jsonl`;
+  - 76 pruebas nuevas de pytest con datos inventados; pasan las 415 del repo;
+  - commits `9d10e3e` y `73dea2d`;
+  - el resultado se generó dos veces, con bytes idénticos.
+- Captura `docs/evidencia/2026-11-21_fase2_primera-corrida-kaggle.png`, copiada de `../evidencia/` sin cambios (mismo SHA-256). Claude Code la revisó: solo muestra el título del kernel, "Version #1 with GPU T4 x2", "Successful" y "16 minutes"; no muestra correos, llaves, tokens, teléfonos, contraseñas ni nombres, y no trae metadatos de texto ni EXIF.
+- PARADA: falta probar el GGUF en la laptop (paso 6d). Los commits del 6b y del 6c están sin push.

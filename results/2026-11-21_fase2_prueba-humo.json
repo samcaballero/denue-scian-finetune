@@ -1,0 +1,881 @@
+{
+  "fecha": "2026-11-21",
+  "experimento": "fase2_paso6c_prueba_humo",
+  "reportable": false,
+  "nota": "Prueba de punta a punta desechable (pasos 6a a 6c); no se reporta en la charla.",
+  "commit": "73dea2dfb917039421fdaa366fc6829d259d67eb",
+  "arbol_limpio": true,
+  "modelo": {
+    "repo": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "metodo": "QLoRA (NF4 de bitsandbytes) con Unsloth; enable_thinking=False",
+    "adaptador_sha256": "4c8f081a8ddc9d04f1c9e86496d535edbebcecaebb1b609986cd106026303b10"
+  },
+  "configuracion": {
+    "script": "src/evaluar_humo.py",
+    "metricas": "src/metricas_clasificador.py",
+    "kernel": "notebooks/kaggle-humo/humo_6b.py",
+    "kernel_generador": "src/construir_kernel.py",
+    "commit_kernel": "1b4e41f09ffb8e8c1e55609cf16ab52805832158",
+    "kernel_kaggle": {
+      "id": "samcaballero/denue-scian-humo-6b",
+      "version": 1
+    },
+    "catalogo": {
+      "ruta": "data/scian_2023_clases.csv",
+      "sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73"
+    },
+    "scian_version": "2023",
+    "limpieza_de_respuestas": "strip(' \\r\\n'): solo espacio ASCII, \\r y \\n en las orillas (regla 5)",
+    "del_kernel": {
+      "semilla": 42,
+      "paquetes_fijados": [
+        "unsloth==2026.11.9",
+        "unsloth_zoo==2026.11.8",
+        "transformers==5.17.0",
+        "trl==1.15.0",
+        "datasets==4.8.5",
+        "peft==0.21.3",
+        "bitsandbytes==0.50.2",
+        "accelerate==1.15.0"
+      ],
+      "modelo_06b": {
+        "repo": "Qwen/Qwen3-0.6B",
+        "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "modelo_4b": {
+        "repo": "Qwen/Qwen3-4B",
+        "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+      },
+      "base_16_espejo": {
+        "repo": "unsloth/Qwen3-0.6B",
+        "revision": "db4e90b8359f816f09bf5c944797ce116f26da3c"
+      },
+      "use_exact_model_name": true,
+      "load_in_4bit": true,
+      "max_seq_length": 128,
+      "lora": {
+        "r": 16,
+        "lora_alpha": 16,
+        "lora_dropout": 0.0,
+        "bias": "none",
+        "target_modules": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "use_gradient_checkpointing": "unsloth",
+        "random_state": 42
+      },
+      "lote": 16,
+      "entrenamiento": {
+        "learning_rate": 0.0002,
+        "num_train_epochs": 1,
+        "gradient_accumulation_steps": 1,
+        "warmup_steps": 5,
+        "lr_scheduler_type": "linear",
+        "optim": "adamw_8bit",
+        "logging_steps": 1,
+        "seed": 42,
+        "data_seed": 42
+      },
+      "pasos_calentamiento_excluidos": 5,
+      "pasos_4b": 50,
+      "pasos_mediciones_de_lote": 25,
+      "lotes_06b": [
+        32,
+        64
+      ],
+      "lotes_4b_extra": [
+        32
+      ],
+      "presupuesto_4b_s": 3600,
+      "max_new_tokens": 16,
+      "instruccion": "Clasifica el establecimiento en una clase del SCIAN 2023 según su nombre. Responde solo con el código de 6 dígitos, sin texto adicional.",
+      "machine_shape": "NvidiaTeslaT4"
+    }
+  },
+  "semilla": 42,
+  "split": "humo_val.jsonl: 200 filas al azar (semilla 42) de la validación congelada; muestra de prueba desechable",
+  "hash_split": {
+    "humo_val.jsonl": "70db8e2a483e35ae7f851dbdbc88dd38937348028ecefc332c787e6917a5bcc0",
+    "humo_train.jsonl": "b68789187127ea8280153724ca668776e9a32f953de9210d3d2103ef1c0e3d2c"
+  },
+  "hash_split_origen": "data/manifest.json, kaggle_datasets.denue_scian_humo",
+  "tamano_muestra": {
+    "evaluacion": 200,
+    "entrenamiento": 2000
+  },
+  "horas_gpu": {
+    "valor": 0.267,
+    "metodo": "Duración de la página del kernel en Kaggle (16 min, vista por Samuel), la mayor de las mediciones; la cuota que descontó Kaggle la confirma Samuel.",
+    "script": 0.198,
+    "log": 0.201,
+    "cota_superior_cli": 0.238,
+    "cuota_kaggle": null
+  },
+  "corrida_kaggle": {
+    "estado_cli": "COMPLETE",
+    "estado_kernel": "completo",
+    "fallas": 0,
+    "duraciones_etapas_s": {
+      "gpu": 0.041,
+      "datos": 0.387,
+      "instalacion": 36.674,
+      "imports": 41.435,
+      "descarga_06b": 15.248,
+      "carga_06b": 5.925,
+      "tokens_y_plantilla": 1.398,
+      "lora_06b": 3.17,
+      "entrenamiento_06b": 80.157,
+      "adaptador": 0.264,
+      "inferencia": 48.576,
+      "prompt_inventado": 0.001,
+      "base_16_bits": 19.419,
+      "gguf": 94.721,
+      "lotes_06b": 62.117,
+      "modelo_4b": 302.317,
+      "cierre": 1.429
+    },
+    "tiempo": {
+      "inicio_script_utc": "2026-11-21T22:51:43+00:00",
+      "fin_script_utc": "2026-11-21T23:03:37+00:00",
+      "script_s": 714.1,
+      "log_ultima_marca_s": 723.6,
+      "cli": {
+        "estado_cli": "COMPLETE",
+        "inicio_cli_utc": "2026-11-21T22:51:41+00:00",
+        "ultimo_running_utc": "2026-11-21T23:00:57+00:00",
+        "complete_observado_utc": "2026-11-21T23:05:59+00:00",
+        "pagina_kaggle_min": 16
+      },
+      "cota_superior_cli_s": 858.0,
+      "pagina_kaggle_s": 960,
+      "horas": {
+        "script": 0.198,
+        "log": 0.201,
+        "cota_superior_cli": 0.238,
+        "pagina_kaggle": 0.267
+      }
+    },
+    "archivos_bajados": [
+      {
+        "ruta": "adaptador/adapter_config.json",
+        "bytes": 1307,
+        "sha256": "55cb800edaba1b48aa6205895141a7a2b09066782208a0c86e983f32626ea95f"
+      },
+      {
+        "ruta": "adaptador/adapter_model.safetensors",
+        "bytes": 40422168,
+        "sha256": "4c8f081a8ddc9d04f1c9e86496d535edbebcecaebb1b609986cd106026303b10"
+      },
+      {
+        "ruta": "adaptador/README.md",
+        "bytes": 5194,
+        "sha256": "7414ca168c9f03632601a811e3f9b34f46f3064e99e9ef705d1dc4972c686ed7"
+      },
+      {
+        "ruta": "denue-scian-humo-6b.log",
+        "bytes": 160802,
+        "sha256": "00f57ef717b78eb92facacafd6c7444f75f94783dc5ec5183da1311bea716fd2"
+      },
+      {
+        "ruta": "gguf/prompt_inventado.json",
+        "bytes": 1353,
+        "sha256": "54e40c78717fa68fa98554f6ab8afd40a5060915de0769901cd77f359ea0e904"
+      },
+      {
+        "ruta": "gguf/prompt_inventado.txt",
+        "bytes": 250,
+        "sha256": "398f1a3577eca0088d2ff6e3f5909aa064736964c329416f02ac70677a53ca6d"
+      },
+      {
+        "ruta": "gguf/qwen3-0.6b-humo-Q4_K_M.gguf",
+        "bytes": 396704672,
+        "sha256": "22e0f3a380f5693c6dcbe52f52a67663a1196efd3f793c622410c2951f2a6821"
+      },
+      {
+        "ruta": "humo_mediciones.json",
+        "bytes": 115351,
+        "sha256": "ea420f02830d3a366ca2ffae5e2158b90c708cf863d629d7c118d797dd5e2cd0"
+      },
+      {
+        "ruta": "pip_freeze_antes.txt",
+        "bytes": 18093,
+        "sha256": "fea4000ac6be1112c6c048b9e322308b513b318fc45bfd323b2a5eeddeb7fc2c"
+      },
+      {
+        "ruta": "pip_freeze_despues.txt",
+        "bytes": 18289,
+        "sha256": "5b176772883100a8de2535158081cdb2f934d65428d73fdbff5dcf98306cee14"
+      },
+      {
+        "ruta": "predicciones.jsonl",
+        "bytes": 8194,
+        "sha256": "5709d62612e7bdf8765154e2343cf6785270241ccb1b638fd2f5149d96dafc81"
+      }
+    ],
+    "descarga": {
+      "archivos_bajados": 11,
+      "con_sha256_de_kaggle": 9,
+      "coinciden_con_kaggle": 9,
+      "sin_sha256_de_kaggle": [
+        "denue-scian-humo-6b.log",
+        "humo_mediciones.json"
+      ],
+      "faltan": [],
+      "distintos": [],
+      "extra": [],
+      "con_sha256_del_manifest": [],
+      "predicciones_coinciden_con_la_inferencia": true,
+      "gguf_coincide": true
+    }
+  },
+  "etapas": {
+    "todas_ok": true,
+    "etapas": {
+      "gpu": {
+        "estado": "ok",
+        "comprobaciones": {
+          "todas_t4": true,
+          "cuda_visible_devices_0": true,
+          "torch_ve_una_sola_gpu": true,
+          "torch_ve_una_t4": true,
+          "sin_bf16_nativo": true
+        },
+        "gpus_en_la_sesion": [
+          "Tesla T4",
+          "Tesla T4"
+        ],
+        "memoria_total_mib_torch": 14912,
+        "capacidad_de_computo": [
+          7,
+          5
+        ]
+      },
+      "datos": {
+        "estado": "ok",
+        "comprobaciones": {
+          "sha256_humo_train.jsonl": true,
+          "sha256_humo_val.jsonl": true,
+          "d_sin_nombres_con_marca_especial": true,
+          "fuentes_incrustadas_iguales_a_src": true,
+          "kernel_escrito_igual_al_generado": true,
+          "filas_train": true,
+          "filas_val": true
+        },
+        "filas": {
+          "humo_train.jsonl": 2000,
+          "humo_val.jsonl": 200
+        },
+        "clases": {
+          "humo_train.jsonl": 334,
+          "humo_val.jsonl": 94
+        }
+      },
+      "instalacion": {
+        "estado": "ok",
+        "comprobaciones": {
+          "versiones_fijadas": true,
+          "torch_menor_que_2_15": true,
+          "pip_no_toco_torch": true
+        },
+        "torch": "2.11.0+cu130",
+        "python": "3.13.16",
+        "torch_cuda": "13.0",
+        "segundos_pip_install": 32.8,
+        "pip_agrego": [
+          "bitsandbytes",
+          "cut-cross-entropy",
+          "hf-transfer",
+          "msgspec",
+          "mslk",
+          "structlog",
+          "trl",
+          "tyro",
+          "unsloth",
+          "unsloth-zoo",
+          "xformers"
+        ],
+        "pip_cambio": {
+          "peft": [
+            "0.21.2",
+            "0.21.3"
+          ],
+          "torchao": [
+            "0.10.0",
+            "0.18.0"
+          ],
+          "transformers": [
+            "5.20.2",
+            "5.17.0"
+          ]
+        },
+        "pip_quito": []
+      },
+      "revisiones": {
+        "estado": "ok",
+        "comprobaciones": {
+          "qwen3_0.6b_revision_fijada": true,
+          "qwen3_0.6b_nf4": true,
+          "espejo_main_es_la_revision_fijada": true,
+          "cache_solo_repos_y_revisiones_fijados": true,
+          "qwen3_4b_revision_fijada": true,
+          "qwen3_4b_nf4": true
+        },
+        "cache_hf": [
+          {
+            "repo": "Qwen/Qwen3-0.6B",
+            "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+          },
+          {
+            "repo": "Qwen/Qwen3-4B",
+            "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+          },
+          {
+            "repo": "unsloth/Qwen3-0.6B",
+            "revision": "db4e90b8359f816f09bf5c944797ce116f26da3c"
+          }
+        ]
+      },
+      "plantilla_y_tokens": {
+        "estado": "ok",
+        "comprobaciones": {
+          "a_prompt_igual_a_la_plantilla": true,
+          "c_tokens_especiales_un_solo_token": true,
+          "d_sin_marca_especial": true,
+          "sin_filas_de_mas_de_128": true,
+          "prompt_es_prefijo": true,
+          "etiquetas_solo_codigo_y_fin": true,
+          "tabla_del_ejemplo_inventado": true
+        },
+        "a_textos": 2201,
+        "b_solo_registro": {
+          "igual": 0,
+          "igual_mas_salto_final": 2200,
+          "otro": 0
+        },
+        "largo_max": 104,
+        "largo_medio": 69.95,
+        "fichas_etiquetadas_por_fila": {
+          "7": 2200
+        },
+        "ejemplo_inventado": {
+          "fichas": 72,
+          "fichas_con_etiqueta": 7
+        }
+      },
+      "entrenamiento_06b": {
+        "estado": "ok",
+        "comprobaciones": {
+          "fp16": true,
+          "pasos_de_una_epoca": true,
+          "perdida_finita": true,
+          "perdida_baja": true
+        },
+        "lote": 16,
+        "perdida": {
+          "pasos_registrados": 125,
+          "no_finitos": 0,
+          "primera": 3.0011,
+          "ultima": 0.9715,
+          "media_primeros_10": 2.2967,
+          "media_ultimos_10": 0.8799,
+          "minima": 0.699,
+          "lr_primer_paso": 0.0,
+          "lr_ultimo_paso": 3.3333333333333333e-06
+        },
+        "segundos": 79.63
+      },
+      "inferencia": {
+        "estado": "ok",
+        "comprobaciones": {
+          "filas_de_validacion": true,
+          "greedy": true,
+          "todas_terminan_en_token_de_fin": true
+        },
+        "terminacion": {
+          "token_de_fin": 200
+        },
+        "fichas_generadas_max": 7,
+        "respaldo_parametros_de_muestreo": false,
+        "s_por_fila": 0.2428
+      },
+      "espejo_16_bits": {
+        "estado": "ok",
+        "comprobaciones": {
+          "camino_conocido": true,
+          "tensores_identicos": true,
+          "exportable": true
+        },
+        "camino": "espejo",
+        "base_resuelta_por_unsloth": "unsloth/Qwen3-0.6B",
+        "tensores": {
+          "tensores_oficial": 311,
+          "tensores_espejo": 310,
+          "comunes": 310
+        },
+        "distintos": 0,
+        "solo_oficial": [
+          "lm_head.weight"
+        ],
+        "solo_espejo": [],
+        "lm_head_atado": true
+      },
+      "gguf": {
+        "estado": "ok",
+        "comprobaciones": {
+          "exportado": true,
+          "sha256_igual_a_lo_bajado": true,
+          "plantilla_igual_al_tokenizador": true,
+          "un_solo_gguf": true
+        },
+        "archivo": "gguf/qwen3-0.6b-humo-Q4_K_M.gguf",
+        "bytes": 396704672,
+        "sha256": "22e0f3a380f5693c6dcbe52f52a67663a1196efd3f793c622410c2951f2a6821",
+        "prompt_inventado_fichas": 65
+      },
+      "lotes_06b": {
+        "estado": "ok",
+        "comprobaciones": {
+          "lote_32_sin_quedarse_sin_memoria": true,
+          "lote_64_sin_quedarse_sin_memoria": true
+        }
+      },
+      "modelo_4b": {
+        "estado": "ok",
+        "comprobaciones": {
+          "revision_fijada": true,
+          "tokenizador_igual_al_06b": true,
+          "lote_16_50_pasos": true,
+          "perdida_finita": true,
+          "lote_32_sin_quedarse_sin_memoria": true
+        },
+        "perdida_lote_16": {
+          "pasos_registrados": 50,
+          "no_finitos": 0,
+          "primera": 2.2578,
+          "ultima": 0.7864,
+          "media_primeros_10": 1.6957,
+          "media_ultimos_10": 0.7621,
+          "minima": 0.6836,
+          "lr_primer_paso": 0.0,
+          "lr_ultimo_paso": 4.444444444444445e-06
+        },
+        "duraciones_s": {
+          "descarga": 63.6,
+          "carga": 11.8,
+          "entrenamiento_lote_16": 125.7,
+          "lote_32": 95.1
+        }
+      },
+      "estado_final": {
+        "estado": "ok",
+        "comprobaciones": {
+          "completo": true,
+          "sin_fallas": true
+        },
+        "estado_del_kernel": "completo",
+        "etapas_con_falla": []
+      }
+    }
+  },
+  "privacidad": {
+    "filas_de_referencia": 2200,
+    "nombres_buscados": 2170,
+    "llaves_varias_palabras_buscadas": 2057,
+    "llaves_una_palabra_buscadas": 114,
+    "nombre_inventado_es_llave": false,
+    "tapados_por_el_kernel": 0,
+    "archivos_con_posible_fuga": [],
+    "posible_fuga": false,
+    "archivos": {
+      "adaptador/README.md": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 1,
+        "lineas_llaves_una_palabra": [
+          36
+        ]
+      },
+      "adaptador/adapter_config.json": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      },
+      "denue-scian-humo-6b.log": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      },
+      "gguf/prompt_inventado.json": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      },
+      "gguf/prompt_inventado.txt": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      },
+      "humo_mediciones.json": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      },
+      "pip_freeze_antes.txt": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 1,
+        "lineas_llaves_una_palabra": [
+          727,
+          728
+        ]
+      },
+      "pip_freeze_despues.txt": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 1,
+        "lineas_llaves_una_palabra": [
+          732,
+          733
+        ]
+      },
+      "humo_mediciones.json (valores)": {
+        "nombres_crudos": 0,
+        "lineas_nombres_crudos": [],
+        "llaves_varias_palabras": 0,
+        "lineas_llaves_varias_palabras": [],
+        "llaves_una_palabra": 0,
+        "lineas_llaves_una_palabra": []
+      }
+    },
+    "predicciones": {
+      "nombres_crudos": 0,
+      "lineas_nombres_crudos": [],
+      "llaves_varias_palabras": 0,
+      "lineas_llaves_varias_palabras": [],
+      "llaves_una_palabra": 0,
+      "lineas_llaves_una_palabra": []
+    },
+    "metodo": "(i) cada nom_estab de humo_train.jsonl y humo_val.jsonl de 3 caracteres o más como subcadena exacta; (ii) cada llave (normalizar_nombre) como palabras completas de cada línea normalizada. Posible fuga: (i) o (ii) con llaves de dos o más palabras. Las coincidencias de una sola palabra se listan por línea."
+  },
+  "metricas_regla5": {
+    "total": 200,
+    "conteos": {
+      "formato_invalido": 0,
+      "codigo_inexistente": 1,
+      "codigo_existente": 199
+    },
+    "porcentajes": {
+      "formato_invalido": 0.0,
+      "codigo_inexistente": 0.5,
+      "codigo_existente": 99.5
+    },
+    "pct_formato_valido": 100.0,
+    "pct_codigos_inexistentes": 0.5,
+    "aciertos": 15,
+    "errores": 185,
+    "accuracy": 0.075,
+    "pct_accuracy": 7.5,
+    "definicion": "Regla 5: tras quitar al inicio y al final solo el espacio ASCII, \\r y \\n, la respuesta tiene formato válido si es exactamente seis dígitos ASCII ([0-9]{6}); es código existente si además está en el catálogo del SCIAN de la versión fijada. Porcentajes y accuracy sobre el total; formato inválido y código inexistente cuentan como error.",
+    "implementacion": "src/metricas_clasificador.py",
+    "catalogo": {
+      "ruta": "data/scian_2023_clases.csv",
+      "sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73"
+    },
+    "scian_version": "2023",
+    "codigos_existentes_distintos_predichos": 1,
+    "clases_distintas_en_la_referencia": 94,
+    "filas_de_validacion_con_clase_ausente_de_humo_train": 7,
+    "concentracion": {
+      "respuestas_distintas_tras_limpiar": 2,
+      "codigo_valido_mas_predicho": "461110",
+      "filas_con_ese_codigo": 199,
+      "filas_de_la_referencia_con_ese_codigo": 15,
+      "clase_mas_frecuente_de_humo_train": "461110",
+      "filas_de_humo_train_con_esa_clase": 162
+    }
+  },
+  "rendimiento": [
+    {
+      "modelo": "Qwen/Qwen3-0.6B",
+      "lote": 16,
+      "origen": "entrenamiento de la prueba (1 época)",
+      "sin_memoria": false,
+      "pasos_total": 125,
+      "pasos_medidos": 120,
+      "pasos_calentamiento_excluidos": 5,
+      "ejemplos_por_s": 42.852,
+      "fichas_reales_por_s": 2996.9,
+      "fichas_con_relleno_por_s": 3401.4,
+      "relleno_pct": 11.9,
+      "s_por_paso_media": 0.37338,
+      "s_por_paso_mediana": 0.37152,
+      "s_por_paso_p90": 0.38469,
+      "vram_pico_mib": {
+        "asignada": 806.4,
+        "reservada": 892.0
+      },
+      "recalculo_desde_los_pasos_coincide": true
+    },
+    {
+      "modelo": "Qwen/Qwen3-0.6B",
+      "lote": 32,
+      "origen": "medición desechable de lote",
+      "sin_memoria": false,
+      "pasos_total": 25,
+      "pasos_medidos": 20,
+      "pasos_calentamiento_excluidos": 5,
+      "ejemplos_por_s": 50.895,
+      "fichas_reales_por_s": 3570.3,
+      "fichas_con_relleno_por_s": 4290.5,
+      "relleno_pct": 16.8,
+      "s_por_paso_media": 0.62874,
+      "s_por_paso_mediana": 0.64276,
+      "s_por_paso_p90": 0.67436,
+      "vram_pico_mib": {
+        "asignada": 1365.0,
+        "reservada": 1458.0
+      },
+      "recalculo_desde_los_pasos_coincide": true
+    },
+    {
+      "modelo": "Qwen/Qwen3-0.6B",
+      "lote": 64,
+      "origen": "medición desechable de lote",
+      "sin_memoria": false,
+      "pasos_total": 25,
+      "pasos_medidos": 20,
+      "pasos_calentamiento_excluidos": 5,
+      "ejemplos_por_s": 50.383,
+      "fichas_reales_por_s": 3522.3,
+      "fichas_con_relleno_por_s": 4302.7,
+      "relleno_pct": 18.1,
+      "s_por_paso_media": 1.27028,
+      "s_por_paso_mediana": 1.27643,
+      "s_por_paso_p90": 1.36119,
+      "vram_pico_mib": {
+        "asignada": 1768.8,
+        "reservada": 1858.0
+      },
+      "recalculo_desde_los_pasos_coincide": true
+    },
+    {
+      "modelo": "Qwen/Qwen3-4B",
+      "lote": 16,
+      "origen": "50 pasos",
+      "sin_memoria": false,
+      "pasos_total": 50,
+      "pasos_medidos": 45,
+      "pasos_calentamiento_excluidos": 5,
+      "ejemplos_por_s": 7.875,
+      "fichas_reales_por_s": 551.5,
+      "fichas_con_relleno_por_s": 634.5,
+      "relleno_pct": 13.1,
+      "s_por_paso_media": 2.03185,
+      "s_por_paso_mediana": 2.00427,
+      "s_por_paso_p90": 2.25863,
+      "vram_pico_mib": {
+        "asignada": 3993.8,
+        "reservada": 4224.0
+      },
+      "recalculo_desde_los_pasos_coincide": true
+    },
+    {
+      "modelo": "Qwen/Qwen3-4B",
+      "lote": 32,
+      "origen": "medición desechable de lote",
+      "sin_memoria": false,
+      "pasos_total": 25,
+      "pasos_medidos": 20,
+      "pasos_calentamiento_excluidos": 5,
+      "ejemplos_por_s": 8.515,
+      "fichas_reales_por_s": 597.4,
+      "fichas_con_relleno_por_s": 717.8,
+      "relleno_pct": 16.8,
+      "s_por_paso_media": 3.75792,
+      "s_por_paso_mediana": 3.77479,
+      "s_por_paso_p90": 4.19853,
+      "vram_pico_mib": {
+        "asignada": 4581.0,
+        "reservada": 4886.0
+      },
+      "recalculo_desde_los_pasos_coincide": true
+    }
+  ],
+  "estimacion_horas_gpu": {
+    "tamanos_train": [
+      50000,
+      75000,
+      130000,
+      190000
+    ],
+    "criterio_de_lote": "el de más ejemplos/s entre los que no se quedaron sin memoria",
+    "por_modelo": {
+      "qwen3_0.6b": {
+        "modelo": "Qwen/Qwen3-0.6B",
+        "lote": 32,
+        "ejemplos_por_s": 50.895,
+        "lotes_considerados": [
+          16,
+          32,
+          64
+        ],
+        "costo_fijo_s": {
+          "instalacion": 36.674,
+          "imports": 41.435,
+          "descarga": 15.248,
+          "carga": 5.925,
+          "total": 99.3
+        },
+        "inferencia_validacion_1000_filas_s": 242.8,
+        "tabla": [
+          {
+            "filas_train": 50000,
+            "pasos": 1563,
+            "horas_entrenamiento": 0.27,
+            "horas_contraste_mediana_s_por_paso": 0.28,
+            "horas_con_costo_fijo": 0.3
+          },
+          {
+            "filas_train": 75000,
+            "pasos": 2344,
+            "horas_entrenamiento": 0.41,
+            "horas_contraste_mediana_s_por_paso": 0.42,
+            "horas_con_costo_fijo": 0.44
+          },
+          {
+            "filas_train": 130000,
+            "pasos": 4063,
+            "horas_entrenamiento": 0.71,
+            "horas_contraste_mediana_s_por_paso": 0.73,
+            "horas_con_costo_fijo": 0.74
+          },
+          {
+            "filas_train": 190000,
+            "pasos": 5938,
+            "horas_entrenamiento": 1.04,
+            "horas_contraste_mediana_s_por_paso": 1.06,
+            "horas_con_costo_fijo": 1.06
+          }
+        ],
+        "horas_entrenamiento_por_lote": {
+          "16": {
+            "50000": 0.32,
+            "75000": 0.49,
+            "130000": 0.84,
+            "190000": 1.23
+          },
+          "32": {
+            "50000": 0.27,
+            "75000": 0.41,
+            "130000": 0.71,
+            "190000": 1.04
+          },
+          "64": {
+            "50000": 0.28,
+            "75000": 0.41,
+            "130000": 0.72,
+            "190000": 1.05
+          }
+        }
+      },
+      "qwen3_4b": {
+        "modelo": "Qwen/Qwen3-4B",
+        "lote": 32,
+        "ejemplos_por_s": 8.515,
+        "lotes_considerados": [
+          16,
+          32
+        ],
+        "costo_fijo_s": {
+          "instalacion": 36.674,
+          "imports": 41.435,
+          "descarga": 63.6,
+          "carga": 11.8,
+          "total": 153.5
+        },
+        "inferencia_validacion_1000_filas_s": null,
+        "tabla": [
+          {
+            "filas_train": 50000,
+            "pasos": 1563,
+            "horas_entrenamiento": 1.63,
+            "horas_contraste_mediana_s_por_paso": 1.64,
+            "horas_con_costo_fijo": 1.67
+          },
+          {
+            "filas_train": 75000,
+            "pasos": 2344,
+            "horas_entrenamiento": 2.45,
+            "horas_contraste_mediana_s_por_paso": 2.46,
+            "horas_con_costo_fijo": 2.49
+          },
+          {
+            "filas_train": 130000,
+            "pasos": 4063,
+            "horas_entrenamiento": 4.24,
+            "horas_contraste_mediana_s_por_paso": 4.26,
+            "horas_con_costo_fijo": 4.28
+          },
+          {
+            "filas_train": 190000,
+            "pasos": 5938,
+            "horas_entrenamiento": 6.2,
+            "horas_contraste_mediana_s_por_paso": 6.23,
+            "horas_con_costo_fijo": 6.24
+          }
+        ],
+        "horas_entrenamiento_por_lote": {
+          "16": {
+            "50000": 1.76,
+            "75000": 2.65,
+            "130000": 4.59,
+            "190000": 6.7
+          },
+          "32": {
+            "50000": 1.63,
+            "75000": 2.45,
+            "130000": 4.24,
+            "190000": 6.2
+          }
+        }
+      }
+    },
+    "advertencias": [
+      "Solo estimaciones; la decisión del lote y del tope por clase es del chat de Claude del proyecto y de Samuel.",
+      "Horas = filas / (ejemplos/s) / 3600, con ejemplos/s sin los 5 pasos de calentamiento; contraste: ceil(filas/lote) x mediana de s/paso.",
+      "Pocos pasos medidos (20 en las mediciones de lote, 45 en el 4B con lote 16 y 120 en el 0.6B con lote 16).",
+      "Los largos salen de una muestra de 2,000 filas de train; el train completo puede tener filas más largas.",
+      "La VRAM pico sale de pocos pasos; no se midieron lotes mayores que 64 en el 0.6B ni que 32 en el 4B.",
+      "Una sola T4 (CUDA_VISIBLE_DEVICES=0) aunque la sesión tiene dos.",
+      "El costo fijo no incluye el arranque del contenedor de Kaggle ni la evaluación del test; la inferencia del 4B no se midió."
+    ]
+  }
+}
