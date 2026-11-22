@@ -313,3 +313,43 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
 
 - **Una prueba comprobaba que no se sobrescribiera después de `monkeypatch.undo()`.** Para entonces, la revisión de git ya era la real y no aceptaba la ruta temporal. pytest falló antes del commit, y Claude Code movió la comprobación antes de `undo()`. No era un error del código del proyecto.
 - **Un filtro de la terminal ocultó la tabla.** Al correr `--escribir`, Claude Code filtró la salida con un `grep` que quitaba las líneas que empiezan con espacios y dígitos, y con ellas las filas de la tabla. No cambió ningún archivo: Claude Code comprobó la tabla completa en `results/` antes del commit.
+
+## 2026-11-22 — Fase 2, paso 9: kernel de la primera corrida real del clasificador
+
+**Qué se hizo:**
+- Módulo del kernel de las corridas del clasificador (`src/clasificador_kaggle.py`) y generador generalizado (`src/construir_kernel.py`), con 57 pruebas.
+- Kernel `notebooks/kaggle-06b-inicial/` (Qwen3-0.6B, configuración inicial y largo máximo de 256), sin lanzar.
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con tres ajustes y Samuel lo aprobó.
+- Los commits están sin push.
+
+### Proceso
+
+- **Pregunta antes del plan.** Claude Code midió, solo con conteos, el largo en bytes de los nombres del train final y preguntó a Samuel qué hacer con el largo máximo de 128. Samuel eligió 256, y el chat lo fijó después como estándar de todas las corridas del clasificador.
+- **Lectura del código real.** Para el ajuste del barajado, Claude Code bajó con `pip download` los wheels de transformers 5.17.0, accelerate 1.15.0, unsloth 2026.11.9 y unsloth_zoo 2026.11.8 a una carpeta aparte, sin instalarlos ni ejecutarlos, y leyó el sampler, el ciclo de entrenamiento y los parches.
+- **Simulacro reutilizado.** Claude Code adaptó el simulacro del 6b, que seguía en un scratchpad anterior. Ahora valida los argumentos de `TrainingArguments` contra la lista de campos de transformers 5.17, sacada del wheel, e imita el orden de los callbacks del Trainer. Corrió en seis modos y todos terminaron como se esperaba.
+- **Corte de conexión antes del commit (a).** Por instrucción de Samuel, Claude Code revisó con `git status`, `git log -3` y `git diff --cached`:
+  - no había commit ni nada preparado, y los seis archivos estaban en disco;
+  - repitió las 581 pruebas y `--verificar` antes de hacer el commit (`54374f9`).
+
+### Hallazgos
+
+- **Nombres más largos que en la prueba.** El train final tiene nombres de hasta 151 bytes (156 filas de más de 100 bytes); la muestra de la prueba llegaba a 97.
+  - Con unos 2.4 bytes por ficha en los nombres largos, las filas más largas quedaban cerca de 128 fichas o arriba, y la regla validada habría abortado el kernel.
+  - Con 256, la cota por bytes (223 fichas como máximo) garantiza que ninguna fila pase.
+- **La corrida de prueba no listó `/kaggle/input`.** La revisión que pidió el chat no se pudo hacer con el log ni con las mediciones.
+  - La API de Kaggle (`kaggle datasets files`, de solo lectura) lista solo `train_final.jsonl` y `val.jsonl`.
+  - El kernel nuevo registra el listado en `mediciones.json`.
+- **Barajado.** Con `trainer.train()`:
+  - el Trainer de transformers 5.17 usa `RandomSampler`, y accelerate lo convierte en `SeedableRandomSampler` con `data_seed`;
+  - Unsloth reescribe el ciclo interno de entrenamiento solo en mensajes, TPU, caché de compilación y copias no bloqueantes;
+  - su `unsloth_train` (con `SequentialSampler`) solo corre si se llama a mano.
+- **transformers 5.17 ya evalúa en el último paso** cuando la estrategia de evaluación es por pasos (`DefaultFlowCallback`). El kernel solo agrega la evaluación del paso 0 y deja una de respaldo por si falta la del final.
+- **transformers 5.17 ya no tiene `warmup_ratio`.** `warmup_steps` acepta una fracción y la redondea hacia arriba; el kernel pasa el entero 176, calculado con la misma regla.
+- **Logits de validación.** Sin `prediction_loss_only=True`, el Trainer juntaría los logits de las 1,000 filas, unos 21 GB.
+- **Coincidencia con una llave.** Con las 159,677 llaves de train y validación, una cadena de las mediciones de la prueba (no es de configuración ni el estado) coincide con una llave. El registro la taparía y la anotaría en `tapados`; se acepta.
+- **La regla deny también bloquea `kaggle kernels push --help`.** Claude Code leyó la opción `-t` (`--timeout`, en segundos) en el código de la CLI (`kaggle/cli.py`, línea 1422).
+
+### Errores de Claude Code
+
+- **Otra vez un heredoc perdió las barras invertidas.** Claude Code intentó cambiar tres líneas de `src/construir_kernel.py` con Python por un heredoc de Bash, y un `\n` llegó como salto de línea. La comprobación del script falló antes de escribir y no cambió nada; los cambios se hicieron con la herramienta de edición. Es la tercera vez (6b, paso 7 y este paso): el texto con barras invertidas va siempre con la herramienta de edición.
+- **Docstring mal puntuado en el kernel generado.** La primera versión del generador escribía "main(). con la configuración…" en el docstring del kernel nuevo. Claude Code lo vio en la generación en seco, antes de escribir el kernel, y lo corrigió sin cambiar el kernel de la prueba.

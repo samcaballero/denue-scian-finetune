@@ -311,3 +311,83 @@
 - `CLAUDE.md`, sección b: describe `train_final.jsonl` y los datasets de Kaggle. Claude Code redactó el texto y lo aplicó por instrucción del chat, aprobada por Samuel; se muestra en el reporte final para revisarlo.
 - Pruebas: 39 nuevas con datos inventados; pasan las 524 del repo. Dos de ellas espían `open` y confirman que ni el tope ni el paquete abren `test.jsonl` ni `hard.jsonl`.
 - PARADA: los commits del paso están sin push; el push y la subida a Kaggle los hace Samuel.
+- Subida, hecha por Samuel después de la PARADA y registrada en el paso 9:
+  - creó el dataset privado `samcaballero/denue-scian-clasificador` con `kaggle datasets create`, sin `-u`;
+  - el dataset quedó en estado ready, y los tamaños en Kaggle (15,583,913 bytes de `train_final.jsonl` y 81,500 de `val.jsonl`) son iguales a los del manifest;
+  - en una ventana privada, la página del dataset da 404, así que no es público.
+- Captura de la tabla del tope: `docs/evidencia/2026-11-22_fase1_tabla-tope-clase.png`, copiada en el paso 9 desde `../evidencia/` sin cambios (mismo SHA-256, `61709975…`).
+  - Claude Code la revisó: solo muestra la tabla de topes (números y códigos SCIAN) y la nota de las 209 clases; no muestra correos, llaves, tokens, teléfonos, contraseñas ni nombres de negocios.
+  - No trae metadatos de texto ni EXIF: el PNG solo tiene los bloques de imagen, gamma, resolución y sRGB.
+
+## 2026-11-22 - Fase 2, paso 9: kernel de la primera corrida real del clasificador
+
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan. El chat lo revisó con tres ajustes y Samuel lo aprobó, junto con la estimación de GPU:
+  - comprobar que el train se recorre barajado y agregar una prueba;
+  - revisar antes del commit las condiciones que harían abortar el kernel;
+  - fijar el largo máximo de 256 como estándar del clasificador.
+- Qué es: el kernel de la primera corrida que cuenta, Qwen3-0.6B con la configuración inicial de la guía sobre `train_final.jsonl` (187,350 filas) y `val.jsonl` (1,000). Claude Code no lo lanzó.
+  - Su resultado en validación se reporta en el paso siguiente, cuando se evalúe en la laptop: descarga, revisión de nombres, regla 5 y subgrupos de la regla 8 en `results/`.
+- Largo máximo de secuencia: **256 fichas, en vez de las 128 de la guía**. Es el estándar de todas las corridas del clasificador: entrenamiento, barrido, 4B e inferencia.
+  - Claude Code lo propuso al ver que el train final tiene nombres de hasta 151 bytes (156 filas de más de 100 bytes); en la prueba, el máximo era de 97. Con la regla validada, una fila de más del máximo aborta el kernel, porque truncarla cortaría el código de la respuesta. Samuel aprobó subirlo a 256.
+  - El chat de Claude del proyecto lo fijó como estándar y Samuel lo aprobó. Es el valor por omisión de las corridas en `src/construir_kernel.py` (`LARGO_MAXIMO_CLASIFICADOR`), y una prueba lo comprueba.
+  - Por la cota de bytes, ninguna fila puede pasar de 223 fichas: no se trunca ni se excluye ninguna. Las filas de más de 128 fichas solo se cuentan.
+- Configuración: va en el diccionario `CORRIDA`, incrustado en el kernel y validado al arrancar.
+  - Modelo `Qwen/Qwen3-0.6B` en la revisión `c1899de2…`, en NF4 y con `use_exact_model_name=True`.
+  - LoRA: rank 16, alpha 16, dropout 0, en las 7 proyecciones lineales.
+  - Tasa de aprendizaje 2e-4, 1 época, lote 32 sin acumulación (5,855 pasos), AdamW de 8 bits, fp16 y semilla 42.
+  - Calentamiento de la tasa (warmup): 3 % de los pasos (176), lineal desde 0. Después, decaimiento lineal hasta 0, como en la prueba. Claude Code los propuso y se aprobaron con el plan.
+  - Sin early stopping ni elección de punto de control: el adaptador es el del final de la época.
+- Del lote 16 de la prueba al 32:
+  - los pasos por época bajan de 11,710 a 5,855;
+  - como el paso de AdamW depende poco del tamaño del lote, con la misma tasa los pesos se mueven más o menos la mitad por época; se mantiene la tasa de la guía, y el barrido puede revisarlo;
+  - velocidad medida: de 42.9 a 50.9 ejemplos/s;
+  - VRAM pico reservada: de 892 a 1,458 MiB;
+  - relleno: de 11.9 % a 16.8 %.
+- Curvas:
+  - pérdida de train en cada paso;
+  - pérdida de validación en las 1,000 filas en el paso 0 (antes de entrenar), cada 500 pasos y en el último paso, 13 puntos en total;
+  - en cada evaluación se reescribe `mediciones.json`, así que si la corrida se corta, la curva hasta ese punto queda.
+- Barajado (ajuste del chat): Claude Code leyó el código de transformers 5.17.0, accelerate 1.15.0, unsloth 2026.11.9 y unsloth_zoo 2026.11.8, de los wheels bajados sin instalarlos.
+  - Con `trainer.train()`, el Trainer usa un `RandomSampler` (`train_sampling_strategy="random"`), y accelerate lo cambia por un `SeedableRandomSampler` con `data_seed=42`.
+  - El parche de Unsloth al ciclo de entrenamiento no toca el sampler. El ciclo propio de Unsloth que recorre en orden (`unsloth_train`, con `SequentialSampler`) solo corre si se llama a mano, y el kernel no lo llama.
+  - El colador propio recibe los lotes ya en el orden del sampler.
+  - El kernel lo comprueba en la corrida:
+    - el colador registra la posición de cada fila;
+    - en el paso 20, el kernel aborta si las primeras 640 filas llegaron en orden de id;
+    - al final, registra si el train se recorrió completo, una vez cada fila y barajado, con el SHA-256 del orden.
+  - Las pruebas cubren los argumentos del Trainer, la revisión del orden y el aborto con filas en orden.
+- Revisión antes del commit (ajuste del chat), solo con conteos:
+  - hay 0 nombres con `<|`, tanto en train como en validación;
+  - ninguna fila puede pasar de 256 fichas: la cota máxima es de 223 en train y de 164 en validación;
+  - el log y las mediciones de la prueba no registraron qué había en `/kaggle/input`, así que no hay evidencia directa de lo que agrega Kaggle. La API de Kaggle lista solo `train_final.jsonl` y `val.jsonl` en el dataset. Si la regla de solo dos archivos abortara por un archivo de Kaggle, sería en la etapa 2, antes de instalar, y el listado quedaría en `mediciones.json`.
+- Código:
+  - `src/clasificador_kaggle.py`, nuevo:
+    - reutiliza de `src/humo_kaggle.py` la verificación de la T4, la lectura de datos con su SHA-256, la instalación de versiones fijadas, los imports, la descarga verificada, el colador, la inferencia y el registro sin nombres;
+    - reescribe, partiendo de ese código, la carga, LoRA y los tokens con el largo de la corrida, y agrega el entrenamiento con validación.
+  - `src/construir_kernel.py`, con una especificación por kernel (`humo-6b` y `06b-inicial`):
+    - el kernel de la prueba sale idéntico byte a byte, con el mismo SHA-256 que el que se lanzó desde `1b4e41f`;
+    - el candado de cada kernel rechaza `test.jsonl`, `hard.jsonl`, sus SHA-256 y cualquier otro hash del manifest.
+  - `src/humo_kaggle.py`, `src/prompt_clasificador.py`, `src/normalizacion.py` y `src/__init__.py` no cambian.
+- Kernel en `notebooks/kaggle-06b-inicial/`:
+  - `clasificador_06b_inicial.py`: 134,875 bytes, SHA-256 `570a3aa8…`;
+  - `kernel-metadata.json`: id `samcaballero/denue-scian-06b-inicial`, privado, T4, internet, imagen fijada y el dataset del clasificador como única fuente.
+- Pruebas:
+  - 57 nuevas con datos inventados; pasan las 581 del repo;
+  - Claude Code corrió fuera del repo un simulacro de todas las etapas con dependencias falsas, en seis modos: normal, sin barajar, fila larga, archivo de más, SHA-256 distinto y falla de la validación en el paso 0;
+  - cada modo terminó como se esperaba, y no apareció ningún nombre en el log ni en las mediciones.
+- Estimación de GPU, aprobada por Samuel:
+
+  | Etapa | Estimado |
+  |---|---:|
+  | Arranque del contenedor y guardado de la salida | ~3 min |
+  | GPU y datos | <0.3 min |
+  | Instalación, imports, descarga y carga | ~1.7 min |
+  | Tokens y plantilla (188,351 textos) | ~2 min |
+  | Entrenamiento (5,855 pasos) | 61-63 min |
+  | Validación (13 × 1,000 filas) | ~2 min |
+  | Inferencia (1,000 filas) | ~4 min |
+  | **Total** | **≈1.25 h (rango de 1.2 a 1.4 h)** |
+
+  El tope es `-t 9000` (2.5 h).
+- Commits: `54374f9` (código, pruebas y kernel) y el de esta bitácora, el registro y la captura.
+- PARADA: el kernel está listo y sin lanzar. Falta que Samuel corra `--verificar` y `kaggle kernels push` desde PowerShell.
