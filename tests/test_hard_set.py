@@ -22,6 +22,7 @@ from src.hard_set import (
     COLUMNAS_CSV,
     MAX_FILAS_LLAVE,
     N_HARD,
+    N_HARD_PLANEADO,
     PALABRAS_GRAMATICALES,
     PALABRAS_GRAMATICALES_AGREGADAS,
     PALABRAS_GRAMATICALES_ORIGINALES,
@@ -33,6 +34,7 @@ from src.hard_set import (
     Marca,
     agregar_entradas,
     agrupar,
+    aplicar_ajustes,
     candado_hashes,
     cargar_entradas,
     clases_mas_comunes,
@@ -45,6 +47,7 @@ from src.hard_set import (
     filas_curacion,
     generar_candidatos,
     intercalar,
+    leer_ajustes,
     leer_archivos,
     leer_curacion,
     otras_iguales,
@@ -52,6 +55,7 @@ from src.hard_set import (
     registros_hard,
     repartir,
     resumen_candidatos,
+    resumen_curacion,
     resumen_hard,
     serializar_csv,
     serializar_hard,
@@ -269,7 +273,7 @@ def test_peor_caso_y_limite_de_la_regla7():
     assert peor_caso([1, 2], n=5) == 3
     assert not exclusion_regla7(41372, 459520, 4580)["pasa_del_limite"]  # exactamente 10 %
     assert exclusion_regla7(41372, 459520, 4581)["pasa_del_limite"]
-    cota = exclusion_regla7(41372, 459520, N_HARD * MAX_FILAS_LLAVE)
+    cota = exclusion_regla7(41372, 459520, N_HARD_PLANEADO * MAX_FILAS_LLAVE)
     assert (cota["filas_excluidas"], cota["pct_filas_candidatas"], cota["pasa_del_limite"]) == (44372, 9.66, False)
 
 
@@ -504,6 +508,141 @@ def test_validar_curacion_rechaza(caso):
     assert not isinstance(e.value, ErrorConteo)
 
 
+def test_tamano_aprobado_del_hard_set():
+    # CAMBIO DE DISEÑO del 2026-11-22: leer y congelar piden 105; la PARADA 1 sigue con las 150 planeadas.
+    assert (N_HARD, N_HARD_PLANEADO) == (105, 150)
+    g = agrupar(_datos(n_i=60, n_ii=60))
+    cands = generar_candidatos(g, VOCAB, rondas=({"i": 60, "ii": 60},), tope=60).candidatos
+    assert len(validar_curacion(_marcas(cands, 105), cands, set())) == 105  # meta por omisión: N_HARD
+    for n_si in (104, 106):
+        with pytest.raises(ErrorConteo) as e:
+            validar_curacion(_marcas(cands, n_si), cands, set())
+        assert (e.value.encontradas, e.value.esperadas) == (n_si, 105)
+    assert resumen_candidatos(generar_candidatos(g, VOCAB, rondas=RONDA_CHICA, tope=3), _ent(_datos()))[
+        "cota_garantizada"]["filas"] == 150 * MAX_FILAS_LLAVE
+
+
+# --- Ajustes del chat encima de la curación de la IA ---
+
+
+def _aj(id_, incluir="N", tipo=None, motivo="motivo inventado"):
+    return {"id": id_, "incluir": incluir, "tipo": tipo, "motivo": motivo}
+
+
+def _json_ajustes(ajustes: list) -> bytes:
+    obj = {"descripcion": "Ajustes inventados.", "ajustes": ajustes}
+    return (json.dumps(obj, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
+def _m(id_: str, incluir: bool, tipo: str | None = None) -> Marca:
+    return Marca("x.csv", int(id_), id_, incluir, tipo if incluir else None, False)
+
+
+MARCAS_IA = [_m("1", True, "ambiguo"), _m("2", True, "indirecto"), _m("3", False), _m("4", True, "indirecto")]
+
+
+def test_archivo_de_ajustes_en_data_ignorado_y_con_hash(tmp_path, monkeypatch):
+    from src.splits import esta_ignorado
+
+    # Lleva ids del DENUE: vive en data/, ignorado por git; el código solo versiona su SHA-256.
+    assert hs.AJUSTES.startswith("data/") and esta_ignorado(hs.AJUSTES)
+    assert len(hs.AJUSTES_SHA256) == 64 and set(hs.AJUSTES_SHA256) <= set("0123456789abcdef")
+    ruta = tmp_path / "ajustes.json"
+    datos = _json_ajustes([_aj("id-5")])
+    ruta.write_bytes(datos)
+    monkeypatch.setattr(hs, "esta_ignorado", lambda r: True)
+    leidos, info = hs.leer_archivo_ajustes(ruta, _sha(datos))
+    assert leidos == datos
+    assert info == {"sha256": _sha(datos), "tamano_bytes": len(datos), "sha256_coincide_con_el_codigo": True}
+    assert not hs.leer_archivo_ajustes(ruta, "0" * 64)[1]["sha256_coincide_con_el_codigo"]
+    with pytest.raises(ErrorCuracion, match="No existe"):
+        hs.leer_archivo_ajustes(tmp_path / "otro.json")
+    monkeypatch.setattr(hs, "esta_ignorado", lambda r: False)
+    with pytest.raises(ErrorCuracion, match="ignorado"):
+        hs.leer_archivo_ajustes(ruta)
+
+
+def test_leer_ajustes():
+    datos = _json_ajustes([_aj("id-5"), _aj("7", None, "ambiguo", "otro motivo"), _aj("ID-9", None, "indirecto")])
+    aj = leer_ajustes(datos)
+    assert [(a.numero, a.id, a.a_n, a.tipo) for a in aj] == [
+        (1, "5", True, None), (2, "7", False, "ambiguo"), (3, "9", False, "indirecto")]
+    assert aj[1].motivo == "otro motivo"
+
+
+@pytest.mark.parametrize("ajustes,error", [
+    ([{"id": "id-5", "incluir": "N", "tipo": None}], "claves"),
+    ([{"incluir": "N", "id": "id-5", "tipo": None, "motivo": "m"}], "claves"),
+    ([_aj("x-5")], "id con formato"),
+    ([_aj(5)], "id con formato"),
+    ([_aj("id-5"), _aj("5", None, "ambiguo")], "id repetido"),
+    ([_aj("id-5", "N", "ambiguo")], "incluir N con tipo null"),
+    ([_aj("id-5", None, None)], "incluir N con tipo null"),
+    ([_aj("id-5", "S", None)], "incluir N con tipo null"),
+    ([_aj("id-5", None, "otro")], "incluir N con tipo null"),
+    ([_aj("id-5", motivo=" ")], "falta el motivo"),
+])
+def test_leer_ajustes_rechaza(ajustes, error):
+    with pytest.raises(ErrorCuracion, match=error):
+        leer_ajustes(_json_ajustes(ajustes))
+
+
+def test_leer_ajustes_exige_json_con_sus_claves():
+    for datos in (b"{", b"\xef\xbb\xbf" + _json_ajustes([]), b"[]", b'{"ajustes": []}',
+                  b'{"descripcion": "x", "ajustes": [], "otra": 1}'):
+        with pytest.raises(ErrorCuracion):
+            leer_ajustes(datos)
+    assert leer_ajustes(_json_ajustes([])) == []
+
+
+def test_aplicar_ajustes():
+    aj = leer_ajustes(_json_ajustes([_aj("id-1"), _aj("id-02", None, "ambiguo")]))  # el id se compara como número
+    salida = aplicar_ajustes(MARCAS_IA, aj)
+    assert [(m.id, m.incluir, m.tipo) for m in salida] == [
+        ("1", False, None), ("2", True, "ambiguo"), ("3", False, None), ("4", True, "indirecto")]
+    assert MARCAS_IA[0].incluir and MARCAS_IA[1].tipo == "indirecto"  # no modifica la entrada
+    assert [(m.archivo, m.registro) for m in salida] == [(m.archivo, m.registro) for m in MARCAS_IA]
+    assert aplicar_ajustes(MARCAS_IA, []) == MARCAS_IA
+
+
+@pytest.mark.parametrize("ajuste,error", [
+    (_aj("id-3"), "no está en S"),
+    (_aj("id-3", None, "ambiguo"), "no está en S"),
+    (_aj("id-4", None, "indirecto"), "no cambia nada"),
+    (_aj("id-99"), "exactamente una vez"),
+])
+def test_aplicar_ajustes_se_detiene(ajuste, error):
+    with pytest.raises(ErrorCuracion, match=error):
+        aplicar_ajustes(MARCAS_IA, leer_ajustes(_json_ajustes([ajuste])))
+
+
+def test_aplicar_ajustes_rechaza_id_repetido_en_los_csv():
+    with pytest.raises(ErrorCuracion, match="exactamente una vez"):
+        aplicar_ajustes([*MARCAS_IA, _m("1", True, "ambiguo")], leer_ajustes(_json_ajustes([_aj("id-1")])))
+
+
+def test_resumen_curacion():
+    aj = leer_ajustes(_json_ajustes([_aj("id-1", motivo="b"), _aj("id-4", motivo="b"), _aj("id-2", None, "ambiguo", "a")]))
+    assert resumen_curacion(MARCAS_IA, aj) == {
+        "filas_con_s_en_los_csv": 3,
+        "por_tipo_en_los_csv": {"ambiguo": 1, "indirecto": 2},
+        "ajustes": 3,
+        "ajustes_a_n": 2,
+        "ajustes_de_tipo": {"ambiguo": 1, "indirecto": 0},
+        "por_motivo": [{"cambio": "a N", "motivo": "b", "filas": 2}, {"cambio": "tipo ambiguo", "motivo": "a", "filas": 1}],
+    }
+
+
+def test_ajustes_y_validacion_dan_la_meta():
+    g = agrupar(_datos())
+    cands = generar_candidatos(g, VOCAB, rondas=RONDA_CHICA, tope=3).candidatos
+    marcas = _marcas(cands, 6, tipo="indirecto")
+    aj = leer_ajustes(_json_ajustes([_aj(f"id-{cands[0].id}"), _aj(f"id-{cands[1].id}", None, "ambiguo")]))
+    inc = validar_curacion(aplicar_ajustes(marcas, aj), cands, set(), n=5)
+    assert int(cands[0].id) not in {int(c.id) for c, _ in inc}
+    assert Counter(t for _, t in inc) == {"indirecto": 4, "ambiguo": 1}
+
+
 # --- PARADA 2 y congelado ---
 
 
@@ -640,17 +779,21 @@ def test_el_flujo_completo_nunca_abre_test(tmp_path, monkeypatch):
     ruta_csv = raiz / "data" / "curado.csv"
     escribir_nuevo(serializar_csv(curadas), ruta_csv)
     marcas, archivos = leer_archivos([ruta_csv])
-    incluidas = validar_curacion(marcas, gen.candidatos, ent.llaves_val, n=6)
+    ruta_ajustes = raiz / "evals" / "ajustes.json"
+    ruta_ajustes.parent.mkdir()
+    ruta_ajustes.write_bytes(_json_ajustes([_aj(f"id-{marcas[0].id}")]))
+    marcas = aplicar_ajustes(marcas, leer_ajustes(ruta_ajustes.read_bytes()))
+    incluidas = validar_curacion(marcas, gen.candidatos, ent.llaves_val, n=5)
     resumen_hard(incluidas, ent)
     datos = contenidos(incluidas, ent)
     candado_hashes({n: _sha(b) for n, b in datos.items()}, manifest)
     escribir_splits(datos, raiz / "data" / "splits")
     monkeypatch.undo()
-    assert {"train_candidatos.jsonl", "val.jsonl", "curado.csv", "hard.jsonl"} <= set(abiertos)  # el espía sí ve
+    assert {"train_candidatos.jsonl", "val.jsonl", "curado.csv", "ajustes.json", "hard.jsonl"} <= set(abiertos)  # el espía sí ve
     assert "test.jsonl" not in abiertos
     assert archivos[0]["sha256"] == _sha(ruta_csv.read_bytes())
     hard = (raiz / "data" / "splits" / "hard.jsonl").read_bytes().decode("utf-8").splitlines()
-    assert len(hard) == 6 and {json.loads(l)["llave"] for l in hard}.isdisjoint(ent.llaves_val)
+    assert len(hard) == 5 and {json.loads(l)["llave"] for l in hard}.isdisjoint(ent.llaves_val)
 
 
 def test_el_hard_set_sale_completo_de_train(tmp_path):

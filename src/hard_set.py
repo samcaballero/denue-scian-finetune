@@ -1,10 +1,17 @@
 """Hard set del clasificador (Fase 1, paso 7).
 
-150 filas de `data/splits/train_candidatos.jsonl`, una por llave, curadas a mano por Samuel
-(CLAUDE.md, sección c, reglas 2, 3, 7 y 8). Dos tipos: ambiguo (el nombre admite varias
-actividades) e indirecto (sin palabras del vocabulario SCIAN, pero una persona deduciría la
-actividad). Se trata como el test: se congela con su SHA-256 y no se vuelve a abrir hasta la
-Fase 4. Todas las filas de sus llaves salen de train.
+N_HARD filas de `data/splits/train_candidatos.jsonl`, una por llave (CLAUDE.md, sección c,
+reglas 2, 3, 7 y 8). Dos tipos: ambiguo (el nombre admite varias actividades) e indirecto (sin
+palabras del vocabulario SCIAN, pero una persona deduciría la actividad). Se trata como el test:
+se congela con su SHA-256 y no se vuelve a abrir hasta la Fase 4. Todas las filas de sus llaves
+salen de train.
+
+Curación (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22): la hizo una IA (Gemini, en Google
+Sheets) con los criterios que definieron Samuel y el chat de Claude del proyecto, sin revisión de
+Samuel fila por fila. Encima van los ajustes del chat, en AJUSTES: cada uno pasa a N una fila que
+la IA dejó en S o le cambia el tipo. Ese archivo lleva ids del DENUE, así que vive en data/,
+ignorado por git; el código guarda solo su SHA-256 (AJUSTES_SHA256). Tamaño: 105 filas en vez de
+las 150 planeadas, sin ronda 2.
 
 Candidatos (semilla 42):
 
@@ -31,6 +38,8 @@ Uso:
 Cada CSV curado debe estar dentro de data/, ignorado por git y con un nombre que termine en
 -curado.csv. La lectura tolera lo que guardan Excel y Google Sheets (BOM o no, UTF-8, UTF-16
 o cp1252, coma, punto y coma o tabulador, CRLF, comillas y saltos de línea dentro de celdas).
+leer y congelar aplican siempre los ajustes de AJUSTES, que debe estar ignorado por git; congelar
+exige además que su SHA-256 sea AJUSTES_SHA256.
 
 Nunca abre el archivo de test ni construye su ruta: del test solo usa el SHA-256 y las filas
 que registra el manifest. En la terminal solo van conteos y códigos SCIAN, nunca nombres,
@@ -52,7 +61,7 @@ import sys
 import unicodedata
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -66,7 +75,12 @@ from src.subgrupos import en_vocabulario, quitar_marcador
 
 SCRIPT = "src/hard_set.py"
 SEMILLA = 42
-N_HARD = 150
+# Tamaño planeado al generar los candidatos: con él se calcularon el peor caso de la PARADA 1 y
+# el tope de tamaño de la llave. No cambia, para que la PARADA 1 se pueda reproducir.
+N_HARD_PLANEADO = 150
+# Tamaño aprobado del hard set, la meta de leer y congelar: CAMBIO DE DISEÑO aprobado por Samuel
+# el 2026-11-22 (curación de una IA con ajustes del chat de Claude del proyecto; sin ronda 2).
+N_HARD = 105
 MIN_FILAS_TIPO = 50  # aviso en la PARADA 2 si un tipo queda por debajo
 MIN_FILAS_LLAVE_I = 2
 MAX_FILAS_LLAVE = 20  # tope de tamaño de la llave: 150 × 20 filas no pasan el 10 % de la regla 7
@@ -101,6 +115,12 @@ COLUMNAS_CSV = (
     "clase_1", "clase_2", "clase_3", "incluir", "tipo", "nota",
 )
 COLUMNAS_LEIDAS = ("id", "incluir", "tipo")
+# Ajustes del chat de Claude del proyecto a la curación de la IA. Lleva ids del DENUE: vive en
+# data/, ignorado por git, y aquí solo se versiona su SHA-256 (congelar exige que coincida).
+AJUSTES = "data/2026-11-22_fase1_hard-set-ajustes-chat.json"
+AJUSTES_SHA256 = "61b4dd8c8787d2856de98c6ff4caf93a0b7609649142476bffe88d45eb0ad390"
+CLAVES_AJUSTES = ("descripcion", "ajustes")
+CLAVES_AJUSTE = ("id", "incluir", "tipo", "motivo")
 PREFIJO_ID = "id-"
 INICIO_FORMULA = ("=", "+", "-", "@")
 RE_ID_CSV = re.compile(r"(?:ID-)?([0-9]+)")
@@ -119,14 +139,20 @@ PROCEDIMIENTO = (
     "de (i) con rng.integers(n) en el orden de la permutación (filas por int(id)); permutación de las llaves "
     "de (ii) ordenadas. Cada ronda sigue las permutaciones desde donde quedó la anterior y acepta un candidato "
     f"si su sector (2 primeros dígitos de codigo_act) tiene cupo: tope {TOPE_SECTOR} por sector, fuente y "
-    "ronda. Samuel marcó a mano incluir (S/N) y tipo (ambiguo/indirecto) en el CSV de curación; si la "
-    "etiqueta del DENUE le pareció equivocada, la fila se descartó (no se corrigió). Hard set: las "
-    f"{N_HARD} filas con incluir=S. Train candidato sin hard: las filas de train candidato cuya llave no está "
-    "en el hard set."
+    "ronda. Una IA (Gemini, en Google Sheets) marcó incluir (S/N) y tipo (ambiguo/indirecto) en el CSV de "
+    "curación con los criterios que definieron Samuel y el chat de Claude del proyecto (si la etiqueta del "
+    "DENUE parecía equivocada, la fila se descartaba, no se corregía); Samuel no lo revisó fila por fila. "
+    f"Encima se aplicaron los ajustes del chat ({AJUSTES}, ignorado por git porque lleva ids del DENUE; su "
+    "SHA-256 queda en el código y aquí): cada uno pasa a N una fila que la IA dejó en S "
+    f"o le cambia el tipo. Hard set: las {N_HARD} filas con incluir=S tras los ajustes ({N_HARD_PLANEADO} "
+    "planeadas; sin ronda 2; CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22). Train candidato sin hard: "
+    "las filas de train candidato cuya llave no está en el hard set."
 )
 NOTA_HARD = (
     "Se trata como el test (regla 3): no se usa para elegir modelos ni hiperparámetros, no sube a Kaggle "
-    "hasta la Fase 4 y se evalúa una sola vez, junto con el test."
+    "hasta la Fase 4 y se evalúa una sola vez, junto con el test. Sesgo reconocido: las filas las eligió un "
+    "modelo de lenguaje (Gemini) con su propio conocimiento, sobre todo las de tipo indirecto. Un tipo con "
+    f"menos de {MIN_FILAS_TIPO} filas se reporta con su intervalo y una advertencia."
 )
 NOTA_TRAIN_SIN_HARD = "Sin congelar: el tope por clase parte de este archivo y nunca abre hard.jsonl."
 
@@ -363,7 +389,7 @@ def generar_candidatos(
 # --- Regla 7 ---
 
 
-def peor_caso(tamanos: Sequence[int], n: int = N_HARD) -> int:
+def peor_caso(tamanos: Sequence[int], n: int = N_HARD_PLANEADO) -> int:
     """Filas de las n llaves más grandes: lo máximo que el hard set puede sacar de train."""
     return sum(sorted(tamanos, reverse=True)[:n])
 
@@ -409,8 +435,8 @@ def resumen_candidatos(gen: Generacion, ent: Entradas) -> dict:
         "clases": len({c.registro["codigo_act"] for c in cands}),
         "peor_caso": {"filas_llaves_mas_grandes": peor, **exclusion_regla7(ent.previas, ent.candidatas, peor)},
         "cota_garantizada": {
-            "filas": N_HARD * MAX_FILAS_LLAVE,
-            **exclusion_regla7(ent.previas, ent.candidatas, N_HARD * MAX_FILAS_LLAVE),
+            "filas": N_HARD_PLANEADO * MAX_FILAS_LLAVE,
+            **exclusion_regla7(ent.previas, ent.candidatas, N_HARD_PLANEADO * MAX_FILAS_LLAVE),
         },
     }
 
@@ -618,6 +644,103 @@ def leer_archivos(rutas: Sequence[Path]) -> tuple[list[Marca], list[dict]]:
     return marcas, archivos
 
 
+# --- Ajustes del chat encima de la curación de la IA ---
+
+
+@dataclass(frozen=True)
+class Ajuste:
+    numero: int  # posición en la lista de ajustes (1 = el primero)
+    id: str
+    a_n: bool  # True: la fila pasa de S a N; False: cambia su tipo
+    tipo: str | None
+    motivo: str
+
+
+def leer_archivo_ajustes(ruta: Path, sha_esperado: str = AJUSTES_SHA256) -> tuple[bytes, dict]:
+    """Bytes del archivo de ajustes y su SHA-256; debe existir y estar ignorado por git (lleva ids del DENUE)."""
+    p = Path(ruta)
+    if not esta_ignorado(p):
+        raise ErrorCuracion("El archivo de ajustes no está ignorado por git (lleva ids del DENUE); no se lee.")
+    if not p.is_file():
+        raise ErrorCuracion("No existe el archivo de ajustes.")
+    datos = p.read_bytes()
+    sha = sha256_bytes(datos)
+    return datos, {"sha256": sha, "tamano_bytes": len(datos), "sha256_coincide_con_el_codigo": sha == sha_esperado}
+
+
+def leer_ajustes(datos: bytes) -> list[Ajuste]:
+    """Ajustes del JSON versionado: cada uno pasa una fila a N o le cambia el tipo; ids sin repetir."""
+    try:
+        obj = json.loads(datos.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise ErrorCuracion("El archivo de ajustes no es JSON en UTF-8.") from e
+    if not isinstance(obj, dict) or tuple(obj) != CLAVES_AJUSTES or not isinstance(obj["ajustes"], list):
+        raise ErrorCuracion(f"El archivo de ajustes debe ser un objeto con las claves {list(CLAVES_AJUSTES)}.")
+    validos = [("N", None), *((None, t) for t in TIPOS)]
+    ajustes, errores, vistos = [], [], set()
+    for n, a in enumerate(obj["ajustes"], 1):
+        donde = f"ajuste {n}"
+        if not isinstance(a, dict) or tuple(a) != CLAVES_AJUSTE:
+            errores.append(f"{donde}: las claves deben ser {list(CLAVES_AJUSTE)}, en ese orden")
+            continue
+        m = RE_ID_CSV.fullmatch(a["id"].upper()) if isinstance(a["id"], str) else None
+        if not m:
+            errores.append(f"{donde}: id con formato inválido")
+        elif int(m.group(1)) in vistos:
+            errores.append(f"{donde}: id repetido")
+        else:
+            vistos.add(int(m.group(1)))
+        if (a["incluir"], a["tipo"]) not in validos:
+            errores.append(f"{donde}: debe ser incluir N con tipo null, o incluir null con tipo {' o '.join(TIPOS)}")
+        if not isinstance(a["motivo"], str) or not a["motivo"].strip():
+            errores.append(f"{donde}: falta el motivo")
+        if m:
+            ajustes.append(Ajuste(n, m.group(1), a["incluir"] == "N", a["tipo"], a["motivo"]))
+    if errores:
+        raise ErrorCuracion("\n".join(errores))
+    return ajustes
+
+
+def aplicar_ajustes(marcas: Sequence[Marca], ajustes: Sequence[Ajuste]) -> list[Marca]:
+    """Marcas con los ajustes encima. Cada id debe estar una sola vez y en S, y cada ajuste debe cambiar algo."""
+    posiciones: dict[int, list[int]] = {}
+    for k, m in enumerate(marcas):
+        posiciones.setdefault(int(m.id), []).append(k)
+    salida, errores = list(marcas), []
+    for a in ajustes:
+        donde = f"ajuste {a.numero}"
+        pos = posiciones.get(int(a.id), [])
+        if len(pos) != 1:
+            errores.append(f"{donde}: el id no aparece exactamente una vez en los CSV curados")
+            continue
+        m = salida[pos[0]]
+        if not m.incluir:
+            errores.append(f"{donde}: la fila no está en S en el CSV curado")
+        elif a.a_n:
+            salida[pos[0]] = replace(m, incluir=False, tipo=None)
+        elif a.tipo == m.tipo:
+            errores.append(f"{donde}: la fila ya tiene tipo {a.tipo}; el ajuste no cambia nada")
+        else:
+            salida[pos[0]] = replace(m, tipo=a.tipo)
+    if errores:
+        raise ErrorCuracion("\n".join(errores))
+    return salida
+
+
+def resumen_curacion(marcas_csv: Sequence[Marca], ajustes: Sequence[Ajuste]) -> dict:
+    """Conteos de la curación de la IA y de los ajustes del chat (sin ids)."""
+    antes = Counter(m.tipo for m in marcas_csv if m.incluir)
+    por_motivo = Counter(("a N" if a.a_n else f"tipo {a.tipo}", a.motivo) for a in ajustes)
+    return {
+        "filas_con_s_en_los_csv": sum(antes.values()),
+        "por_tipo_en_los_csv": {t: antes[t] for t in TIPOS},
+        "ajustes": len(ajustes),
+        "ajustes_a_n": sum(a.a_n for a in ajustes),
+        "ajustes_de_tipo": {t: sum(not a.a_n and a.tipo == t for a in ajustes) for t in TIPOS},
+        "por_motivo": [{"cambio": c, "motivo": mo, "filas": n} for (c, mo), n in sorted(por_motivo.items())],
+    }
+
+
 # --- Resumen del hard set (PARADA 2) ---
 
 
@@ -712,7 +835,8 @@ def otras_iguales(antes: Mapping, despues: Mapping, nuevas: set[str]) -> None:
 
 def entradas_manifest(
     *, datos: Mapping[str, bytes], incluidas: Sequence[tuple[Candidato, str]], ent: Entradas, manifest: Mapping,
-    archivos_curacion: Sequence[Mapping], commit: str, fecha: str, carpeta: Path = CARPETA_SPLITS,
+    archivos_curacion: Sequence[Mapping], ajustes_curacion: Mapping, commit: str, fecha: str,
+    carpeta: Path = CARPETA_SPLITS,
 ) -> dict[str, dict]:
     from src.scian import CATALOGO
     from src.subgrupos import VOCABULARIO
@@ -733,7 +857,8 @@ def entradas_manifest(
             "agregadas": ", ".join(sorted(PALABRAS_GRAMATICALES_AGREGADAS)),
         },
         "rondas": [dict(r) for r in RONDAS], "tope_sector": TOPE_SECTOR, "max_filas_llave": MAX_FILAS_LLAVE,
-        "curacion": [dict(a) for a in archivos_curacion],
+        "n_hard": N_HARD, "n_hard_planeado": N_HARD_PLANEADO,
+        "curacion": [dict(a) for a in archivos_curacion], "ajustes_curacion": dict(ajustes_curacion),
         "script": SCRIPT, "commit_codigo": commit, "numpy": np.__version__, "python": platform.python_version(),
         "fuentes": fuentes, "fecha_registro": fecha,
     }
@@ -808,9 +933,9 @@ def imprimir_candidatos(res: Mapping) -> None:
     print(f"Genéricos: i {res['genericos']['i']}, ii {res['genericos']['ii']} | clases distintas: {res['clases']}")
     p, c = res["peor_caso"], res["cota_garantizada"]
     print(f"Regla 7: ya excluidas {_miles(p['excluidas_por_test_y_validacion'])} de {_miles(p['filas_candidatas_train'])} filas candidatas")
-    print(f"  peor caso (las {N_HARD} llaves candidatas más grandes): {_miles(p['excluidas_por_hard_set'])} filas salen de train "
+    print(f"  peor caso (las {N_HARD_PLANEADO} llaves candidatas más grandes): {_miles(p['excluidas_por_hard_set'])} filas salen de train "
           f"-> {_miles(p['filas_excluidas'])} ({p['pct_filas_candidatas']:.2f} %), pasa de {LIMITE_REGLA7_PCT} %: {p['pasa_del_limite']}")
-    print(f"  cota garantizada ({N_HARD} x {MAX_FILAS_LLAVE} = {_miles(c['filas'])} filas): {_miles(c['filas_excluidas'])} "
+    print(f"  cota garantizada ({N_HARD_PLANEADO} x {MAX_FILAS_LLAVE} = {_miles(c['filas'])} filas): {_miles(c['filas_excluidas'])} "
           f"({c['pct_filas_candidatas']:.2f} %), pasa de {LIMITE_REGLA7_PCT} %: {c['pasa_del_limite']}")
 
 
@@ -831,13 +956,33 @@ def imprimir_hard(res: Mapping) -> None:
     print(f"Clases del hard set sin ningún ejemplo en train: {len(res['clases_del_hard_sin_ejemplos_en_train'])} "
           f"{res['clases_del_hard_sin_ejemplos_en_train']}")
     for tipo in res["tipos_con_menos_de_50"]:
-        print(f"AVISO: el tipo {tipo} queda con {res['por_tipo'][tipo]} filas, menos de {MIN_FILAS_TIPO}.")
+        print(f"AVISO: el tipo {tipo} queda con {res['por_tipo'][tipo]} filas, menos de {MIN_FILAS_TIPO}: sus resultados "
+              "se reportan con su intervalo y una advertencia (CAMBIO DE DISEÑO del 2026-11-22).")
 
 
-def _leer_y_validar(rutas: Sequence[str], ent: Entradas, gen: Generacion) -> tuple[list, list[dict], list[Marca]]:
+def imprimir_curacion(archivos: Sequence[Mapping], info_ajustes: Mapping, res: Mapping) -> None:
+    for a in archivos:
+        print(f"CSV curado: {a['ruta']} ({_miles(a['tamano_bytes'])} bytes, SHA-256 {a['sha256']})")
+    print(f"Ajustes: {info_ajustes['ruta']} ({_miles(info_ajustes['tamano_bytes'])} bytes, SHA-256 "
+          f"{info_ajustes['sha256']}; coincide con AJUSTES_SHA256: {info_ajustes['sha256_coincide_con_el_codigo']})")
+    print(f"  filas con S en los CSV: {res['filas_con_s_en_los_csv']} {res['por_tipo_en_los_csv']} | ajustes: "
+          f"{res['ajustes']} (a N: {res['ajustes_a_n']}; de tipo: {res['ajustes_de_tipo']})")
+    for m in res["por_motivo"]:
+        print(f"  {m['filas']:>3} {m['cambio']}: {m['motivo']}")
+
+
+def _leer_y_validar(rutas: Sequence[str], ent: Entradas, gen: Generacion) -> tuple[list, list[dict], list[Marca], dict, dict]:
+    from src.exploracion_clasificador import verificar_privacidad
+
     for r in rutas:
         verificar_ruta_curada(Path(r))
-    marcas, archivos = leer_archivos([Path(r) if Path(r).is_absolute() else REPO_RAIZ / r for r in rutas])
+    marcas_csv, archivos = leer_archivos([Path(r) if Path(r).is_absolute() else REPO_RAIZ / r for r in rutas])
+    datos_ajustes, info = leer_archivo_ajustes(REPO_RAIZ / AJUSTES)
+    ajustes = leer_ajustes(datos_ajustes)
+    verificar_privacidad(json.loads(datos_ajustes), set(ent.grupos) | ent.llaves_val, set())
+    marcas = aplicar_ajustes(marcas_csv, ajustes)
+    info_ajustes = {"ruta": AJUSTES, **info, "ajustes": len(ajustes)}
+    res_curacion = resumen_curacion(marcas_csv, ajustes)
     try:
         incluidas = validar_curacion(marcas, gen.candidatos, ent.llaves_val)
     except ErrorConteo as e:
@@ -845,11 +990,13 @@ def _leer_y_validar(rutas: Sequence[str], ent: Entradas, gen: Generacion) -> tup
         print(f"Filas con incluir=S: {e.encontradas} de {e.esperadas} pedidas.")
         for f in FUENTES:
             print(f"  fuente {f}: {e.por_fuente.get(f, 0)} con S de {ofrecidos[f]} candidatos")
+        print(f"Antes de los ajustes: {res_curacion['filas_con_s_en_los_csv']} con S; ajustes a N: "
+              f"{res_curacion['ajustes_a_n']}.")
         if e.encontradas < e.esperadas:
-            sys.exit(f"Faltan {e.esperadas - e.encontradas}. Me detengo: propongo una ronda {len(RONDAS) + 1} "
-                     "(ver el reporte); se agrega a RONDAS solo con la aprobación de Samuel.")
-        sys.exit("Sobran filas con S. Me detengo: decide Samuel cuáles quedan.")
-    return incluidas, archivos, marcas
+            sys.exit(f"Faltan {e.esperadas - e.encontradas} para el tamaño aprobado ({N_HARD}, sin ronda 2). "
+                     "Me detengo: decide Samuel.")
+        sys.exit(f"Sobran {e.encontradas - e.esperadas} para el tamaño aprobado ({N_HARD}). Me detengo: decide Samuel.")
+    return incluidas, archivos, marcas, info_ajustes, res_curacion
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -909,10 +1056,17 @@ def main(argv: Sequence[str] | None = None) -> None:
               f"SHA-256 {sha256_archivo(ruta)}; ignorado por git: {esta_ignorado(ruta)})")
         return
 
+    from src.exploracion_clasificador import ErrorPrivacidad
+
     try:
-        incluidas, archivos, marcas = _leer_y_validar(args.csv, ent, gen)
-    except ErrorHardSet as e:
+        incluidas, archivos, marcas, info_ajustes, res_curacion = _leer_y_validar(args.csv, ent, gen)
+    except (ErrorHardSet, ErrorPrivacidad) as e:
         sys.exit(f"Me detengo: {e}")
+    imprimir_curacion(archivos, info_ajustes, res_curacion)
+    if not info_ajustes["sha256_coincide_con_el_codigo"]:
+        if args.accion == "congelar":
+            sys.exit(f"El SHA-256 de {AJUSTES} no es AJUSTES_SHA256; no se congela.")
+        print(f"AVISO: el SHA-256 de {AJUSTES} no es AJUSTES_SHA256; congelar se negaría.")
     avisos_tipo = sum(m.tipo_en_fila_n for m in marcas)
     sin_fila = len({int(c.id) for c in gen.candidatos} - {int(m.id) for m in marcas})
     print(f"CSV leídos: {len(archivos)} | registros: {len(marcas)} | candidatos sin registro en los CSV: {sin_fila} "
@@ -941,17 +1095,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     except ErrorHardSet as e:
         sys.exit(f"Me detengo: {e}")
     entradas = entradas_manifest(datos=datos, incluidas=incluidas, ent=ent, manifest=manifest,
-                                 archivos_curacion=archivos, commit=commit, fecha=fecha)
+                                 archivos_curacion=archivos, ajustes_curacion=info_ajustes, commit=commit, fecha=fecha)
     resultado = armar_resultado(fecha=fecha, commit=commit, arbol_limpio=arbol_limpio, manifest=manifest,
-                                hashes=hashes, archivos=archivos, res_cand=res_cand, res_hard=res_hard, entradas=entradas)
+                                hashes=hashes, archivos=archivos, info_ajustes=info_ajustes, res_curacion=res_curacion,
+                                res_cand=res_cand, res_hard=res_hard, entradas=entradas)
     llaves = set(ent.grupos) | ent.llaves_val
     verificar_privacidad({"resultado": resultado, "manifest": entradas}, llaves, set())
     print("Revisión de privacidad del resultado y de las entradas del manifest: ningún texto es una llave.")
 
     # Regenerar desde cero (manifest, splits, vocabulario, catálogo y CSV releídos) y comparar bytes.
     ent2, _, _, gen2 = _cargar_todo(leer_manifest())
-    incluidas2, _, _ = _leer_y_validar(args.csv, ent2, gen2)
-    if contenidos(incluidas2, ent2) != datos:
+    incluidas2, archivos2, _, info_ajustes2, _ = _leer_y_validar(args.csv, ent2, gen2)
+    if contenidos(incluidas2, ent2) != datos or archivos2 != archivos or info_ajustes2 != info_ajustes:
         sys.exit("Generar de nuevo no da los mismos bytes; no se escribe nada.")
     try:
         escritas = escribir_splits(datos, CARPETA_SPLITS)
@@ -976,7 +1131,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 def armar_resultado(
     *, fecha: str, commit: str, arbol_limpio: bool, manifest: Mapping, hashes: Mapping[str, str],
-    archivos: Sequence[Mapping], res_cand: Mapping, res_hard: Mapping, entradas: Mapping[str, Mapping],
+    archivos: Sequence[Mapping], info_ajustes: Mapping, res_curacion: Mapping, res_cand: Mapping,
+    res_hard: Mapping, entradas: Mapping[str, Mapping],
 ) -> dict:
     """JSON de results/ con los campos de la regla 4; solo conteos y códigos SCIAN."""
     from importlib.metadata import version as version_de_paquete
@@ -997,7 +1153,8 @@ def armar_resultado(
             "subgrupos": "src/subgrupos.py",
             "definiciones_subgrupos": DEFINICIONES,
             "procedimiento": PROCEDIMIENTO,
-            "n_hard": N_HARD, "rondas": [dict(r) for r in RONDAS], "tope_sector": TOPE_SECTOR,
+            "n_hard": N_HARD, "n_hard_planeado": N_HARD_PLANEADO, "rondas": [dict(r) for r in RONDAS],
+            "tope_sector": TOPE_SECTOR,
             "min_filas_llave_i": MIN_FILAS_LLAVE_I, "max_filas_llave": MAX_FILAS_LLAVE, "max_pct_clase": MAX_PCT_CLASE,
             "scian_version": manifest["scian_version"],
             "catalogo_sha256": manifest["catalogos"][CATALOGO[manifest["scian_version"]]]["sha256"],
@@ -1010,7 +1167,13 @@ def armar_resultado(
         "hash_split": {"hard": hashes[ARCHIVO_HARD], "train_candidatos_sin_hard": hashes[ARCHIVO_TRAIN_SIN_HARD]},
         "hash_split_origen": "data/manifest.json, splits",
         "hash_origen": entradas[ENTRADA_HARD]["fuentes"],
-        "curacion": [dict(a) for a in archivos],
+        "curacion": {
+            "por": "IA (Gemini, en Google Sheets) con ajustes del chat de Claude del proyecto; Samuel no la revisó "
+                   "fila por fila (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22)",
+            "csv": [dict(a) for a in archivos],
+            "ajustes": dict(info_ajustes),
+            "conteos": dict(res_curacion),
+        },
         "tamano_muestra": {"hard": res_hard["filas"], "train_candidatos_sin_hard": res_hard["train_candidatos_sin_hard"]["filas"]},
         "horas_gpu": None,
         "candidatos": cand,
