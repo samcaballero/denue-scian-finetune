@@ -172,6 +172,133 @@
       },
       "fecha_registro": "2026-11-21",
       "nota": "Sin congelar: el hard set y el tope por clase lo cambiarán."
+    },
+    "clasificador_hard": {
+      "ruta": "data/splits/hard.jsonl",
+      "sha256": "13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa",
+      "tamano_bytes": 18948,
+      "filas": 105,
+      "llaves": 105,
+      "clases": 84,
+      "por_tipo": {
+        "ambiguo": 74,
+        "indirecto": 31
+      },
+      "congelado": true,
+      "semilla": 42,
+      "procedimiento": "Origen: splits.clasificador_train_candidatos (SHA-256 verificado antes de parsear). Fuera las llaves con alguna fila sin_nombre o igual_titulo. Fuente (i): llaves de 2 a 20 filas cuya clase más común no pasa del 60 % de sus filas. Fuente (ii): llaves de 1 fila que, sin las palabras gramaticales, tienen al menos una palabra y ninguna pasa en_vocabulario (src/subgrupos.py). rng = numpy.random.default_rng(42): permutación de las llaves de (i) ordenadas; una fila por llave de (i) con rng.integers(n) en el orden de la permutación (filas por int(id)); permutación de las llaves de (ii) ordenadas. Cada ronda sigue las permutaciones desde donde quedó la anterior y acepta un candidato si su sector (2 primeros dígitos de codigo_act) tiene cupo: tope 30 por sector, fuente y ronda. Una IA (Gemini, en Google Sheets) marcó incluir (S/N) y tipo (ambiguo/indirecto) en el CSV de curación con los criterios que definieron Samuel y el chat de Claude del proyecto (si la etiqueta del DENUE parecía equivocada, la fila se descartaba, no se corregía); Samuel no lo revisó fila por fila. Encima se aplicaron los ajustes del chat (data/2026-11-22_fase1_hard-set-ajustes-chat.json, ignorado por git porque lleva ids del DENUE; su SHA-256 queda en el código y aquí): cada uno pasa a N una fila que la IA dejó en S o le cambia el tipo. Hard set: las 105 filas con incluir=S tras los ajustes (150 planeadas; sin ronda 2; CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22). Train candidato sin hard: las filas de train candidato cuya llave no está en el hard set.",
+      "palabras_gramaticales": {
+        "originales": "A, AL, CON, DE, DEL, E, EL, EN, LA, LAS, LO, LOS, O, PARA, POR, SIN, U, UN, UNA, UNAS, UNOS, Y",
+        "agregadas": "MEDIANTE, QUE, SOBRE, SU, SUS"
+      },
+      "rondas": [
+        {
+          "i": 200,
+          "ii": 200
+        }
+      ],
+      "tope_sector": 30,
+      "max_filas_llave": 20,
+      "n_hard": 105,
+      "n_hard_planeado": 150,
+      "curacion": [
+        {
+          "ruta": "data/2026-11-22_fase1_hard-candidatos-r1-ia-curado.csv",
+          "sha256": "d0df988294d4c42bd71145c020724983842ae3ac7b1ea10401d0b12699584752",
+          "tamano_bytes": 98668
+        }
+      ],
+      "ajustes_curacion": {
+        "ruta": "data/2026-11-22_fase1_hard-set-ajustes-chat.json",
+        "sha256": "61b4dd8c8787d2856de98c6ff4caf93a0b7609649142476bffe88d45eb0ad390",
+        "tamano_bytes": 3689,
+        "sha256_coincide_con_el_codigo": true,
+        "ajustes": 23
+      },
+      "script": "src/hard_set.py",
+      "commit_codigo": "f0f3debc44613e882141d085a36049a6822786e3",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "fuentes": {
+        "train_candidatos_sha256": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0",
+        "validacion_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+        "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+      },
+      "fecha_registro": "2026-11-22",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo",
+        "tipo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "nota": "Se trata como el test (regla 3): no se usa para elegir modelos ni hiperparámetros, no sube a Kaggle hasta la Fase 4 y se evalúa una sola vez, junto con el test. Sesgo reconocido: las filas las eligió un modelo de lenguaje (Gemini) con su propio conocimiento, sobre todo las de tipo indirecto. Un tipo con menos de 50 filas se reporta con su intervalo y una advertencia."
+    },
+    "clasificador_train_candidatos_sin_hard": {
+      "ruta": "data/splits/train_candidatos_sin_hard.jsonl",
+      "sha256": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+      "tamano_bytes": 75261622,
+      "filas": 417956,
+      "llaves": 316878,
+      "clases": 929,
+      "congelado": false,
+      "semilla": 42,
+      "procedimiento": "Origen: splits.clasificador_train_candidatos (SHA-256 verificado antes de parsear). Fuera las llaves con alguna fila sin_nombre o igual_titulo. Fuente (i): llaves de 2 a 20 filas cuya clase más común no pasa del 60 % de sus filas. Fuente (ii): llaves de 1 fila que, sin las palabras gramaticales, tienen al menos una palabra y ninguna pasa en_vocabulario (src/subgrupos.py). rng = numpy.random.default_rng(42): permutación de las llaves de (i) ordenadas; una fila por llave de (i) con rng.integers(n) en el orden de la permutación (filas por int(id)); permutación de las llaves de (ii) ordenadas. Cada ronda sigue las permutaciones desde donde quedó la anterior y acepta un candidato si su sector (2 primeros dígitos de codigo_act) tiene cupo: tope 30 por sector, fuente y ronda. Una IA (Gemini, en Google Sheets) marcó incluir (S/N) y tipo (ambiguo/indirecto) en el CSV de curación con los criterios que definieron Samuel y el chat de Claude del proyecto (si la etiqueta del DENUE parecía equivocada, la fila se descartaba, no se corregía); Samuel no lo revisó fila por fila. Encima se aplicaron los ajustes del chat (data/2026-11-22_fase1_hard-set-ajustes-chat.json, ignorado por git porque lleva ids del DENUE; su SHA-256 queda en el código y aquí): cada uno pasa a N una fila que la IA dejó en S o le cambia el tipo. Hard set: las 105 filas con incluir=S tras los ajustes (150 planeadas; sin ronda 2; CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22). Train candidato sin hard: las filas de train candidato cuya llave no está en el hard set.",
+      "palabras_gramaticales": {
+        "originales": "A, AL, CON, DE, DEL, E, EL, EN, LA, LAS, LO, LOS, O, PARA, POR, SIN, U, UN, UNA, UNAS, UNOS, Y",
+        "agregadas": "MEDIANTE, QUE, SOBRE, SU, SUS"
+      },
+      "rondas": [
+        {
+          "i": 200,
+          "ii": 200
+        }
+      ],
+      "tope_sector": 30,
+      "max_filas_llave": 20,
+      "n_hard": 105,
+      "n_hard_planeado": 150,
+      "curacion": [
+        {
+          "ruta": "data/2026-11-22_fase1_hard-candidatos-r1-ia-curado.csv",
+          "sha256": "d0df988294d4c42bd71145c020724983842ae3ac7b1ea10401d0b12699584752",
+          "tamano_bytes": 98668
+        }
+      ],
+      "ajustes_curacion": {
+        "ruta": "data/2026-11-22_fase1_hard-set-ajustes-chat.json",
+        "sha256": "61b4dd8c8787d2856de98c6ff4caf93a0b7609649142476bffe88d45eb0ad390",
+        "tamano_bytes": 3689,
+        "sha256_coincide_con_el_codigo": true,
+        "ajustes": 23
+      },
+      "script": "src/hard_set.py",
+      "commit_codigo": "f0f3debc44613e882141d085a36049a6822786e3",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "fuentes": {
+        "train_candidatos_sha256": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0",
+        "validacion_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+        "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+        "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+      },
+      "fecha_registro": "2026-11-22",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "nota": "Sin congelar: el tope por clase parte de este archivo y nunca abre hard.jsonl."
     }
   },
   "kaggle_datasets": {

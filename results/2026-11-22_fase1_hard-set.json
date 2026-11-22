@@ -1,0 +1,395 @@
+{
+  "fecha": "2026-11-22",
+  "experimento": "fase1_paso7_hard_set",
+  "commit": "f0f3debc44613e882141d085a36049a6822786e3",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/hard_set.py",
+    "subgrupos": "src/subgrupos.py",
+    "definiciones_subgrupos": {
+      "sin_nombre": "La frase \"SIN NOMBRE\" como palabras completas en cualquier parte de la llave.",
+      "generico": "Llave no vacía cuyas palabras, sin la frase \"SIN NOMBRE\", aparecen todas en el vocabulario de los títulos normalizados del SCIAN 2023 de todos los niveles (se acepta la palabra con o sin S o ES final), con al menos una palabra de 4 letras o más.",
+      "igual_titulo": "Llave no vacía igual al título normalizado de una clase del catálogo SCIAN 2023 o a nombre_act normalizado de la misma fila."
+    },
+    "procedimiento": "Origen: splits.clasificador_train_candidatos (SHA-256 verificado antes de parsear). Fuera las llaves con alguna fila sin_nombre o igual_titulo. Fuente (i): llaves de 2 a 20 filas cuya clase más común no pasa del 60 % de sus filas. Fuente (ii): llaves de 1 fila que, sin las palabras gramaticales, tienen al menos una palabra y ninguna pasa en_vocabulario (src/subgrupos.py). rng = numpy.random.default_rng(42): permutación de las llaves de (i) ordenadas; una fila por llave de (i) con rng.integers(n) en el orden de la permutación (filas por int(id)); permutación de las llaves de (ii) ordenadas. Cada ronda sigue las permutaciones desde donde quedó la anterior y acepta un candidato si su sector (2 primeros dígitos de codigo_act) tiene cupo: tope 30 por sector, fuente y ronda. Una IA (Gemini, en Google Sheets) marcó incluir (S/N) y tipo (ambiguo/indirecto) en el CSV de curación con los criterios que definieron Samuel y el chat de Claude del proyecto (si la etiqueta del DENUE parecía equivocada, la fila se descartaba, no se corregía); Samuel no lo revisó fila por fila. Encima se aplicaron los ajustes del chat (data/2026-11-22_fase1_hard-set-ajustes-chat.json, ignorado por git porque lleva ids del DENUE; su SHA-256 queda en el código y aquí): cada uno pasa a N una fila que la IA dejó en S o le cambia el tipo. Hard set: las 105 filas con incluir=S tras los ajustes (150 planeadas; sin ronda 2; CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22). Train candidato sin hard: las filas de train candidato cuya llave no está en el hard set.",
+    "n_hard": 105,
+    "n_hard_planeado": 150,
+    "rondas": [
+      {
+        "i": 200,
+        "ii": 200
+      }
+    ],
+    "tope_sector": 30,
+    "min_filas_llave_i": 2,
+    "max_filas_llave": 20,
+    "max_pct_clase": 60,
+    "scian_version": "2023",
+    "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+    "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb",
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5"
+    }
+  },
+  "semilla": 42,
+  "split": "clasificador: hard set congelado y train candidato sin hard (data/splits/)",
+  "hash_split": {
+    "hard": "13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa",
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc"
+  },
+  "hash_split_origen": "data/manifest.json, splits",
+  "hash_origen": {
+    "train_candidatos_sha256": "2d44ad971821ea8736170be5ac6db9c386258fa07328a2ba60108692857053c0",
+    "validacion_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+    "catalogo_sha256": "3b0fda04f84b47c4dfab933afa3ffd099648b84d6702e67ba98bc598e146cf73",
+    "vocabulario_sha256": "440099ab16a2ceb4439887afd8146483a833974681cf74d8a33ddd5a7ddc97fb"
+  },
+  "curacion": {
+    "por": "IA (Gemini, en Google Sheets) con ajustes del chat de Claude del proyecto; Samuel no la revisó fila por fila (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22)",
+    "csv": [
+      {
+        "ruta": "data/2026-11-22_fase1_hard-candidatos-r1-ia-curado.csv",
+        "sha256": "d0df988294d4c42bd71145c020724983842ae3ac7b1ea10401d0b12699584752",
+        "tamano_bytes": 98668
+      }
+    ],
+    "ajustes": {
+      "ruta": "data/2026-11-22_fase1_hard-set-ajustes-chat.json",
+      "sha256": "61b4dd8c8787d2856de98c6ff4caf93a0b7609649142476bffe88d45eb0ad390",
+      "tamano_bytes": 3689,
+      "sha256_coincide_con_el_codigo": true,
+      "ajustes": 23
+    },
+    "conteos": {
+      "filas_con_s_en_los_csv": 123,
+      "por_tipo_en_los_csv": {
+        "ambiguo": 70,
+        "indirecto": 53
+      },
+      "ajustes": 23,
+      "ajustes_a_n": 18,
+      "ajustes_de_tipo": {
+        "ambiguo": 5,
+        "indirecto": 0
+      },
+      "por_motivo": [
+        {
+          "cambio": "a N",
+          "motivo": "el nombre contiene la palabra de la actividad (abreviada, en juego de palabras, con errata o cognado)",
+          "filas": 4
+        },
+        {
+          "cambio": "a N",
+          "motivo": "etiqueta no juzgable sin conocimiento técnico",
+          "filas": 1
+        },
+        {
+          "cambio": "a N",
+          "motivo": "pista frecuente en nombres de CDMX (anglicismo o sigla)",
+          "filas": 13
+        },
+        {
+          "cambio": "tipo ambiguo",
+          "motivo": "dos pistas hacia actividades distintas",
+          "filas": 1
+        },
+        {
+          "cambio": "tipo ambiguo",
+          "motivo": "la deducción requiere conocimiento experto; opaco para una persona",
+          "filas": 4
+        }
+      ]
+    }
+  },
+  "tamano_muestra": {
+    "hard": 105,
+    "train_candidatos_sin_hard": 417956
+  },
+  "horas_gpu": null,
+  "candidatos": {
+    "palabras_gramaticales": {
+      "originales": "A, AL, CON, DE, DEL, E, EL, EN, LA, LAS, LO, LOS, O, PARA, POR, SIN, U, UN, UNA, UNAS, UNOS, Y",
+      "agregadas": "MEDIANTE, QUE, SOBRE, SU, SUS"
+    },
+    "elegibles": {
+      "llaves": 316983,
+      "excluidas_sin_nombre": 9327,
+      "excluidas_igual_titulo": 77,
+      "i": 5566,
+      "i_genericas": 511,
+      "i_fuera_por_mas_de_20_filas": 36,
+      "ii": 111708,
+      "ii_con_la_lista_original": 111587,
+      "ii_sin_ignorar_palabras": 85286,
+      "ii_solo_palabras_gramaticales": 4
+    },
+    "rondas": [
+      {
+        "i": 200,
+        "ii": 200
+      }
+    ],
+    "ofrecidos": {
+      "i": 200,
+      "ii": 200
+    },
+    "posiciones_recorridas": {
+      "i": 371,
+      "ii": 387
+    },
+    "por_sector": {
+      "23": {
+        "i": 0,
+        "ii": 2
+      },
+      "31": {
+        "i": 14,
+        "ii": 27
+      },
+      "32": {
+        "i": 9,
+        "ii": 5
+      },
+      "33": {
+        "i": 6,
+        "ii": 4
+      },
+      "43": {
+        "i": 30,
+        "ii": 14
+      },
+      "46": {
+        "i": 30,
+        "ii": 30
+      },
+      "48": {
+        "i": 3,
+        "ii": 4
+      },
+      "51": {
+        "i": 1,
+        "ii": 2
+      },
+      "52": {
+        "i": 1,
+        "ii": 3
+      },
+      "53": {
+        "i": 5,
+        "ii": 6
+      },
+      "54": {
+        "i": 10,
+        "ii": 12
+      },
+      "56": {
+        "i": 6,
+        "ii": 4
+      },
+      "61": {
+        "i": 10,
+        "ii": 7
+      },
+      "62": {
+        "i": 14,
+        "ii": 10
+      },
+      "71": {
+        "i": 0,
+        "ii": 10
+      },
+      "72": {
+        "i": 30,
+        "ii": 30
+      },
+      "81": {
+        "i": 30,
+        "ii": 30
+      },
+      "93": {
+        "i": 1,
+        "ii": 0
+      }
+    },
+    "filas_por_llave": {
+      "1": 200,
+      "2": 160,
+      "3": 15,
+      "4-5": 14,
+      "6-10": 10,
+      "11-20": 1
+    },
+    "genericos": {
+      "i": 16,
+      "ii": 0
+    },
+    "clases": 185,
+    "peor_caso": {
+      "filas_llaves_mas_grandes": 423,
+      "filas_candidatas_train": 459520,
+      "excluidas_por_test_y_validacion": 41372,
+      "excluidas_por_hard_set": 423,
+      "filas_excluidas": 41795,
+      "pct_filas_candidatas": 9.1,
+      "limite_pct": 10,
+      "pasa_del_limite": false
+    },
+    "cota_garantizada": {
+      "filas": 3000,
+      "filas_candidatas_train": 459520,
+      "excluidas_por_test_y_validacion": 41372,
+      "excluidas_por_hard_set": 3000,
+      "filas_excluidas": 44372,
+      "pct_filas_candidatas": 9.66,
+      "limite_pct": 10,
+      "pasa_del_limite": false
+    }
+  },
+  "hard_set": {
+    "filas": 105,
+    "por_tipo": {
+      "ambiguo": 74,
+      "indirecto": 31
+    },
+    "por_fuente_y_tipo": {
+      "i": {
+        "ambiguo": 47,
+        "indirecto": 11
+      },
+      "ii": {
+        "ambiguo": 27,
+        "indirecto": 20
+      }
+    },
+    "por_sector": {
+      "31": 6,
+      "32": 3,
+      "33": 3,
+      "43": 15,
+      "46": 15,
+      "48": 6,
+      "51": 2,
+      "52": 1,
+      "53": 4,
+      "54": 10,
+      "56": 3,
+      "61": 2,
+      "62": 7,
+      "71": 3,
+      "72": 11,
+      "81": 14
+    },
+    "clases": 84,
+    "por_clase": {
+      "311820": 1,
+      "311830": 1,
+      "311999": 2,
+      "312112": 1,
+      "314120": 1,
+      "323119": 2,
+      "323120": 1,
+      "332320": 1,
+      "332410": 1,
+      "337210": 1,
+      "431110": 1,
+      "431140": 1,
+      "432111": 1,
+      "432120": 1,
+      "433220": 1,
+      "433410": 1,
+      "433420": 1,
+      "434221": 1,
+      "434222": 1,
+      "435220": 2,
+      "435319": 2,
+      "435419": 2,
+      "461110": 2,
+      "461121": 2,
+      "461150": 1,
+      "463211": 2,
+      "464121": 1,
+      "465111": 1,
+      "465112": 1,
+      "465212": 1,
+      "465911": 1,
+      "465912": 1,
+      "466312": 1,
+      "468311": 1,
+      "484129": 1,
+      "484210": 1,
+      "484239": 1,
+      "486210": 1,
+      "488511": 1,
+      "488519": 1,
+      "513122": 1,
+      "519290": 1,
+      "524210": 1,
+      "531113": 1,
+      "531114": 1,
+      "531210": 1,
+      "532310": 1,
+      "541219": 1,
+      "541330": 1,
+      "541410": 1,
+      "541430": 2,
+      "541510": 3,
+      "541610": 1,
+      "541910": 1,
+      "561210": 1,
+      "561320": 1,
+      "562998": 1,
+      "611612": 1,
+      "611631": 1,
+      "621115": 1,
+      "621211": 2,
+      "621331": 1,
+      "621391": 1,
+      "621511": 1,
+      "622111": 1,
+      "711311": 1,
+      "713120": 1,
+      "713943": 1,
+      "722511": 2,
+      "722514": 3,
+      "722515": 4,
+      "722517": 1,
+      "722519": 1,
+      "811111": 3,
+      "811119": 1,
+      "811121": 1,
+      "811191": 1,
+      "811192": 1,
+      "811199": 2,
+      "811312": 1,
+      "811492": 1,
+      "811499": 1,
+      "812110": 1,
+      "813230": 1
+    },
+    "genericos": {
+      "ambiguo": 3,
+      "indirecto": 1
+    },
+    "filas_que_salen_de_train": 192,
+    "regla7": {
+      "filas_candidatas_train": 459520,
+      "excluidas_por_test_y_validacion": 41372,
+      "excluidas_por_hard_set": 192,
+      "filas_excluidas": 41564,
+      "pct_filas_candidatas": 9.05,
+      "limite_pct": 10,
+      "pasa_del_limite": false
+    },
+    "train_candidatos_sin_hard": {
+      "filas": 417956,
+      "clases": 929
+    },
+    "clases_de_train_sin_ejemplos": [],
+    "clases_del_hard_sin_ejemplos_en_train": [],
+    "tipos_con_menos_de_50": [
+      "indirecto"
+    ]
+  }
+}
