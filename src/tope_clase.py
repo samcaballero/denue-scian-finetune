@@ -63,8 +63,10 @@ TOPES_PUNTO_DE_CONTROL: tuple[int | None, ...] = (100, 200, 500, 1000, None)  # 
 POR_DECIDIR = "por decidir"
 SIN_TOPE = "sin tope"
 # Tope aprobado: un entero o SIN_TOPE. Se fija en un commit propio después de la PARADA 1;
-# mientras valga POR_DECIDIR, --escribir se niega.
-TOPE: int | str = POR_DECIDIR
+# mientras valga POR_DECIDIR, --escribir se niega. 1,000: lo recomendó el chat de Claude del
+# proyecto y lo aprobó Samuel el 2026-11-22 (el tope más alto con el que una época del 4B cabe
+# en una sesión de Kaggle de 12 h, y el que menos se aleja de la distribución natural).
+TOPE: int | str = 1000
 MIN_FILAS_CLASE = 10
 LIMITE_SESION_KAGGLE_H = 12  # sesiones de CPU y GPU: https://www.kaggle.com/docs/notebooks
 FUENTE_LIMITE_SESION = "https://www.kaggle.com/docs/notebooks"
