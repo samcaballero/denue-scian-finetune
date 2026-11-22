@@ -23,6 +23,7 @@ from src.evaluar_humo import (
     buscar_nombres,
     candado_resultado,
     cargar_entradas,
+    concentracion,
     duracion,
     estimar_horas,
     evaluar_corrida,
@@ -225,6 +226,7 @@ def test_flujo_completo_y_nunca_abre_test(tmp_path, monkeypatch):
     assert mt["total"] == 4
     assert mt["conteos"] == {"formato_invalido": 1, "codigo_inexistente": 1, "codigo_existente": 2}
     assert mt["aciertos"] == 2 and mt["pct_accuracy"] == 50.0
+    assert mt["concentracion"]["codigo_valido_mas_predicho"] == "467111" and mt["concentracion"]["filas_con_ese_codigo"] == 1  # empate de tres códigos válidos: gana el menor
     assert res["etapas"]["todas_ok"] is False  # el lote 64 del 0.6B se quedó sin memoria
     e = res["etapas"]["etapas"]
     assert [k for k, v in e.items() if v["estado"] != "ok"] == ["lotes_06b"]
@@ -452,6 +454,25 @@ def test_tabla_de_etiquetas_mal_formada_falla():
     m = _mediciones({"humo_train.jsonl": "1" * 64, "humo_val.jsonl": "2" * 64}, [], "p", "g")
     m["ejemplo_etiquetas"]["tabla"][1]["etiqueta"] = 5  # un token del prompt con etiqueta
     assert _etapas(m)["etapas"]["plantilla_y_tokens"]["comprobaciones"]["tabla_del_ejemplo_inventado"] is False
+
+
+def test_concentracion_solo_codigos_validos():
+    preds = {"1": "467111", "2": " 467111\n", "3": "722511", "4": "Texto inventado secreto", "5": "Texto inventado secreto"}
+    ref = {"1": "467111", "2": "722511", "3": "722511", "4": "467111", "5": "461110"}
+    train = [_reg(1, "a", "461110"), _reg(2, "b", "461110"), _reg(3, "c", "467111")]
+    c = concentracion(preds, ref, train)
+    assert c == {
+        "respuestas_distintas_tras_limpiar": 3,
+        "codigo_valido_mas_predicho": "467111",
+        "filas_con_ese_codigo": 2,
+        "filas_de_la_referencia_con_ese_codigo": 2,
+        "clase_mas_frecuente_de_humo_train": "461110",
+        "filas_de_humo_train_con_esa_clase": 2,
+    }  # la respuesta inválida más repetida nunca aparece
+    empate = concentracion({"1": "722511", "2": "467111"}, {"1": "722511", "2": "467111"}, train)
+    assert empate["codigo_valido_mas_predicho"] == "467111"  # en empate, el menor
+    nada = concentracion({"1": "x"}, {"1": "467111"}, [])
+    assert nada["codigo_valido_mas_predicho"] is None and nada["filas_con_ese_codigo"] == 0
 
 
 def test_etapa_rechaza_claves_reservadas():

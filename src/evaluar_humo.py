@@ -57,7 +57,7 @@ from src.humo_kaggle import (
 )
 from src.metricas_clasificador import DEFINICION, ErrorMetricas, evaluar, leer_predicciones, limpiar
 from src.normalizacion import normalizar_nombre
-from src.prompt_clasificador import FIN_DE_TURNO
+from src.prompt_clasificador import FIN_DE_TURNO, RE_CODIGO
 from src.scian import CATALOGO, leer_catalogo
 
 CARPETA_RELATIVA = "kaggle-output/humo-6b"
@@ -672,6 +672,34 @@ def duracion(entradas: Sequence[Mapping], m: Mapping, obs: Mapping = OBSERVACION
     }
 
 
+# --- Concentración de las respuestas ---
+
+
+def _mas_frecuente(valores) -> tuple[str | None, int]:
+    """El valor más frecuente y su conteo; en empate, el menor (determinista)."""
+    conteo: dict[str, int] = {}
+    for v in valores:
+        conteo[v] = conteo.get(v, 0) + 1
+    if not conteo:
+        return None, 0
+    return min(conteo.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
+def concentracion(predicciones: Mapping[str, str], referencias: Mapping[str, str], train: Sequence[Mapping]) -> dict:
+    """¿El modelo responde casi siempre lo mismo? Solo conteos y códigos de formato válido, nunca respuestas crudas."""
+    limpias = [limpiar(r) for r in predicciones.values()]
+    codigo, filas = _mas_frecuente(c for c in limpias if RE_CODIGO.fullmatch(c))
+    clase_train, filas_train = _mas_frecuente(r["codigo_act"] for r in train)
+    return {
+        "respuestas_distintas_tras_limpiar": len(set(limpias)),
+        "codigo_valido_mas_predicho": codigo,
+        "filas_con_ese_codigo": filas,
+        "filas_de_la_referencia_con_ese_codigo": sum(1 for c in referencias.values() if c == codigo),
+        "clase_mas_frecuente_de_humo_train": clase_train,
+        "filas_de_humo_train_con_esa_clase": filas_train,
+    }
+
+
 # --- Flujo ---
 
 
@@ -743,11 +771,10 @@ def evaluar_corrida(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) 
             "implementacion": "src/metricas_clasificador.py",
             "catalogo": ent.catalogo,
             "scian_version": manifest["scian_version"],
-            "codigos_existentes_distintos_predichos": len(
-                {r.strip(" \r\n") for r in predicciones.values() if r.strip(" \r\n") in ent.codigos}
-            ),
+            "codigos_existentes_distintos_predichos": len({limpiar(r) for r in predicciones.values()} & ent.codigos),
             "clases_distintas_en_la_referencia": len(set(referencias.values())),
             "filas_de_validacion_con_clase_ausente_de_humo_train": sum(1 for c in referencias.values() if c not in codigos_train),
+            "concentracion": concentracion(predicciones, referencias, ent.train),
         },
         etapas=etapas, rend=rend, estimacion=estimacion, tiempo=tiempo,
     )
@@ -868,6 +895,10 @@ def imprimir(res: Mapping, privacidad_terminal: Mapping | None = None) -> None:
     mt = res["metricas_regla5"]
     print(f"Regla 5 (n = {mt['total']}): {mt['conteos']} -> {mt['porcentajes']} %; formato válido {mt['pct_formato_valido']} %, "
           f"inexistentes {mt['pct_codigos_inexistentes']} %; aciertos {mt['aciertos']}, accuracy {mt['pct_accuracy']} %")
+    c = mt["concentracion"]
+    print(f"Concentración: {c['respuestas_distintas_tras_limpiar']} respuestas distintas; {c['codigo_valido_mas_predicho']} en {c['filas_con_ese_codigo']} filas "
+          f"(en la referencia: {c['filas_de_la_referencia_con_ese_codigo']}); clase más frecuente de humo_train: "
+          f"{c['clase_mas_frecuente_de_humo_train']} ({c['filas_de_humo_train_con_esa_clase']} filas)")
     print("Rendimiento:")
     for r in res["rendimiento"]:
         if r.get("sin_memoria"):
