@@ -381,6 +381,53 @@
       "python": "3.12.10",
       "fecha_registro": "2026-11-21",
       "nota": "Prueba de punta a punta desechable con Qwen3-0.6B; sus números no se reportan. Puede incluir filas que después vayan al hard set: el modelo de prueba se desecha y no se usa para elegir nada."
+    },
+    "denue_scian_clasificador": {
+      "id_kaggle": "samcaballero/denue-scian-clasificador",
+      "titulo": "DENUE SCIAN clasificador",
+      "licencia": "other",
+      "privado": true,
+      "desechable": false,
+      "subida": "La hace Samuel con kaggle datasets create -p <carpeta> sin -u/--public (privado por omisión en la CLI 2.2.5).",
+      "carpeta": "../kaggle-datasets/denue-scian-clasificador",
+      "archivos": {
+        "train_final.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-clasificador/train_final.jsonl",
+          "origen": "splits.clasificador_train_final",
+          "origen_sha256": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e",
+          "filas": 187350,
+          "clases": 929,
+          "tamano_bytes": 15583913,
+          "sha256": "6f3d0b1ce5472ad96581d27605b1a19e868431e537686da72825da0ef136b917"
+        },
+        "val.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-clasificador/val.jsonl",
+          "origen": "splits.clasificador_validacion",
+          "origen_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+          "filas": 1000,
+          "clases": 228,
+          "tamano_bytes": 81500,
+          "sha256": "5d778ba77b2ceee3f2ad5b9d094970c6ac6aaf6a529e9e20df9131d38d8723f3"
+        }
+      },
+      "metadata": {
+        "ruta": "../kaggle-datasets/denue-scian-clasificador/dataset-metadata.json",
+        "codificacion": "ascii",
+        "tamano_bytes": 469,
+        "sha256": "1378b45709007716a83b399cdee5736b09a9f1dd2ffa1149356be9e5e800abe2"
+      },
+      "procedimiento": "train_final.jsonl: todas las filas de splits.clasificador_train_final; val.jsonl: todas las filas de splits.clasificador_validacion. SHA-256 de cada origen verificado antes de parsear; solo los campos id, nom_estab y codigo_act, en orden de int(id). Sin sorteo.",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "script": "src/paquete_clasificador.py",
+      "commit_codigo": "85dd2e3d395c19d08e5774219f1cd6adadee0bee",
+      "python": "3.12.10",
+      "fecha_registro": "2026-11-22",
+      "nota": "Datos de entrenamiento y validación del clasificador. Test y hard set no suben a Kaggle hasta la Fase 4 (regla 3); el candado rechaza sus SHA-256."
     }
   }
 }
