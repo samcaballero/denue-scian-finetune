@@ -224,3 +224,54 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
 ### Bug que Claude Code introdujo y encontró
 
 - **El estado de una etapa quedaba pisado.** En `resumen_etapas`, la etapa `estado_final` pasaba el estado del kernel como dato con el nombre `estado`, que sobrescribía el campo `estado` ("ok" o "fallo") de la etapa. Claude Code lo vio en la primera corrida en seco, antes del commit, porque la salida decía `estado_final: completo` en vez de "ok". Ahora el dato se llama `estado_del_kernel`, `_etapa` rechaza los nombres reservados y una prueba lo comprueba.
+
+## 2026-11-22 — Fase 1, paso 7: hard set del clasificador
+
+**Qué se hizo:**
+- Se generaron los candidatos, se escribió el CSV de curación y se leyó de vuelta con los ajustes del chat. Después se congeló el hard set (105 filas) y se escribió train candidato sin hard.
+- El código está en `src/hard_set.py`, con 70 pruebas.
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con cinco ajustes y Samuel los aprobó.
+- Los commits están sin push.
+
+### Proceso
+
+- **Corte de conexión.** La conexión se cortó mientras Claude Code escribía `src/hard_set.py`. Con `git status` comprobó que no había quedado nada escrito, y escribió el archivo completo.
+- **Palabras gramaticales en la fuente (ii).** Claude Code señaló en el plan que el vocabulario SCIAN incluye palabras cortas como DE, LA, EL, Y o CON, así que ningún nombre que las tuviera entraba en (ii).
+  - El chat de Claude del proyecto propuso ignorar una lista cerrada de artículos, preposiciones, conjunciones y posesivos, y Samuel la aprobó.
+  - Claude Code buscó qué otras palabras de clase cerrada pasaban `en_vocabulario` y encontró MEDIANTE, QUE, SOBRE, SU y SUS; el chat las aprobó.
+  - Dejó fuera VIA, porque tiene contenido (vía = camino), y ESTOS, porque es un demostrativo, fuera de las categorías aprobadas.
+- **Google Sheets.** Samuel no tiene Excel, y el chat pidió adaptar las instrucciones. Claude Code agregó, en un commit extra (`09ebed2`):
+  - un candado de ruta para el CSV curado: dentro de `data/`, ignorado por git y con un nombre que termine en `-curado.csv`;
+  - una prueba con lo que descarga Google: UTF-8 sin BOM, CRLF o LF, comillas, saltos de línea dentro de celdas y el nombre de archivo con " - Hoja 1".
+- **Curación por una IA.** La hizo Gemini, el chat ajustó 23 filas y Samuel aprobó el CAMBIO DE DISEÑO sin revisar la curación fila por fila. El detalle está en `docs/bitacora.md`.
+- **Meta de 105 y tamaño planeado.** Claude Code puso `N_HARD = 105` como meta de `leer` y `congelar`. Conservó `N_HARD_PLANEADO = 150` para el peor caso de la PARADA 1, para que esa parada se pueda reproducir tal como se aprobó.
+- **Contradicción en `CLAUDE.md`.** La instrucción pedía cambiar solo la regla 3, pero la sección b seguía diciendo "150 filas curadas a mano por Samuel". Claude Code no la tocó: señaló la contradicción en el reporte y propuso el texto nuevo, que el chat aprobó.
+- **Ids del DENUE en git.** El chat pidió guardar sus ajustes (id, incluir, tipo y motivo) en un archivo versionado.
+  - Claude Code lo preparó en `evals/`, sin commit, y señaló en el reporte que eso subiría ids del DENUE a un repo que será público (sección d), aunque no lleva nombres.
+  - El chat corrigió su instrucción: el archivo pasó a `data/`, ignorado por git, y el código guarda solo su SHA-256, que `congelar` exige.
+  - El archivo nunca entró en un commit.
+  - Registro: el riesgo lo detectó Claude Code y el chat corrigió su instrucción.
+- **Ajustes verificados antes de aplicarse.** Los 23 ids estaban entre los 400 candidatos y en S en el CSV de la IA, y cada ajuste cambiaba algo; si no, el código se habría detenido.
+- **Commits, con los archivos agregados por nombre:**
+  - `0862de1`: regla 3, el hard set se trata como el test;
+  - `dc8564f`: código y pruebas;
+  - `09ebed2`: candado de ruta y prueba de Google Sheets;
+  - `37f7553`: `CLAUDE.md` con el cambio del 2026-11-22;
+  - `f0f3deb`: meta de 105 y ajustes;
+  - `d748262`: manifest y `results/`;
+  - y el de esta bitácora y este registro.
+
+### Hallazgos
+
+- **El vocabulario dejaba fuera casi una cuarta parte de la fuente (ii).** Sin ignorar ninguna palabra, (ii) tenía 85,286 llaves; con la lista original de palabras gramaticales, 111,587, y con la lista final, 111,708. Además, 4 llaves solo tienen palabras gramaticales.
+- **La curación de la IA no tenía errores de formato.** Gemini entregó el CSV con sus 400 registros y ninguna fila con N traía tipo. La lectura no tuvo que tolerar nada fuera de lo previsto.
+
+### Errores de Claude Code
+
+- **El código pasado a Python por un heredoc de Bash perdió las barras invertidas.** Al agregar las pruebas, un `"\n"` se volvió un salto de línea real y la cadena de bytes `b"\xef\xbb\xbf"` se volvió el BOM escrito como texto. pytest falló al recolectar las pruebas, antes del commit, y Claude Code corrigió las dos líneas con la herramienta de edición. Igual que en el 6b y el 6c, el texto con barras invertidas o acentos se escribe con la herramienta de edición, no por la shell.
+- **Lectura del hard set después de congelarlo.** Para comprobar que el manifest y el JSON de `results/` no traían ids, Claude Code leyó los ids de `hard.jsonl` recién congelado y los buscó en esos dos archivos.
+  - No apareció ninguno, y solo se imprimieron conteos.
+  - Fue un error: la regla 3 dice que un conjunto congelado no se vuelve a leer hasta la Fase 4. Además, la lectura no hacía falta, porque `congelar` ya revisa la privacidad del resultado y del manifest antes de escribir.
+  - No cambió ninguna decisión ni ningún archivo.
+  - El `sha256sum` de los dos archivos, justo después de escribirlos, solo calculó su hash, como ya hace `congelar` al releerlos.
+  - En adelante, una revisión así se hace dentro de `congelar`, con los datos en memoria y antes de escribir.

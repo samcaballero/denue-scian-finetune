@@ -217,3 +217,53 @@
   - el resultado se generó dos veces, con bytes idénticos.
 - Captura `docs/evidencia/2026-11-21_fase2_primera-corrida-kaggle.png`, copiada de `../evidencia/` sin cambios (mismo SHA-256). Claude Code la revisó: solo muestra el título del kernel, "Version #1 with GPU T4 x2", "Successful" y "16 minutes"; no muestra correos, llaves, tokens, teléfonos, contraseñas ni nombres, y no trae metadatos de texto ni EXIF.
 - PARADA: falta probar el GGUF en la laptop (paso 6d). Los commits del 6b y del 6c están sin push.
+
+## 2026-11-22 - Fase 1, paso 7: hard set del clasificador
+
+- Las decisiones son del 2026-11-21; el trabajo se hizo el 2026-11-22.
+- Autoría: la instrucción la redactó el chat de Claude del proyecto y Samuel la aprobó. Claude Code propuso el plan; el chat lo revisó con cinco ajustes y Samuel lo aprobó. Las decisiones del 2026-11-21 las propuso el chat y las aprobó Samuel: dos fuentes de candidatos, una fila por llave, reparto por sector, dos tipos (ambiguo e indirecto) y descartar, sin corregirla, una fila cuya etiqueta del DENUE parezca equivocada.
+- Regla 3 de `CLAUDE.md` (CAMBIO DE DISEÑO propuesto por el chat de Claude del proyecto y aprobado por Samuel el 2026-11-21): el hard set del clasificador se trata como el test. No se usa para elegir modelos ni hiperparámetros, no sube a Kaggle hasta la Fase 4 y se evalúa una sola vez, junto con el test.
+- Candidatos (`src/hard_set.py`, semilla 42), sacados de `train_candidatos.jsonl` con su hash verificado:
+  - De las 316,983 llaves se excluyen las que tienen alguna fila con la frase "SIN NOMBRE" (9,327) o igual a un título (77).
+  - Fuente (i), clases mezcladas: llaves de 2 a 20 filas cuya clase más común no pasa del 60 % de sus filas. Hay 5,566 elegibles, 511 de ellas genéricas (se conservan y quedan marcadas), y 36 quedan fuera por tener más de 20 filas.
+  - Fuente (ii), sin vocabulario: llaves de 1 fila sin ninguna palabra del vocabulario SCIAN, sin contar las palabras gramaticales. Hay 111,708 elegibles, contra 111,587 con la lista original y 85,286 sin ignorar ninguna palabra.
+  - Palabras gramaticales: la lista original (artículos, preposiciones, conjunciones y posesivos) la propuso el chat de Claude del proyecto y la aprobó Samuel. MEDIANTE, QUE, SOBRE, SU y SUS las detectó Claude Code y las aprobó el chat.
+  - Una ronda de 200 candidatos por fuente, con un tope de 30 por sector de 2 dígitos y por fuente. Los 400 candidatos son de 185 clases.
+  - Tope de 20 filas por llave, para la regla 7. Con las 150 llaves que se planeaban, la cota garantizada era de 3,000 filas (44,372 excluidas en total, 9.66 %); en el peor caso de los 400 candidatos salían 423 filas (9.10 %).
+- CSV de curación: `data/2026-11-22_fase1_hard-candidatos-r1.csv`, ignorado por git, con 400 filas y SHA-256 `4f1c7bbc737f8dd7512f7e2c53d8e8355622897f5bf55b7917ab3afe759c7820`. Samuel no tiene Excel, así que Claude Code adaptó las instrucciones a Google Sheets y agregó dos cosas en un commit extra (`09ebed2`):
+  - un candado de ruta: el CSV curado debe estar dentro de `data/`, ignorado por git, y su nombre debe terminar en `-curado.csv`;
+  - una prueba con lo que descarga Google Sheets.
+- Curación (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-22): no la hizo Samuel a mano.
+  - La hizo una IA (Gemini, en Google Sheets) con los criterios que definieron Samuel y el chat de Claude del proyecto. Samuel aprobó el cambio y no revisó la curación fila por fila.
+  - El chat revisó las 400 filas y ajustó 23 con los mismos criterios.
+  - El hard set quedó en 105 filas en vez de 150, sin ronda 2.
+  - Sesgo reconocido: las filas las eligió un modelo de lenguaje con su propio conocimiento, sobre todo las de tipo indirecto.
+  - Los nombres de los 400 candidatos pasaron por Google Drive, por Gemini y por el chat de Claude del proyecto. Samuel borró la copia de Google Drive.
+- Ajustes del chat, por motivo:
+
+  | Ajuste | Motivo | Filas |
+  |---|---|---:|
+  | de S a N | pista frecuente en nombres de CDMX (anglicismo o sigla) | 13 |
+  | de S a N | el nombre contiene la palabra de la actividad (abreviada, en juego de palabras, con errata o cognado) | 4 |
+  | de S a N | etiqueta no juzgable sin conocimiento técnico | 1 |
+  | de indirecto a ambiguo | la deducción requiere conocimiento experto; opaco para una persona | 4 |
+  | de indirecto a ambiguo | dos pistas hacia actividades distintas | 1 |
+
+  Antes de aplicar los ajustes, el código comprobó que cada fila ajustada estaba en S y que cada ajuste cambiaba algo.
+- Archivo de ajustes: como lleva ids del DENUE, vive en `data/2026-11-22_fase1_hard-set-ajustes-chat.json`, ignorado por git. El código versionado guarda solo su SHA-256, y `congelar` se niega si el archivo no coincide con él. El chat había pedido versionarlo; Claude Code detectó que eso subiría ids del DENUE a un repo que será público (sección d de `CLAUDE.md`), y el chat corrigió su instrucción.
+- Hard set:
+  - La IA dejó 123 filas con S (70 ambiguas y 53 indirectas); tras los ajustes quedaron 105, 74 ambiguas y 31 indirectas.
+  - Por fuente: (i) da 47 ambiguas y 11 indirectas, y (ii) da 27 ambiguas y 20 indirectas.
+  - Hay 3 filas genéricas entre las ambiguas y 1 entre las indirectas. Las filas son de 16 sectores y 84 clases.
+  - Aviso: el tipo indirecto tiene 31 filas, menos del mínimo de 50, así que sus resultados se reportarán con su intervalo y una advertencia.
+- Regla 7: salen de train las 192 filas de las 105 llaves, y la exclusión total queda en 41,564 de 459,520 filas candidatas (9.05 %). Train candidato sin hard tiene 417,956 filas y 929 clases: ninguna clase de train se queda sin ejemplos, y todas las del hard set tienen ejemplos en train.
+- Archivos en `data/splits/`, ignorados por git:
+  - `hard.jsonl`, congelado: 105 filas, 18,948 bytes, SHA-256 `13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa`.
+  - `train_candidatos_sin_hard.jsonl`, sin congelar: 417,956 filas, 75,261,622 bytes, SHA-256 `db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc`. De él parte el tope por clase, que nunca abre `hard.jsonl`.
+  - El manifest guarda también los hashes del CSV de la IA (`d0df988294d4c42bd71145c020724983842ae3ac7b1ea10401d0b12699584752`) y de los ajustes (`61b4dd8c8787d2856de98c6ff4caf93a0b7609649142476bffe88d45eb0ad390`).
+  - Los archivos se generaron desde el commit `f0f3deb`. Antes de escribirlos se generaron dos veces desde cero, con los mismos bytes, y después se releyeron sus hashes.
+- `CLAUDE.md`: la regla 3 lleva los dos CAMBIOS DE DISEÑO, y la sección b describe los dos archivos. El texto de la sección b con 105 filas lo propuso Claude Code; el chat de Claude del proyecto lo aprobó en una respuesta que pegó Samuel.
+- Pruebas: 70 en `tests/test_hard_set.py`, con datos inventados; pasan las 485 del repo. Una de ellas espía `open` y confirma que el flujo completo, con los ajustes incluidos, nunca abre `test.jsonl`.
+- Cuota de GPU de Kaggle: quedan 29 h 47 min de 30, o sea, Kaggle descontó 13 minutos por la prueba de punta a punta del paso 6c. El dato llegó en la instrucción del paso. `results/2026-11-21_fase2_prueba-humo.json` registró 0.27 h (16 minutos, la mayor de las mediciones) y no se modifica.
+- Números en `results/2026-11-22_fase1_hard-set.json`.
+- PARADA: los commits del paso están sin push; el push lo hace Samuel.
