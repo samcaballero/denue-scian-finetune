@@ -1,0 +1,106 @@
+{
+  "fecha": "2026-11-23",
+  "experimento": "fase1_paso10_fuga_split_aleatorio",
+  "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d",
+  "arbol_limpio": true,
+  "modelo": [
+    "baseline_diccionario",
+    "baseline_tfidf_lr"
+  ],
+  "configuracion": {
+    "definicion": "Fuga = accuracy en la validación del split aleatorio menos accuracy en la validación del split por nombre, con la misma configuración de cada baseline. IC 95 %: bootstrap de percentiles independiente de las dos validaciones, 1,000 remuestreos de cada una con un solo numpy.random.default_rng(42) (primero los del split por nombre).",
+    "script": "src/baselines.py",
+    "evaluador": "src/evaluador_clasificador.py",
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1"
+    }
+  },
+  "semilla": 42,
+  "split": "nombre y aleatorio",
+  "hash_split": {
+    "nombre": {
+      "train": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e",
+      "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+    },
+    "aleatorio": {
+      "train": "6a1f29829f266bce7ed005d6e42791489bb1abaf8fa473c00fb713d373608e36",
+      "validacion": "a8dfd194c5d570ba7f3e9b7e6723986d4579414f46f3917c2e60cd1517732eca"
+    }
+  },
+  "hash_split_origen": "data/manifest.json, splits",
+  "tamano_muestra": {
+    "nombre": {
+      "train": 187350,
+      "validacion": 1000
+    },
+    "aleatorio": {
+      "train": 187342,
+      "validacion": 1000
+    }
+  },
+  "horas_gpu": 0,
+  "por_modelo": {
+    "baseline_diccionario": {
+      "accuracy_split_nombre": 0.083,
+      "accuracy_split_aleatorio": 0.236,
+      "fuga_clase": {
+        "diferencia": 0.153,
+        "ic95": {
+          "inferior": 0.12,
+          "superior": 0.186
+        },
+        "n_a": 1000,
+        "n_b": 1000
+      },
+      "accuracy_sector_split_nombre": 0.443,
+      "accuracy_sector_split_aleatorio": 0.53,
+      "fuga_sector": {
+        "diferencia": 0.087,
+        "ic95": {
+          "inferior": 0.043,
+          "superior": 0.13
+        },
+        "n_a": 1000,
+        "n_b": 1000
+      },
+      "resultados": {
+        "nombre": "2026-11-23_fase1_baseline-diccionario_split-nombre.json",
+        "aleatorio": "2026-11-23_fase1_baseline-diccionario_split-aleatorio.json"
+      }
+    },
+    "baseline_tfidf_lr": {
+      "accuracy_split_nombre": 0.682,
+      "accuracy_split_aleatorio": 0.681,
+      "fuga_clase": {
+        "diferencia": -0.001,
+        "ic95": {
+          "inferior": -0.04,
+          "superior": 0.04
+        },
+        "n_a": 1000,
+        "n_b": 1000
+      },
+      "accuracy_sector_split_nombre": 0.845,
+      "accuracy_sector_split_aleatorio": 0.823,
+      "fuga_sector": {
+        "diferencia": -0.022,
+        "ic95": {
+          "inferior": -0.056,
+          "superior": 0.012025
+        },
+        "n_a": 1000,
+        "n_b": 1000
+      },
+      "resultados": {
+        "nombre": "2026-11-23_fase1_baseline-tfidf-lr_split-nombre.json",
+        "aleatorio": "2026-11-23_fase1_baseline-tfidf-lr_split-aleatorio.json"
+      }
+    }
+  },
+  "advertencias": [
+    "P (de donde sale el split aleatorio) no tiene las filas que la regla 7 excluyó por llaves de la validación por nombre ni las del hard set; si acaso, la fuga medida queda un poco por debajo de la real (ver results/*_fase1_split-aleatorio.json)."
+  ]
+}

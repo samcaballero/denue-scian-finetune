@@ -1,0 +1,235 @@
+{
+  "fecha": "2026-11-23",
+  "experimento": "fase1_paso10_baselines",
+  "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d",
+  "arbol_limpio": true,
+  "modelo": "baseline_tfidf_lr",
+  "configuracion": {
+    "vectorizador": {
+      "clase": "sklearn.feature_extraction.text.TfidfVectorizer",
+      "analyzer": "char_wb",
+      "ngram_range": [
+        2,
+        5
+      ],
+      "min_df": 2,
+      "max_features": 100000,
+      "sublinear_tf": true,
+      "norm": "l2",
+      "lowercase": true,
+      "strip_accents": null
+    },
+    "preprocesamiento": "Entrada: nom_estab original. Preprocesamiento propio del vectorizador: todo pasa a minúsculas (lowercase=True); los acentos y la Ñ se conservan (strip_accents=None); analyzer='char_wb' saca los n-gramas de 2 a 5 caracteres dentro de cada palabra (separadas por espacios), rellenada con un espacio a cada lado. Solo se conservan los n-gramas de al menos 2 nombres de train (min_df=2), y de ellos los 100,000 más frecuentes; TF sublineal (1 + log tf) y norma L2 por fila. El vectorizador se ajusta solo con los nombres de train.",
+    "regresion_logistica": {
+      "clase": "sklearn.linear_model.LogisticRegression",
+      "solver": "saga",
+      "tol": 0.001,
+      "max_iter": 100,
+      "random_state": 42,
+      "l1_ratio": 0.0,
+      "C": 10.0
+    },
+    "descripcion": "LogisticRegression de scikit-learn con solver saga (descenso de gradiente estocástico con promedio; memoria lineal) y penalización L2 (l1_ratio=0, el valor por omisión). Con 3 o más clases, scikit-learn ajusta el modelo multinomial. C es el inverso de la fuerza de la regularización.",
+    "c_elegido_en": "split por nombre (mismo paso)",
+    "decision_valores_c": "Barrido en el train completo del split por nombre con C ∈ {1, 10}. El plan aprobado tenía C ∈ {1, 10, 100}. C = 100 se descartó porque en el punto de control de costo (PARADA 1) no convergió en 100 iteraciones ni con 10,000 filas, y en el train completo costaría 3.9 h o más. También se descartó elegir C en una submuestra de 30,000 filas (alternativa que propuso Claude Code en la PARADA 1), porque un C elegido con pocas filas puede no ser el mejor con el train completo. El chat de Claude del proyecto propuso esta rejilla y Samuel la aprobó el 2026-11-22.",
+    "script": "src/baselines.py",
+    "evaluador": "src/evaluador_clasificador.py",
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1"
+    }
+  },
+  "semilla": 42,
+  "split": "aleatorio",
+  "descripcion_split": "Split aleatorio del experimento de fuga (src/split_aleatorio.py): validación de 1,000 filas de P = train candidato sin hard ∪ validación sorteadas sin mirar llaves; train = el resto de P con tope 1,000. Las llaves de validación sí pueden estar en train.",
+  "hash_split": {
+    "train": "6a1f29829f266bce7ed005d6e42791489bb1abaf8fa473c00fb713d373608e36",
+    "validacion": "a8dfd194c5d570ba7f3e9b7e6723986d4579414f46f3917c2e60cd1517732eca"
+  },
+  "hash_split_origen": "data/manifest.json, splits.experimento_aleatorio_train_final y splits.experimento_aleatorio_validacion",
+  "hash_train_antes_del_tope": {
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+  },
+  "tamano_muestra": {
+    "train": 187342,
+    "validacion": 1000
+  },
+  "horas_gpu": 0,
+  "cpu": {
+    "tiempo_ajuste_s_total": 3289.83,
+    "tiempo_vectorizador_s": 10.19,
+    "tiempo_ajuste_s": 3289.83,
+    "memoria_pico_ajuste_mb": 4170.8,
+    "memoria_pico_proceso_mb": 5299.9
+  },
+  "metricas": {
+    "regla5": {
+      "total": 1000,
+      "conteos": {
+        "formato_invalido": 0,
+        "codigo_inexistente": 0,
+        "codigo_existente": 1000
+      },
+      "porcentajes": {
+        "formato_invalido": 0.0,
+        "codigo_inexistente": 0.0,
+        "codigo_existente": 100.0
+      },
+      "pct_formato_valido": 100.0,
+      "pct_codigos_inexistentes": 0.0,
+      "aciertos": 681,
+      "errores": 319,
+      "accuracy": 0.681,
+      "pct_accuracy": 68.1
+    },
+    "ic95_accuracy": {
+      "inferior": 0.652,
+      "superior": 0.71
+    },
+    "por_nivel": {
+      "sector": {
+        "filas": 1000,
+        "aciertos": 823,
+        "accuracy": 0.823,
+        "ic95": {
+          "inferior": 0.8,
+          "superior": 0.847
+        }
+      },
+      "subsector": {
+        "filas": 1000,
+        "aciertos": 778,
+        "accuracy": 0.778,
+        "ic95": {
+          "inferior": 0.751,
+          "superior": 0.804
+        }
+      },
+      "rama": {
+        "filas": 1000,
+        "aciertos": 743,
+        "accuracy": 0.743,
+        "ic95": {
+          "inferior": 0.714,
+          "superior": 0.771
+        }
+      },
+      "subrama": {
+        "filas": 1000,
+        "aciertos": 731,
+        "accuracy": 0.731,
+        "ic95": {
+          "inferior": 0.702,
+          "superior": 0.759025
+        }
+      },
+      "clase": {
+        "filas": 1000,
+        "aciertos": 681,
+        "accuracy": 0.681,
+        "ic95": {
+          "inferior": 0.652,
+          "superior": 0.71
+        }
+      }
+    },
+    "macro_f1_sector": {
+      "valor": 0.769909,
+      "sectores_en_la_referencia": 17,
+      "por_sector": {
+        "22": 1.0,
+        "23": 0.666667,
+        "31-33": 0.685714,
+        "43": 0.366197,
+        "46": 0.86385,
+        "48-49": 0.761905,
+        "51": 0.666667,
+        "52": 0.941176,
+        "53": 0.714286,
+        "54": 0.555556,
+        "56": 0.666667,
+        "61": 0.943396,
+        "62": 0.826087,
+        "71": 0.833333,
+        "72": 0.905797,
+        "81": 0.849057,
+        "93": 0.842105
+      }
+    },
+    "subgrupos": {
+      "sin_nombre": {
+        "con": {
+          "filas": 69,
+          "aciertos": 49,
+          "accuracy": 0.710145,
+          "ic95": {
+            "inferior": 0.594203,
+            "superior": 0.811594
+          }
+        },
+        "sin": {
+          "filas": 931,
+          "aciertos": 632,
+          "accuracy": 0.67884,
+          "ic95": {
+            "inferior": 0.648738,
+            "superior": 0.708915
+          }
+        }
+      },
+      "generico": {
+        "con": {
+          "filas": 80,
+          "aciertos": 56,
+          "accuracy": 0.7,
+          "ic95": {
+            "inferior": 0.6,
+            "superior": 0.8
+          }
+        },
+        "sin": {
+          "filas": 920,
+          "aciertos": 625,
+          "accuracy": 0.679348,
+          "ic95": {
+            "inferior": 0.65,
+            "superior": 0.709783
+          }
+        }
+      }
+    },
+    "concentracion": {
+      "clases_existentes_distintas_predichas": 230,
+      "codigo_valido_mas_predicho": "461110",
+      "filas_con_ese_codigo": 73,
+      "pct_filas_con_ese_codigo": 7.3
+    },
+    "clases_en_la_referencia": 231,
+    "definiciones": {
+      "regla5": "Regla 5: tras quitar al inicio y al final solo el espacio ASCII, \\r y \\n, la respuesta tiene formato válido si es exactamente seis dígitos ASCII ([0-9]{6}); es código existente si además está en el catálogo del SCIAN de la versión fijada. Porcentajes y accuracy sobre el total; formato inválido y código inexistente cuentan como error.",
+      "por_nivel": "Acierto en un nivel: la respuesta es código existente (regla 5) y cae en la misma categoría de ese nivel que la referencia. Sector oficial del SCIAN 2023 (31-33 y 48-49 agrupados; 43 y 46 separados), subsector (3 dígitos), rama (4), subrama (5) y clase (6). Formato inválido y código inexistente cuentan como error en todos los niveles. Accuracy sobre el total de respuestas.",
+      "macro_f1_sector": "Promedio simple, sobre los sectores presentes en la referencia, de F1 = 2·VP / (2·VP + FP + FN); 0 si el sector no tiene ningún acierto. Una respuesta inválida o inexistente es falso negativo de su sector verdadero y no es falso positivo de ningún sector; un sector predicho que no está en la referencia no entra al promedio.",
+      "subgrupos": "Accuracy de las filas con y sin cada marca de src/subgrupos.py (sin_nombre y generico), leídas de las filas de referencia por id; las marcas nunca son entrada de un modelo.",
+      "ic95": "Bootstrap de percentiles: 1,000 remuestreos con reemplazo de las filas (en orden de int(id)), del mismo tamaño, con numpy.random.default_rng(42) nuevo en cada intervalo; límites = percentiles 2.5 y 97.5 de las accuracies remuestreadas (numpy.percentile, interpolación lineal).",
+      "concentracion": "Clases distintas entre las respuestas de código existente y el código válido más predicho."
+    },
+    "implementacion": "src/evaluador_clasificador.py (regla 5: src/metricas_clasificador.py)",
+    "semilla_bootstrap": 42,
+    "remuestreos_bootstrap": 1000
+  },
+  "detalle": {
+    "C": 10.0,
+    "n_iter": 43,
+    "convergio": true,
+    "avisos": [],
+    "rasgos": 100000,
+    "clases_en_train": 929
+  },
+  "advertencias": [
+    "IC 95 % por bootstrap de percentiles sobre las filas de validación (1,000 remuestreos, semilla 42).",
+    "Split aleatorio solo para medir la fuga; nunca para elegir modelos. P no tiene las filas que la regla 7 excluyó por llaves de la validación por nombre ni las del hard set (ver results/*_fase1_split-aleatorio.json)."
+  ]
+}

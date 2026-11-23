@@ -1,0 +1,223 @@
+{
+  "fecha": "2026-11-23",
+  "experimento": "fase1_paso10_baselines",
+  "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d",
+  "arbol_limpio": true,
+  "modelo": "baseline_diccionario",
+  "configuracion": {
+    "entrada": "nom_estab, normalizado con src/normalizacion.py:normalizar_nombre",
+    "regla": "Clase más frecuente de la llave en train; si la llave no se vio en train, la clase más frecuente global.",
+    "desempate": "Dentro de una llave: el conteo de (llave, clase) en el train antes del tope; en el global: el conteo de la clase en el train antes del tope. Si persiste, el código menor.",
+    "train_antes_del_tope": {
+      "nombre": "splits.clasificador_train_candidatos_sin_hard",
+      "aleatorio": "P menos la validación aleatoria (splits.clasificador_train_candidatos_sin_hard ∪ splits.clasificador_validacion menos splits.experimento_aleatorio_validacion)"
+    },
+    "script": "src/baselines.py",
+    "evaluador": "src/evaluador_clasificador.py",
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1"
+    }
+  },
+  "semilla": 42,
+  "split": "aleatorio",
+  "descripcion_split": "Split aleatorio del experimento de fuga (src/split_aleatorio.py): validación de 1,000 filas de P = train candidato sin hard ∪ validación sorteadas sin mirar llaves; train = el resto de P con tope 1,000. Las llaves de validación sí pueden estar en train.",
+  "hash_split": {
+    "train": "6a1f29829f266bce7ed005d6e42791489bb1abaf8fa473c00fb713d373608e36",
+    "validacion": "a8dfd194c5d570ba7f3e9b7e6723986d4579414f46f3917c2e60cd1517732eca"
+  },
+  "hash_split_origen": "data/manifest.json, splits.experimento_aleatorio_train_final y splits.experimento_aleatorio_validacion",
+  "hash_train_antes_del_tope": {
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+  },
+  "tamano_muestra": {
+    "train": 187342,
+    "validacion": 1000
+  },
+  "horas_gpu": 0,
+  "cpu": {
+    "tiempo_ajuste_s_total": 2.6,
+    "tiempo_ajuste_s": 2.6
+  },
+  "metricas": {
+    "regla5": {
+      "total": 1000,
+      "conteos": {
+        "formato_invalido": 0,
+        "codigo_inexistente": 0,
+        "codigo_existente": 1000
+      },
+      "porcentajes": {
+        "formato_invalido": 0.0,
+        "codigo_inexistente": 0.0,
+        "codigo_existente": 100.0
+      },
+      "pct_formato_valido": 100.0,
+      "pct_codigos_inexistentes": 0.0,
+      "aciertos": 236,
+      "errores": 764,
+      "accuracy": 0.236,
+      "pct_accuracy": 23.6
+    },
+    "ic95_accuracy": {
+      "inferior": 0.21,
+      "superior": 0.261025
+    },
+    "por_nivel": {
+      "sector": {
+        "filas": 1000,
+        "aciertos": 530,
+        "accuracy": 0.53,
+        "ic95": {
+          "inferior": 0.499,
+          "superior": 0.56
+        }
+      },
+      "subsector": {
+        "filas": 1000,
+        "aciertos": 329,
+        "accuracy": 0.329,
+        "ic95": {
+          "inferior": 0.3,
+          "superior": 0.356
+        }
+      },
+      "rama": {
+        "filas": 1000,
+        "aciertos": 320,
+        "accuracy": 0.32,
+        "ic95": {
+          "inferior": 0.292,
+          "superior": 0.348025
+        }
+      },
+      "subrama": {
+        "filas": 1000,
+        "aciertos": 247,
+        "accuracy": 0.247,
+        "ic95": {
+          "inferior": 0.221,
+          "superior": 0.273
+        }
+      },
+      "clase": {
+        "filas": 1000,
+        "aciertos": 236,
+        "accuracy": 0.236,
+        "ic95": {
+          "inferior": 0.21,
+          "superior": 0.261025
+        }
+      }
+    },
+    "macro_f1_sector": {
+      "valor": 0.235042,
+      "sectores_en_la_referencia": 17,
+      "por_sector": {
+        "22": 0.0,
+        "23": 0.0,
+        "31-33": 0.298851,
+        "43": 0.25,
+        "46": 0.647504,
+        "48-49": 0.153846,
+        "51": 0.0,
+        "52": 0.2,
+        "53": 0.25,
+        "54": 0.166667,
+        "56": 0.333333,
+        "61": 0.258065,
+        "62": 0.269231,
+        "71": 0.285714,
+        "72": 0.311377,
+        "81": 0.371134,
+        "93": 0.2
+      }
+    },
+    "subgrupos": {
+      "sin_nombre": {
+        "con": {
+          "filas": 69,
+          "aciertos": 35,
+          "accuracy": 0.507246,
+          "ic95": {
+            "inferior": 0.390942,
+            "superior": 0.623188
+          }
+        },
+        "sin": {
+          "filas": 931,
+          "aciertos": 201,
+          "accuracy": 0.215897,
+          "ic95": {
+            "inferior": 0.190118,
+            "superior": 0.241676
+          }
+        }
+      },
+      "generico": {
+        "con": {
+          "filas": 80,
+          "aciertos": 42,
+          "accuracy": 0.525,
+          "ic95": {
+            "inferior": 0.4125,
+            "superior": 0.6375
+          }
+        },
+        "sin": {
+          "filas": 920,
+          "aciertos": 194,
+          "accuracy": 0.21087,
+          "ic95": {
+            "inferior": 0.186957,
+            "superior": 0.239158
+          }
+        }
+      }
+    },
+    "concentracion": {
+      "clases_existentes_distintas_predichas": 104,
+      "codigo_valido_mas_predicho": "461110",
+      "filas_con_ese_codigo": 801,
+      "pct_filas_con_ese_codigo": 80.1
+    },
+    "clases_en_la_referencia": 231,
+    "definiciones": {
+      "regla5": "Regla 5: tras quitar al inicio y al final solo el espacio ASCII, \\r y \\n, la respuesta tiene formato válido si es exactamente seis dígitos ASCII ([0-9]{6}); es código existente si además está en el catálogo del SCIAN de la versión fijada. Porcentajes y accuracy sobre el total; formato inválido y código inexistente cuentan como error.",
+      "por_nivel": "Acierto en un nivel: la respuesta es código existente (regla 5) y cae en la misma categoría de ese nivel que la referencia. Sector oficial del SCIAN 2023 (31-33 y 48-49 agrupados; 43 y 46 separados), subsector (3 dígitos), rama (4), subrama (5) y clase (6). Formato inválido y código inexistente cuentan como error en todos los niveles. Accuracy sobre el total de respuestas.",
+      "macro_f1_sector": "Promedio simple, sobre los sectores presentes en la referencia, de F1 = 2·VP / (2·VP + FP + FN); 0 si el sector no tiene ningún acierto. Una respuesta inválida o inexistente es falso negativo de su sector verdadero y no es falso positivo de ningún sector; un sector predicho que no está en la referencia no entra al promedio.",
+      "subgrupos": "Accuracy de las filas con y sin cada marca de src/subgrupos.py (sin_nombre y generico), leídas de las filas de referencia por id; las marcas nunca son entrada de un modelo.",
+      "ic95": "Bootstrap de percentiles: 1,000 remuestreos con reemplazo de las filas (en orden de int(id)), del mismo tamaño, con numpy.random.default_rng(42) nuevo en cada intervalo; límites = percentiles 2.5 y 97.5 de las accuracies remuestreadas (numpy.percentile, interpolación lineal).",
+      "concentracion": "Clases distintas entre las respuestas de código existente y el código válido más predicho."
+    },
+    "implementacion": "src/evaluador_clasificador.py (regla 5: src/metricas_clasificador.py)",
+    "semilla_bootstrap": 42,
+    "remuestreos_bootstrap": 1000
+  },
+  "detalle": {
+    "empates": {
+      "llaves_en_train": 158931,
+      "llaves_con_empate": 2621,
+      "resueltas_por_el_conteo_antes_del_tope": 546,
+      "resueltas_por_el_codigo_menor": 2075,
+      "global": {
+        "clase": "461110",
+        "filas_en_train": 1000,
+        "clases_empatadas_en_train": 94,
+        "filas_antes_del_tope": 34238,
+        "resuelto_por": "conteo antes del tope"
+      }
+    },
+    "validacion_con_llave_vista_en_train": {
+      "filas": 212,
+      "pct_filas": 21.2
+    }
+  },
+  "advertencias": [
+    "IC 95 % por bootstrap de percentiles sobre las filas de validación (1,000 remuestreos, semilla 42).",
+    "Split aleatorio solo para medir la fuga; nunca para elegir modelos. P no tiene las filas que la regla 7 excluyó por llaves de la validación por nombre ni las del hard set (ver results/*_fase1_split-aleatorio.json)."
+  ]
+}
