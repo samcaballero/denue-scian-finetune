@@ -21,6 +21,7 @@ from src.evaluador_clasificador import (
     cargar_codigos,
     cargar_referencias,
     diferencia_bootstrap,
+    diferencia_pareada_bootstrap,
     en_nivel,
     evaluar_validacion,
     intervalo_bootstrap,
@@ -136,6 +137,57 @@ def test_diferencia_bootstrap():
     assert d["ic95"]["inferior"] < 0.3 < d["ic95"]["superior"]
     assert d == diferencia_bootstrap(a, [True] * 80 + [False] * 20)
     assert diferencia_bootstrap(a, a)["diferencia"] == 0.0
+
+
+def test_diferencia_pareada_iguales_es_cero():
+    a = [True] * 60 + [False] * 40
+    d = diferencia_pareada_bootstrap(a, list(a))
+    assert d["diferencia"] == 0.0
+    assert d["ic95"] == {"inferior": 0.0, "superior": 0.0}
+    assert (d["n"], d["filas_solo_a_acierta"], d["filas_solo_b_acierta"]) == (100, 0, 0)
+
+
+def test_diferencia_pareada_a_mano():
+    """b acierta en las mismas filas que a más 10: cada remuestreo da una diferencia >= 0."""
+    a = [True] * 50 + [False] * 50
+    b = [True] * 60 + [False] * 40
+    d = diferencia_pareada_bootstrap(a, b)
+    assert d["diferencia"] == pytest.approx(0.1)
+    assert (d["filas_solo_a_acierta"], d["filas_solo_b_acierta"]) == (0, 10)
+    assert 0.0 <= d["ic95"]["inferior"] < 0.1 < d["ic95"]["superior"]
+    rng = np.random.default_rng(42)
+    idx = rng.integers(0, 100, size=(1000, 100))
+    x, y = np.asarray(a, float), np.asarray(b, float)
+    inf, sup = np.percentile(y[idx].mean(axis=1) - x[idx].mean(axis=1), (2.5, 97.5))
+    assert d["ic95"] == {"inferior": round(float(inf), 6), "superior": round(float(sup), 6)}
+
+
+def test_diferencia_pareada_signo_y_determinismo():
+    a = [True] * 70 + [False] * 30
+    b = [True] * 40 + [False] * 60
+    d = diferencia_pareada_bootstrap(a, b)
+    assert d["diferencia"] == pytest.approx(-0.3)
+    assert d == diferencia_pareada_bootstrap(a, b)
+    assert diferencia_pareada_bootstrap(b, a)["diferencia"] == pytest.approx(0.3)
+
+
+def test_diferencia_pareada_largos_distintos_o_vacia():
+    with pytest.raises(ErrorEvaluador):
+        diferencia_pareada_bootstrap([True, False], [True])
+    with pytest.raises(ErrorEvaluador):
+        diferencia_pareada_bootstrap([], [])
+
+
+def test_diferencia_pareada_mas_angosta_que_la_independiente_con_filas_correlacionadas():
+    rng = np.random.default_rng(7)
+    a = rng.random(1000) < 0.6
+    b = a.copy()
+    cambia = rng.choice(1000, size=60, replace=False)
+    b[cambia] = ~b[cambia]
+    p = diferencia_pareada_bootstrap(a.tolist(), b.tolist())
+    i = diferencia_bootstrap(a.tolist(), b.tolist())
+    assert p["diferencia"] == pytest.approx(i["diferencia"])
+    assert p["ic95"]["superior"] - p["ic95"]["inferior"] < (i["ic95"]["superior"] - i["ic95"]["inferior"]) / 2
 
 
 # --- Evaluación completa ---

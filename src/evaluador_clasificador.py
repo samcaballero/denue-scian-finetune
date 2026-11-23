@@ -9,7 +9,9 @@ Lo usan los dos baselines y los modelos Qwen. Se apoya en `src/metricas_clasific
 - macro-F1 de sector: promedio simple del F1 de cada sector presente en la referencia;
 - accuracy por subgrupo de la regla 8 (con y sin "SIN NOMBRE"; genéricas y no genéricas). Las
   marcas se leen de las filas de referencia por id y nunca son entrada de un modelo;
-- intervalo de confianza al 95 % por bootstrap (1,000 remuestreos, semilla 42) de cada accuracy.
+- intervalo de confianza al 95 % por bootstrap (1,000 remuestreos, semilla 42) de cada accuracy;
+- diferencia de accuracy entre dos modelos: independiente (dos conjuntos distintos, como en la
+  fuga) o pareada (los dos modelos sobre las mismas filas; Fase 2, paso 11).
 
 Solo devuelve conteos, porcentajes y códigos SCIAN: nunca nombres, llaves, ids ni respuestas
 crudas.
@@ -87,6 +89,12 @@ DEFINICIONES = {
     ),
     "concentracion": "Clases distintas entre las respuestas de código existente y el código válido más predicho.",
 }
+# Aparte de DEFINICIONES para que la salida de evaluar_validacion siga igual a la de los baselines.
+DEFINICION_PAREADA = (
+    "Accuracy de b menos la de a sobre las mismas filas (en orden de int(id)). IC 95 %: bootstrap de percentiles "
+    "pareado, 1,000 remuestreos con reemplazo de las posiciones de las filas, las mismas para a y b, con un solo "
+    "numpy.random.default_rng(42); límites = percentiles 2.5 y 97.5 de las diferencias remuestreadas."
+)
 
 
 class ErrorEvaluador(ValueError):
@@ -157,6 +165,32 @@ def diferencia_bootstrap(
         "ic95": {"inferior": round(float(inf), DECIMALES), "superior": round(float(sup), DECIMALES)},
         "n_a": int(a.size),
         "n_b": int(b.size),
+    }
+
+
+def diferencia_pareada_bootstrap(
+    aciertos_a: Sequence[bool], aciertos_b: Sequence[bool], remuestreos: int = REMUESTREOS, semilla: int = SEMILLA
+) -> dict:
+    """Accuracy de b menos la de a sobre las mismas filas, con IC 95 % por bootstrap pareado.
+
+    Las dos listas deben venir en el mismo orden de filas (el de int(id)). Cada remuestreo toma
+    las mismas posiciones para a y para b, con un solo default_rng(semilla).
+    """
+    a = np.asarray(aciertos_a, dtype=np.float64)
+    b = np.asarray(aciertos_b, dtype=np.float64)
+    if a.ndim != 1 or a.shape != b.shape:
+        raise ErrorEvaluador("Los aciertos pareados deben tener el mismo largo.")
+    if a.size == 0:
+        raise ErrorEvaluador("No se puede comparar un conjunto vacío.")
+    rng = np.random.default_rng(semilla)
+    idx = rng.integers(0, a.size, size=(remuestreos, a.size))
+    inf, sup = np.percentile(b[idx].mean(axis=1) - a[idx].mean(axis=1), PERCENTILES)
+    return {
+        "diferencia": round(float(b.mean() - a.mean()), DECIMALES),
+        "ic95": {"inferior": round(float(inf), DECIMALES), "superior": round(float(sup), DECIMALES)},
+        "n": int(a.size),
+        "filas_solo_a_acierta": int(((a == 1) & (b == 0)).sum()),
+        "filas_solo_b_acierta": int(((a == 0) & (b == 1)).sum()),
     }
 
 
