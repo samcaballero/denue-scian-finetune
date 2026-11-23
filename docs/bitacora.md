@@ -392,7 +392,7 @@
 - Commits: `54374f9` (código, pruebas y kernel) y el de esta bitácora, el registro y la captura.
 - PARADA: el kernel está listo y sin lanzar. Falta que Samuel corra `--verificar` y `kaggle kernels push` desde PowerShell.
 
-## 2026-11-22 - Fase 1, paso 10: evaluador, baselines y experimento de fuga (en curso)
+## 2026-11-22 - Fase 1, paso 10: evaluador, baselines y experimento de fuga (plan y rejilla de C)
 
 - Autoría:
   - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
@@ -420,4 +420,75 @@
   - `afa8cfd`: el split aleatorio y los baselines;
   - `5fb9ebd`: el split aleatorio en el manifest y en `results/`;
   - el de esta rejilla de C.
-- La entrada final de este paso irá con los resultados.
+- Los resultados están en la entrada del 2026-11-23.
+
+## 2026-11-23 - Fase 1, paso 10: resultados de los baselines y de la fuga
+
+- Autoría:
+  - Samuel corrió los ajustes en su terminal, con `src/baselines.py --escribir` sobre el commit `d5e7a84`. Empezaron a las 04:10 (la hora de los primeros JSON) y terminaron a las 06:25.
+  - El chat de Claude del proyecto redactó la lectura de la fuga y Samuel la aprobó.
+  - Claude Code revisó los cinco JSON: son del mismo commit con el árbol limpio y solo tienen códigos, sin ids, nombres ni llaves. Después hizo los commits.
+- Resultados en validación, 1,000 filas por split. El IC 95 % sale de un bootstrap de percentiles con 1,000 remuestreos y semilla 42. Todas las respuestas tienen formato válido y código existente:
+
+  | Modelo | Split | Accuracy (IC 95 %) | Accuracy de sector | Macro-F1 de sector |
+  |---|---|---|---:|---:|
+  | Diccionario | por nombre | 0.083 (0.066-0.099) | 0.443 | 0.034 |
+  | Diccionario | aleatorio | 0.236 (0.210-0.261) | 0.530 | 0.235 |
+  | TF-IDF + LR, C = 10 | por nombre | 0.682 (0.652-0.711) | 0.845 | 0.780 |
+  | TF-IDF + LR, C = 10 | aleatorio | 0.681 (0.652-0.710) | 0.823 | 0.770 |
+
+- **Diccionario en el split por nombre:**
+  - ninguna llave de validación está en train, así que siempre responde la clase global 461110;
+  - su accuracy, 0.083, es la proporción de esa clase en validación: equivale al baseline de clase mayoritaria.
+- **Diccionario en el split aleatorio:**
+  - 212 filas (21.2 %) tienen su llave en train;
+  - responde 461110 en el 80.1 % de las filas y usa 104 clases distintas.
+- **C = 1 y C = 10 quedaron prácticamente iguales:** 0.681 (IC 0.651-0.710) contra 0.682 (IC 0.652-0.711).
+  - Es un acierto de diferencia, dentro del intervalo.
+  - Ganó C = 10 por la regla (más aciertos y, en empate, el menor).
+  - En sector, C = 10 da 0.845 y C = 1 da 0.837.
+  - C = 10 tardó 2.2 veces más.
+  - Como C se eligió en esta misma validación, la accuracy del C elegido es un poco optimista; con esta diferencia, el sesgo es mínimo.
+- **Fuga** (accuracy del split aleatorio menos la del split por nombre; IC por bootstrap independiente de las dos validaciones):
+
+  | Modelo | Fuga en clase (IC 95 %) | Fuga en sector (IC 95 %) |
+  |---|---|---|
+  | Diccionario | +0.153 (+0.120 a +0.186) | +0.087 (+0.043 a +0.130) |
+  | TF-IDF + LR | -0.001 (-0.040 a +0.040) | -0.022 (-0.056 a +0.012) |
+
+  - **Lectura** (del chat; Samuel la aprobó): la fuga infla al modelo que memoriza nombres (el diccionario) y no al que generaliza por n-gramas (TF-IDF).
+  - **Precisiones de Claude Code:**
+    - El IC de TF-IDF va de -4 a +4 puntos. Con 1,000 filas, el experimento descarta una fuga grande, pero no una menor de 4 puntos.
+    - En el split aleatorio solo el 21.2 % de la validación tiene su llave en train (32.5 % antes del tope). Eso acota cuánto puede inflar la fuga.
+  - **Subgrupos del diccionario** (muestras distintas en cada validación, con intervalos anchos): la ganancia se concentra en los nombres que se repiten mucho.
+    - Filas "SIN NOMBRE": 0.017 en el split por nombre (59 filas) y 0.507 en el aleatorio (69).
+    - Filas genéricas: 0.091 (77 filas) y 0.525 (80).
+- **Tiempos reales**, en CPU y sin GPU (`horas_gpu: 0`):
+
+  | Ajuste | Iteraciones | Tiempo real | Estimado en la PARADA |
+  |---|---:|---:|---:|
+  | Diccionario, split por nombre | - | 3.9 s | - |
+  | Diccionario, split aleatorio | - | 2.6 s | - |
+  | Vectorizador, split por nombre | - | 33 s | - |
+  | TF-IDF + LR, split por nombre, C = 1 | 18 | 1,474 s (24.6 min) | ~37 min |
+  | TF-IDF + LR, split por nombre, C = 10 | 43 | 3,301 s (55.0 min) | ~84 min |
+  | Vectorizador, split aleatorio | - | 10 s | - |
+  | TF-IDF + LR, split aleatorio, C = 10 | 43 | 3,290 s (54.8 min) | ~84 min |
+  | **Total** | | **~2.25 h (04:10 a 06:25)** | **3 a 3.5 h** |
+
+  - Los tres ajustes convergieron (`tol` 1e-3, tope de 100 iteraciones).
+  - Cada iteración costó unos 80 s, contra los 140 s extrapolados de la submuestra de 30,000 filas. Hicieron falta algunas iteraciones más de las observadas en la submuestra (18 contra 16 con C = 1 y 30,000 filas; 43 contra 36 con C = 10 y 10,000 filas).
+  - Memoria pico del ajuste (`tracemalloc`): 4,171 MB. Pico del proceso: 5,300 MB. Se había estimado unos 5 GB.
+- Archivos:
+  - `results/2026-11-23_fase1_baseline-diccionario_split-nombre.json` y `…_split-aleatorio.json`;
+  - `results/2026-11-23_fase1_baseline-tfidf-lr_split-nombre.json` (con la tabla del barrido) y `…_split-aleatorio.json`;
+  - `results/2026-11-23_fase1_fuga-split-aleatorio.json`.
+  - Los registros de cada ajuste quedan en `data/baselines/d5e7a84b2cc4/` (ignorado por git).
+- `CLAUDE.md`, sección b: se agregaron los dos archivos del split aleatorio, como "solo experimento", y la carpeta de registros.
+- Commits:
+  - `9a4118e`: el evaluador;
+  - `afa8cfd`: el split aleatorio y los baselines;
+  - `5fb9ebd`: el split aleatorio en el manifest;
+  - `d5e7a84`: la rejilla de C;
+  - `98fa843`: los resultados;
+  - el de esta bitácora, el registro y `CLAUDE.md`.

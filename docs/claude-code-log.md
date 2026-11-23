@@ -353,3 +353,51 @@ Claude Code los hizo al implementar y los reportó en el punto de control; Samue
 
 - **Otra vez un heredoc perdió las barras invertidas.** Claude Code intentó cambiar tres líneas de `src/construir_kernel.py` con Python por un heredoc de Bash, y un `\n` llegó como salto de línea. La comprobación del script falló antes de escribir y no cambió nada; los cambios se hicieron con la herramienta de edición. Es la tercera vez (6b, paso 7 y este paso): el texto con barras invertidas va siempre con la herramienta de edición.
 - **Docstring mal puntuado en el kernel generado.** La primera versión del generador escribía "main(). con la configuración…" en el docstring del kernel nuevo. Claude Code lo vio en la generación en seco, antes de escribir el kernel, y lo corrigió sin cambiar el kernel de la prueba.
+
+## 2026-11-22 y 2026-11-23 — Fase 1, paso 10: evaluador, baselines y experimento de fuga
+
+**Qué se hizo:**
+- Código:
+  - el evaluador único de validación (`src/evaluador_clasificador.py`);
+  - el split aleatorio del experimento de fuga (`src/split_aleatorio.py`);
+  - los dos baselines (`src/baselines.py`).
+- Pruebas: 55 con datos inventados.
+- Resultados de los baselines y de la fuga en `results/`.
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. El chat lo revisó con cuatro ajustes y Samuel lo aprobó.
+  - La rejilla final de C la propuso el chat y la aprobó Samuel.
+- Los commits están sin push.
+
+### Proceso
+
+- **El commit del evaluador fue primero** (`9a4118e`), por un ajuste del chat, para que otra sesión lo usara al evaluar la corrida del 0.6B.
+- **Claude Code detuvo el punto de control de costo.** Corría como tarea en segundo plano y se detuvo por poca memoria en la laptop: Chrome ocupaba unos 9 GB y el proceso, unos 2 GB. Iba en la submuestra de 30,000 filas con C = 10. No se relanzó; Claude Code reportó lo medido en la PARADA 1.
+- **Decisión corregida.** Claude Code propuso elegir C en una submuestra de 30,000 filas y después ajustar solo el C ganador en el train completo. El chat lo descartó y propuso barrer el train completo con C ∈ {1, 10}, sin C = 100, que no convergía. Samuel lo aprobó.
+- **Ajustes largos en la terminal de Samuel.** Por decisión del chat, Samuel corrió los ajustes en su terminal y no como tarea de Claude Code.
+  - Cada ajuste terminado queda en `data/baselines/<commit>/` con escritura atómica: primero un archivo temporal, después se renombra.
+  - Al relanzar con el mismo commit se reusan los ajustes terminados; una prueba simula el corte.
+  - Antes de lanzar, Claude Code midió la memoria libre (1.5 GB de 15.7) y listó los procesos que más ocupaban, solo por nombre.
+- **Permiso rechazado.** El sistema de permisos rechazó un comando que encadenaba `git add`, `git commit` y dos lecturas. Claude Code no repitió el mismo comando: lo separó en `git add` por nombre y `git commit`, y los dos pasaron.
+
+### Hallazgos
+
+- **El diccionario del split por nombre es el baseline de clase mayoritaria.** Por la regla 2 no ve ninguna llave de validación. Responde 461110, la clase con más filas antes del tope (34,243) entre las 95 empatadas en 1,000 después del tope.
+- **La fuga infla al diccionario y no a TF-IDF:** +0.153 contra -0.001. El IC de TF-IDF va de -0.040 a +0.040, así que no se puede descartar una fuga menor de 4 puntos.
+- **C = 1 y C = 10 dan casi lo mismo:** 681 contra 682 aciertos. C = 10 tarda 2.2 veces más.
+- **L-BFGS no cabe en la laptop.** El solver por omisión guardaría unos 15 GB de historial con 929 clases × 100,000 rasgos; por eso se usó saga.
+
+### Errores de Claude Code
+
+Todos se corrigieron antes de su commit, salvo la estimación de costo, que quedó en la PARADA.
+
+- **Candado demasiado estricto.** La primera versión del evaluador exigía los 20 sectores en cualquier catálogo, y las pruebas con catálogos inventados fallaron. Ahora es un parámetro (`exigir_todos`) que solo activa `cargar_codigos`, con el catálogo real.
+- **Una excepción sin atrapar.** El `main` del evaluador no atrapaba `ErrorMuestra`; se agregó al `except`.
+- **Un conteo fijo en el código.** En el split aleatorio, `validacion_por_nombre_con_llave_en_train` quedó escrito como 0 en vez de calcularse. Ahora se calcula, y da 0.
+- **`tracemalloc` quedaba encendido si el ajuste fallaba.** Ahora se apaga en un `finally`.
+- **Una prueba que no probaba.** En la prueba de la corrida cortada, el espía dejaba de contar en la segunda corrida, así que la prueba no comprobaba el reuso. Se rehízo con un espía que sigue activo.
+- **Estimación de costo pesimista.**
+  - Claude Code extrapoló unos 140 s por iteración y el costo real fue de unos 80 s.
+  - Estimó de 3 a 3.5 h y la corrida tardó unas 2.25 h.
+  - Una explicación posible, sin comprobar, es que la submuestra se midió con la laptop casi sin memoria libre.
+- **Corrida larga en segundo plano sin revisar la memoria.** Claude Code lanzó el punto de control como tarea de fondo sin medir antes la memoria libre, y la sesión lo detuvo. Desde entonces mide la memoria antes de lanzar, y las corridas largas van en la terminal de Samuel.
