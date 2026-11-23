@@ -401,3 +401,70 @@ Todos se corrigieron antes de su commit, salvo la estimación de costo, que qued
   - Estimó de 3 a 3.5 h y la corrida tardó unas 2.25 h.
   - Una explicación posible, sin comprobar, es que la submuestra se midió con la laptop casi sin memoria libre.
 - **Corrida larga en segundo plano sin revisar la memoria.** Claude Code lanzó el punto de control como tarea de fondo sin medir antes la memoria libre, y la sesión lo detuvo. Desde entonces mide la memoria antes de lanzar, y las corridas largas van en la terminal de Samuel.
+
+## 2026-11-23 — Fase 2, paso 11 (Parte A): evaluación de la corrida 06b-inicial
+
+**Qué se hizo:**
+- Revisión y copia de las capturas pendientes.
+- Descarga de la salida de 06b-inicial con `kaggle kernels output` y revisión de nombres.
+- Resumen por etapa y métricas en validación contra los baselines, con la diferencia pareada contra TF-IDF.
+- Código:
+  - `diferencia_pareada_bootstrap` en `src/evaluador_clasificador.py`;
+  - `src/evaluar_corrida_clasificador.py`, nuevo;
+  - 31 pruebas.
+- Resultado: `results/2026-11-23_fase2_06b-inicial.json`, con su figura.
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con ocho ajustes que redactó el chat.
+- Los commits están sin push.
+
+### Proceso
+
+- **Permiso nuevo (Parte B):** `kaggle kernels pull samcaballero/denue-scian-06b-inicial -m`.
+  - Samuel lo aprobó como solo lectura, con la descarga en una carpeta temporal ignorada por git o fuera del repo y sin ejecutar nada de lo bajado.
+  - Sirve para leer la imagen de Docker de 06b-inicial. No está en la lista de comandos de solo lectura de la instrucción (status, output y list); por eso se pidió en el plan.
+- **Diferencia pareada.**
+  - La instrucción pedía la diferencia pareada contra TF-IDF "si el evaluador ya lo permite"; Claude Code vio que el evaluador solo tenía la independiente, que fue la de la fuga.
+  - Claude Code propuso implementarla, el chat lo recomendó y Samuel lo aprobó.
+  - El signo es 06b-inicial − TF-IDF (ajuste del chat). Su definición quedó en una constante aparte (`DEFINICION_PAREADA`), para que la salida de `evaluar_validacion` siga igual a la de los baselines.
+- **PARADA de la revisión de nombres.**
+  - Con los 188,350 nombres del paquete, el método del 6c detuvo el script: había nombres crudos en el log y en los pip freeze.
+  - Claude Code hizo un diagnóstico fuera del repo que solo imprimió conteos, largos, líneas y categorías, nunca el texto. Eran nombres de 3 y 4 letras, siempre dentro de un token más largo, y no había ninguna llave de varias palabras.
+  - Claude Code preguntó a Samuel qué hacer. La primera respuesta repetía el texto de los ajustes del plan y no decía qué hacer con las coincidencias, así que Claude Code volvió a preguntar.
+  - Samuel los aceptó como falsos positivos. La precisión del método la propuso Claude Code, la acotó el chat (solo nombres de 4 caracteres o menos; uno de 5 o más dentro de un token sigue siendo PARADA) y la aprobó Samuel.
+- **Capturas.**
+  - Dos no se copiaron: una muestra el nombre de la cuenta de Kaggle y su avatar; la otra, la ruta de la carpeta de usuario de Windows.
+  - Ninguna trae metadatos de texto ni EXIF. Esa revisión de metadatos fue un ajuste del chat.
+- **Commits, con los archivos agregados por nombre:**
+  - `adaad20`: código y pruebas;
+  - el de esta bitácora, este registro, el resultado, la figura y las capturas.
+
+### Hallazgos
+
+- **La búsqueda de nombres del 6c no escala.**
+  - Recorre todas las llaves en cada línea, y aquí había 150,632 llaves de varias palabras frente a decenas de miles de líneas de `mediciones.json`.
+  - `buscar_nombres_indexada` da la misma salida: indexa los nombres por sus 3 primeros caracteres y busca en conjuntos los n-gramas (secuencias de palabras contiguas) de cada línea.
+  - Una prueba la compara con la del 6c en textos inventados; la revisión completa tarda unos 20 s.
+- **El kernel tapó dos valores de configuración:** `save_strategy` ("no") y `train_sampling_strategy` ("random") son, normalizados, llaves de negocios. La evaluación compara los argumentos con `argumentos_entrenamiento()` y acepta un valor tapado solo si su valor esperado es una llave.
+- **xformers lo instala pip, no la imagen:** pip agregó la 0.0.36, así que en el barrido se puede fijar. torch, torchvision y triton sí vienen de la imagen.
+- **La pérdida de validación queda por debajo de la de train** en toda la época (0.226 contra 0.287 al final). Una explicación posible, sin comprobar: el tope por clase cambia la distribución del train.
+- **Cinco números del resultado coinciden con ids del DENUE.** Claude Code buscó los ids de train y validación en el JSON: las cinco coincidencias son cifras decimales de valores con punto flotante (F1 por sector e IC), no ids.
+
+### Bug que Claude Code introdujo y encontró
+
+- **La pérdida de validación del paso 0 no queda en `mediciones.json`** (kernel del paso 9).
+  - El kernel evalúa antes de `trainer.train()`, pero `train()` crea un `TrainerState` nuevo y descarta el `log_history` de esa evaluación. La curva final tenía 12 puntos, no 13.
+  - El simulacro del paso 9 no lo detectó, porque su Trainer falso conservaba el historial.
+  - El valor se recuperó de la línea del log que imprime el callback (`on_evaluate`). La evaluación comprueba que los otros 12 valores del log sean iguales a los de `mediciones.json`.
+  - `src/clasificador_kaggle.py` no se corrige: va incrustado en el kernel ya lanzado. El barrido debe guardar ese punto por su cuenta.
+
+### Errores de Claude Code
+
+Todos se corrigieron antes de su commit.
+
+- **Cambio de `DEFINICIONES` revertido.** La primera versión agregaba la definición de la diferencia pareada a `DEFINICIONES`, lo que cambiaba la salida de `evaluar_validacion` respecto de la de los baselines. Se movió a una constante aparte.
+- **Dos pruebas mal armadas.**
+  - Un split inventado no estaba ordenado por `int(id)`, como exige `parsear`.
+  - Una prueba esperaba como nombre crudo un texto que solo aparecía como llave.
+  - Una tolerancia era menor que el redondeo a 6 decimales.
+- **Dos comprobaciones de etapa que fallaban por el kernel, no por la corrida:** los argumentos (por los valores tapados) y los pasos de validación (por el paso 0). Se ajustaron antes de escribir el resultado.

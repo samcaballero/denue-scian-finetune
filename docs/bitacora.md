@@ -492,3 +492,131 @@
   - `d5e7a84`: la rejilla de C;
   - `98fa843`: los resultados;
   - el de esta bitácora, el registro y `CLAUDE.md`.
+
+## 2026-11-23 - Fase 2, paso 11 (Parte A): evaluación de la corrida 06b-inicial
+
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con ocho ajustes que redactó el chat:
+    - alpha = rank;
+    - el signo y la alineación de la diferencia pareada;
+    - los metadatos de las capturas;
+    - el permiso de `kaggle kernels pull`;
+    - las versiones del barrido;
+    - los cuelgues;
+    - los comandos de la PARADA 2;
+    - la autoría de la diferencia pareada.
+  - **Alpha = rank en el barrido** (escala alpha/rank = 1, como en la inicial): lo propuso el chat de Claude del proyecto y Samuel lo confirmó el 2026-11-23 a las 2:36 pm.
+  - **Diferencia pareada:** la pidió el chat en la instrucción ("si el evaluador ya lo permite"), pero el evaluador solo tenía la diferencia independiente. Claude Code propuso implementarla, el chat lo recomendó y Samuel lo aprobó.
+  - **Precisión de la revisión de nombres:** Claude Code la propuso, el chat la acotó y Samuel la aprobó (se describe abajo).
+- Corrida:
+  - Samuel lanzó `samcaballero/denue-scian-06b-inicial` (versión 1) el 2026-11-22; el `lastRunTime` de la CLI es 22:19:31.
+  - Terminó Successful, con 1 h 12 min 43 s en la página de Kaggle; el script midió 4,351 s.
+  - La cuota pasó de 29 h 47 min a 28 h 35 min, así que Kaggle descontó 1 h 12 min. El resultado registra `horas_gpu` de 1.212.
+- Capturas, de `../evidencia/` a `docs/evidencia/`:
+  - Ninguna de las seis revisadas trae metadatos de texto ni EXIF: solo los bloques de imagen, gamma, resolución y sRGB.
+  - Copiadas sin cambios, con el mismo SHA-256:
+    - `2026-11-21_fase1_splits-congelados.png` (conteos de los splits y de la regla 7);
+    - `2026-11-21_fase2_cuota-despues-prueba.png` (cuota de 29 h 47 min);
+    - `2026-11-22_fase2_cuota-despues-06b.png` (la corrida en estado Successful);
+    - `2026-11-23_fase1_tabla-baselines-fuga.png` (tabla de los baselines y de la fuga).
+  - No copiadas:
+    - `2026-11-22_fase2_corrida-06b-inicial.png`: muestra el nombre de la cuenta de Kaggle y su avatar;
+    - `2026-11-23_fase1_baselines-fuga.png`: dudosa, porque muestra la ruta de la carpeta de usuario de Windows;
+    - `2026-11-17_fase0_gpu-kaggle-1.png`: Samuel decidió el 2026-11-18 no copiarla porque es casi un duplicado.
+- Descarga a `kaggle-output/06b-inicial/`, ignorada por git:
+  - 8 archivos y 43.0 MB, casi todo del adaptador (40.4 MB).
+  - Coinciden los 6 de los que el kernel calculó un SHA-256; el log y `mediciones.json` no lo traen.
+  - Ninguno tiene un SHA-256 del manifest.
+- Revisión de nombres, antes de mirar el log o las mediciones:
+  - Método del paso 6c, con búsqueda indexada, contra los 188,350 nombres de `train_final.jsonl` y `val.jsonl` del paquete.
+  - No apareció ninguna llave de varias palabras en ningún archivo. `mediciones.json` y `predicciones.jsonl` no tienen nombres crudos con letras.
+  - Aparecieron tres nombres crudos de 3 y 4 letras, siempre dentro de un token más largo:
+    - dos en el log, dentro de identificadores en mayúsculas de 22 y 23 caracteres;
+    - uno en los dos pip freeze, en el mismo paquete.
+
+    Samuel los aceptó como falsos positivos.
+  - **Precisión del método** (la propuso Claude Code, la acotó el chat de Claude del proyecto y la aprobó Samuel):
+    - un nombre crudo de 4 caracteres o menos que solo aparece dentro de un token más largo (letras, dígitos, `_` o `-`) no es posible fuga y se cuenta aparte;
+    - uno de 5 caracteres o más dentro de cualquier token sigue siendo PARADA;
+    - lo que, normalizado, es solo dígitos se acepta, como en `tapar_llaves` y `verificar_privacidad`.
+  - Las coincidencias de una sola palabra solo se cuentan: de 0 a 16 llaves por archivo.
+  - El kernel tapó dos valores de configuración, `save_strategy` y `train_sampling_strategy`: sus valores ("no" y "random"), normalizados, son llaves de negocios. La evaluación los compara con lo que arma el código.
+- Revisión por etapa: las 9 etapas terminaron bien y sin fallas.
+  - **GPU:** dos T4 en la sesión y una visible para torch. Sin bf16 nativo, así que fp16.
+  - **Datos:**
+    - en la entrada solo están los dos archivos, con su SHA-256;
+    - 187,350 filas de train (929 clases) y 1,000 de validación (228 clases);
+    - el kernel lanzado es idéntico al que genera hoy `src/construir_kernel.py`, y sus fuentes incrustadas son las de `src/`.
+  - **Versiones:**
+    - las 8 fijadas quedaron instaladas;
+    - de la imagen: torch 2.11.0+cu130, torchvision 0.26.0+cu130 y triton 3.6.0, con Python 3.13.16;
+    - pip agregó xformers 0.0.36, cut-cross-entropy, hf-transfer, msgspec, mslk, structlog y tyro;
+    - pip cambió transformers (de 5.20.2 a 5.17.0), peft (de 0.21.2 a 0.21.3) y torchao (de 0.10.0 a 0.18.0).
+  - **Modelo:** `Qwen/Qwen3-0.6B` en la revisión `c1899de2…`, con sus 2 archivos LFS verificados y nada más en la caché. NF4, con 196 capas de 4 bits. LoRA: 10,092,544 parámetros entrenables.
+  - **Tokens:** (a) a (d) bien. La fila más larga tiene 118 fichas en train y 98 en validación. Cada fila etiqueta 7 fichas: 6 dígitos y `<|im_end|>`.
+  - **Entrenamiento:**
+    - 5,855 pasos y 176 de warmup;
+    - el train se recorrió completo y barajado; el SHA-256 del orden, `b6b53a85…`, queda para compararlo en el barrido;
+    - 49.8 ejemplos/s y 0.659 s/paso de mediana;
+    - VRAM pico reservada: 1,152 MiB.
+  - **Inferencia:** 1,000 filas en 228 s, greedy. Todas terminan en el token de fin, con 7 fichas como máximo.
+- Tiempos por etapa:
+
+  | Etapa | Segundos |
+  |---|---:|
+  | GPU y datos | 3 |
+  | Instalación | 48 |
+  | Imports | 46 |
+  | Descarga y carga | 21 |
+  | Tokens y plantilla | 115 |
+  | LoRA | 5 |
+  | Entrenamiento (con 13 evaluaciones) | 3,883 |
+  | Adaptador y cierre | 0.4 |
+  | Inferencia | 228 |
+  | **Total del script** | **4,351** |
+
+- Curvas, en `docs/figuras/2026-11-23_fase2_curvas-perdida-06b-inicial.png`:
+  - la pérdida de train baja de 3.118 (media de los primeros 10 pasos) a 0.287 (media de los últimos 10);
+  - la de validación baja de 3.324 en el paso 0 a 0.226 en el paso 5,855. Nunca sube, pero baja cada vez menos: de 0.229 en el paso 5,000 a 0.226 al final;
+  - la de validación queda por debajo de la de train en toda la época. Una explicación posible, sin comprobar: el train tiene el tope de 1,000 filas por clase, que da más peso a las clases raras, y la validación conserva la distribución natural.
+- **Bug del kernel del paso 9, introducido por Claude Code:**
+  - la pérdida de validación del paso 0 no quedó en `mediciones.json`, porque `trainer.train()` crea un estado nuevo y descarta el `log_history` de la evaluación previa;
+  - el valor se recuperó de la línea del log que imprime el callback; los otros 12 valores del log son iguales a los de `mediciones.json`;
+  - el barrido debe guardar ese punto en cada configuración.
+- Resultados en validación: 1,000 filas, con el IC 95 % de un bootstrap de 1,000 remuestreos y semilla 42.
+
+  | Modelo | Accuracy (IC 95 %) | Accuracy de sector (IC 95 %) | Macro-F1 de sector | Clases distintas predichas |
+  |---|---|---|---:|---:|
+  | 06b-inicial | 0.678 (0.646-0.707) | 0.847 (0.824-0.869) | 0.731 | 194 |
+  | TF-IDF + LR, C = 10 | 0.682 (0.652-0.711) | 0.845 (0.824-0.867) | 0.780 | 213 |
+  | Diccionario | 0.083 (0.066-0.099) | 0.443 (0.412-0.473) | 0.034 | 1 |
+
+  - Regla 5: 0 respuestas con formato inválido, 0 con código inexistente y 1,000 con código existente.
+  - Accuracy por nivel: sector 0.847, subsector 0.786, rama 0.758, subrama 0.732 y clase 0.678.
+  - Subgrupos:
+    - filas con "SIN NOMBRE": 0.746 (59 filas); sin la frase: 0.674 (941);
+    - genéricas: 0.701 (77 filas); no genéricas: 0.676 (923).
+  - Sin señales de colapso: responde 194 clases distintas. La más predicha, 461110, sale en 70 respuestas (7.0 %); en validación son 83 filas (8.3 %).
+  - **Diferencia pareada 06b-inicial − TF-IDF** (positiva si 06b-inicial acierta más):
+    - clase: −0.004 (IC −0.025 a +0.019); solo TF-IDF acierta en 67 filas y solo 06b-inicial en 63;
+    - sector: +0.002 (IC −0.017 a +0.022);
+    - en los dos niveles el cero queda dentro del IC. El macro-F1 de sector de 06b-inicial es más bajo (0.731 contra 0.780).
+  - **Alineación de los aciertos de TF-IDF** (`data/baselines/d5e7a84b2cc4/tfidf_nombre_C10.json`, ignorado por git):
+    - el registro solo trae aciertos de clase y de sector, sin códigos predichos ni ids, así que no se pudieron recalcular contra las etiquetas;
+    - se comprobó que es del mismo commit y tiene las mismas métricas que su JSON de `results/`;
+    - coinciden los conteos de clase, de sector y de los cuatro subgrupos, y se reproducen exactamente sus IC por bootstrap;
+    - como el bootstrap con semilla fija depende de la posición de cada acierto, eso confirma el orden con alta probabilidad, pero no fila por fila.
+
+    Los aciertos de 06b-inicial sí se alinearon fila por fila por `int(id)`.
+- Archivos:
+  - `results/2026-11-23_fase2_06b-inicial.json`: 54,602 bytes, generado dos veces desde `adaad20` con bytes idénticos;
+  - la figura de las curvas.
+- Código:
+  - `diferencia_pareada_bootstrap` en `src/evaluador_clasificador.py`;
+  - `src/evaluar_corrida_clasificador.py`;
+  - 31 pruebas nuevas; pasan las 667 del repo.
+- Commits:
+  - `adaad20`: código y pruebas;
+  - el de esta bitácora, el registro, el resultado, la figura y las capturas.
+- PARADA 1: falta el visto bueno de Samuel para la Parte B (barrido).
