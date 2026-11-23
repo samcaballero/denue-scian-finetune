@@ -85,7 +85,15 @@ CONFIG_TFIDF = {
     "strip_accents": None,
 }
 CONFIG_LR = {"solver": "saga", "tol": 1e-3, "max_iter": 100, "random_state": SEMILLA}
-VALORES_C = (1.0, 10.0, 100.0)
+VALORES_C = (1.0, 10.0)
+DECISION_VALORES_C = (
+    "Barrido en el train completo del split por nombre con C ∈ {1, 10}. El plan aprobado tenía C ∈ {1, 10, 100}. "
+    "C = 100 se descartó porque en el punto de control de costo (PARADA 1) no convergió en 100 iteraciones ni con "
+    "10,000 filas, y en el train completo costaría 3.9 h o más. También se descartó elegir C en una submuestra de "
+    "30,000 filas (alternativa que propuso Claude Code en la PARADA 1), porque un C elegido con pocas filas puede no "
+    "ser el mejor con el train completo. El chat de Claude del proyecto propuso esta rejilla y Samuel la aprobó el "
+    "2026-11-22."
+)
 PREPROCESAMIENTO_TFIDF = (
     "Entrada: nom_estab original. Preprocesamiento propio del vectorizador: todo pasa a minúsculas "
     "(lowercase=True); los acentos y la Ñ se conservan (strip_accents=None); analyzer='char_wb' saca los n-gramas "
@@ -474,7 +482,7 @@ def medir_submuestras(train: Sequence[Mapping], submuestras: Sequence[int] = SUB
 
 def estimar(filas: Sequence[Mapping], *, filas_full: int, clases_full: int, memoria_datos_mb: float | None,
             config_tfidf: Mapping = CONFIG_TFIDF, config_lr: Mapping = CONFIG_LR) -> dict:
-    """Extrapola de la submuestra más grande al train completo: 3 ajustes del barrido + 1 del split aleatorio."""
+    """Extrapola de la submuestra más grande al train completo: los ajustes del barrido + 1 del split aleatorio."""
     k = max(f["filas"] for f in filas)
     grandes = [f for f in filas if f["filas"] == k]
     escala = (filas_full * clases_full) / (k * grandes[0]["clases"])  # costo por iteración ∝ filas × clases
@@ -798,7 +806,8 @@ def correr(manifest: Mapping, *, raiz: Path, carpeta_registros: Path, carpeta_re
     avance(f"C elegido: {c_elegido:g}")
     publicar(armar_resultado(
         modelo=MODELO_TFIDF, split=splits["nombre"], registros=barrido_regs, ctx=ctx,
-        configuracion={**config_tfidf(c_elegido, tfidf, lr), "valores_c": list(valores_c), "regla_eleccion_c": REGLA_C,
+        configuracion={**config_tfidf(c_elegido, tfidf, lr), "valores_c": list(valores_c),
+                       "decision_valores_c": DECISION_VALORES_C, "regla_eleccion_c": REGLA_C,
                        "c_elegido": c_elegido},
         elegido=elegido, barrido=barrido, advertencias=[ADVERTENCIA_IC, ADVERTENCIA_C],
     ), MODELO_TFIDF, "nombre")
@@ -814,7 +823,8 @@ def correr(manifest: Mapping, *, raiz: Path, carpeta_registros: Path, carpeta_re
     regs_fuga[MODELO_TFIDF]["aleatorio"] = reg
     publicar(armar_resultado(
         modelo=MODELO_TFIDF, split=splits["aleatorio"], registros=[reg], ctx=ctx,
-        configuracion={**config_tfidf(c_elegido, tfidf, lr), "c_elegido_en": "split por nombre (mismo paso)"},
+        configuracion={**config_tfidf(c_elegido, tfidf, lr), "c_elegido_en": "split por nombre (mismo paso)",
+                       "decision_valores_c": DECISION_VALORES_C},
         advertencias=[ADVERTENCIA_IC, ADVERTENCIA_ALEATORIO],
     ), MODELO_TFIDF, "aleatorio")
 
@@ -855,7 +865,7 @@ def _imprimir_punto_de_control(filas: Sequence[Mapping], est: Mapping, filas_ful
               f"pesimista {c['pesimista_s'] / 60:,.0f} min (max_iter = {CONFIG_LR['max_iter']})")
     print(f"  vectorizador: {est['vectorizador_s'] / 60:,.1f} min por split")
     h = est["total_horas"]
-    print(f"  TOTAL (3 ajustes del barrido + 1 del split aleatorio, con el C más lento, + 2 vectorizadores): "
+    print(f"  TOTAL ({len(est['por_c'])} ajustes del barrido + 1 del split aleatorio, con el C más lento, + 2 vectorizadores): "
           f"lineal {h['lineal_s']:.2f} h, pesimista {h['pesimista_s']:.2f} h")
     m = est["memoria"]
     print(f"  Memoria: fórmula a escala completa {m['formula_full_mb']:,.0f} MB × razón medida/fórmula "

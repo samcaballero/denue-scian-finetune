@@ -237,9 +237,11 @@ def test_flujo_completo_escribe_los_resultados_y_nunca_abre_test_ni_hard(tmp_pat
     tf = json.loads((raiz / "results" / "2026-11-22_fase1_baseline-tfidf-lr_split-nombre.json").read_text("utf-8"))
     assert tf["modelo"] == MODELO_TFIDF and [b["C"] for b in tf["barrido"]] == [1.0, 10.0]
     assert tf["configuracion"]["c_elegido"] == elegir_c(tf["barrido"])
+    assert tf["configuracion"]["decision_valores_c"] == bl.DECISION_VALORES_C
     tfa = json.loads((raiz / "results" / "2026-11-22_fase1_baseline-tfidf-lr_split-aleatorio.json").read_text("utf-8"))
     assert tfa["configuracion"]["regresion_logistica"]["C"] == tf["configuracion"]["c_elegido"]
     assert tfa["hash_split"]["validacion"] == manifest["splits"]["experimento_aleatorio_validacion"]["sha256"]
+    assert tfa["configuracion"]["decision_valores_c"] == bl.DECISION_VALORES_C
     fuga = json.loads((raiz / "results" / "2026-11-22_fase1_fuga-split-aleatorio.json").read_text("utf-8"))
     d = fuga["por_modelo"][MODELO_DICCIONARIO]
     assert d["fuga_clase"]["diferencia"] == pytest.approx(d["accuracy_split_aleatorio"] - d["accuracy_split_nombre"], abs=1e-6)
@@ -297,3 +299,9 @@ def test_cargar_se_niega_con_test_y_hard(tmp_path):
 def test_configuracion_documentada():
     assert CONFIG_TFIDF["analyzer"] == "char_wb" and CONFIG_LR["solver"] == "saga" and CONFIG_LR["random_state"] == 42
     assert "solo con los nombres de train" in bl.PREPROCESAMIENTO_TFIDF
+
+
+def test_rejilla_de_c_aprobada():
+    # Decisión del chat aprobada por Samuel el 2026-11-22: C = 100 se descarta (no convergió en el punto de control).
+    assert bl.VALORES_C == (1.0, 10.0)
+    assert "C ∈ {1, 10}" in bl.DECISION_VALORES_C and "Samuel" in bl.DECISION_VALORES_C

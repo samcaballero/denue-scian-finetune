@@ -391,3 +391,33 @@
   El tope es `-t 9000` (2.5 h).
 - Commits: `54374f9` (código, pruebas y kernel) y el de esta bitácora, el registro y la captura.
 - PARADA: el kernel está listo y sin lanzar. Falta que Samuel corra `--verificar` y `kaggle kernels push` desde PowerShell.
+
+## 2026-11-22 - Fase 1, paso 10: evaluador, baselines y experimento de fuga (en curso)
+
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. El chat lo revisó con cuatro ajustes y Samuel lo aprobó:
+    - el desempate del diccionario;
+    - el vectorizador se ajusta solo con train, con una prueba;
+    - los resultados se escriben al terminar cada ajuste;
+    - el commit del evaluador va primero.
+- Punto de control de costo (PARADA 1). TF-IDF + regresión logística con saga, en submuestras de `train_final`:
+  - con 10,000 filas, C = 1 tardó 69 s (15 iteraciones) y C = 10 tardó 163 s (36);
+  - C = 100 tardó 457 s y no convergió en el tope de 100 iteraciones;
+  - con 30,000 filas, C = 1 tardó 310 s (16 iteraciones).
+  - La extrapolación al train completo (187,350 filas y 929 clases) da unos 140 s por iteración: 37 min con C = 1, 84 min con C = 10 y 3.9 h o más con C = 100. El plan de 4 ajustes completos costaba de 6.5 a 10 h, por encima del límite de 2 h.
+  - Claude Code detuvo el punto de control durante C = 10 con 30,000 filas, porque a la laptop le faltaba memoria (Chrome ocupaba unos 9 GB). No se relanzó.
+- Decisión sobre la rejilla de C:
+  - Claude Code propuso elegir C en una submuestra de 30,000 filas.
+  - El chat de Claude del proyecto la descartó y propuso barrer el train completo del split por nombre con **C ∈ {1, 10}**. Samuel lo aprobó.
+  - Por qué se descarta C = 100: no convergió en 100 iteraciones ni con 10,000 filas, y en el train completo costaría 3.9 h o más.
+  - Elección: gana el C con mejor accuracy en validación y, si empatan, el menor. Ese C se ajusta en el split aleatorio.
+  - Tiempo estimado: de 2.6 a 3.4 h.
+  - Queda en `src/baselines.py` (`VALORES_C` y `DECISION_VALORES_C`) y en la configuración de los dos JSON de TF-IDF.
+- Los ajustes largos corren en la terminal de Samuel, no como tarea de Claude Code.
+- Commits hasta aquí:
+  - `9a4118e`: el evaluador;
+  - `afa8cfd`: el split aleatorio y los baselines;
+  - `5fb9ebd`: el split aleatorio en el manifest y en `results/`;
+  - el de esta rejilla de C.
+- La entrada final de este paso irá con los resultados.
