@@ -1,0 +1,110 @@
+{
+  "fecha": "2026-11-22",
+  "experimento": "fase1_paso10_split_aleatorio",
+  "commit": "afa8cfd2dff394f143e4b7236e8024d2cf14adb1",
+  "arbol_limpio": true,
+  "modelo": null,
+  "configuracion": {
+    "script": "src/split_aleatorio.py",
+    "procedimiento": "P = splits.clasificador_train_candidatos_sin_hard ∪ splits.clasificador_validacion (SHA-256 verificados antes de parsear), en orden de int(id). perm = numpy.random.default_rng(42).permutation(len(P)). Validación aleatoria: las filas sort(perm[:1000]), sin mirar llaves. Train aleatorio: el resto de P con el tope por clase de src/tope_clase.py (aplicar_tope, tope 1,000, con su propio default_rng(42)). Piso de ruido de la TVD (no se escribe): las filas sort(perm[1000:2000]).",
+    "n_validacion": 1000,
+    "tope": 1000,
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5"
+    }
+  },
+  "semilla": 42,
+  "split": "clasificador: split aleatorio del experimento de fuga (data/splits/aleatorio_*.jsonl)",
+  "hash_split": {
+    "validacion_aleatoria": "a8dfd194c5d570ba7f3e9b7e6723986d4579414f46f3917c2e60cd1517732eca",
+    "train_aleatorio": "6a1f29829f266bce7ed005d6e42791489bb1abaf8fa473c00fb713d373608e36"
+  },
+  "hash_split_origen": "data/manifest.json, splits.experimento_aleatorio_validacion y splits.experimento_aleatorio_train_final",
+  "hash_origen": {
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+  },
+  "tamano_muestra": {
+    "p": 418956,
+    "validacion_aleatoria": 1000,
+    "train_aleatorio": 187342
+  },
+  "horas_gpu": null,
+  "conteos": {
+    "p": {
+      "filas": 418956,
+      "llaves": 317868,
+      "clases": 929
+    },
+    "validacion_aleatoria": {
+      "filas": 1000,
+      "llaves": 994,
+      "clases": 231
+    },
+    "resto_antes_del_tope": {
+      "filas": 417956,
+      "llaves": 317193,
+      "clases": 929
+    },
+    "train_aleatorio": {
+      "filas": 187342,
+      "llaves": 158931,
+      "clases": 929
+    },
+    "validacion_por_nombre": {
+      "filas": 1000,
+      "llaves": 990,
+      "clases": 228
+    },
+    "validacion_aleatoria_con_llave_en_train_aleatorio": {
+      "filas": 212,
+      "pct_filas": 21.2,
+      "llaves": 206
+    },
+    "validacion_aleatoria_con_llave_en_el_resto_antes_del_tope": {
+      "filas": 325,
+      "pct_filas": 32.5,
+      "llaves": 319
+    },
+    "validacion_por_nombre_con_llave_en_train": 0,
+    "validacion_aleatoria_filas_de_la_validacion_por_nombre": 3,
+    "validacion_aleatoria_con_clase_ausente_de_train_aleatorio": {
+      "filas": 0,
+      "clases": 0
+    },
+    "filas_por_marca": {
+      "validacion_aleatoria": {
+        "sin_nombre": 69,
+        "generico": 80,
+        "igual_titulo": 0
+      },
+      "validacion_por_nombre": {
+        "sin_nombre": 59,
+        "generico": 77,
+        "igual_titulo": 0
+      },
+      "train_aleatorio": {
+        "sin_nombre": 11928,
+        "generico": 15313,
+        "igual_titulo": 90
+      }
+    },
+    "tvd_clases": {
+      "validacion_aleatoria_contra_validacion_por_nombre": 0.252,
+      "piso_de_ruido_validacion_aleatoria_contra_perm_1000_2000": 0.245,
+      "definicion": "Distancia de variación total: la mitad de la suma, sobre todas las clases, de la diferencia absoluta entre la proporción de filas de la clase en una distribución y en la otra (0 = idénticas, 1 = sin clases en común)."
+    },
+    "p_frente_a_la_poblacion_de_la_validacion_por_nombre": {
+      "filas_excluidas_por_la_regla_7_por_llaves_de_validacion": 6915,
+      "fuente_de_ese_conteo": "results/2026-11-21_fase1_splits-clasificador.json",
+      "filas_de_las_llaves_del_hard_set": 192,
+      "nota": "P no tiene esas filas: en P, cada llave de la validación por nombre queda solo con su fila de validación, y las llaves del hard set no están. Si acaso, la fuga medida queda un poco por debajo de la real."
+    }
+  },
+  "nota": "Solo para el experimento de fuga del paso 10 (split aleatorio contra split por nombre); nunca para elegir ni entrenar los modelos finales.",
+  "verificacion": {
+    "regenerado_desde_cero_mismos_bytes": true,
+    "hash_releido_igual_al_generado": true
+  }
+}

@@ -330,6 +330,72 @@
       },
       "fecha_registro": "2026-11-22",
       "nota": "Congelado: no se regenera ni cambia; es el train de los modelos del clasificador. A diferencia de test y hard, sí se lee para entrenar y sube a Kaggle reducido a id, nom_estab y codigo_act."
+    },
+    "experimento_aleatorio_validacion": {
+      "ruta": "data/splits/aleatorio_val.jsonl",
+      "sha256": "a8dfd194c5d570ba7f3e9b7e6723986d4579414f46f3917c2e60cd1517732eca",
+      "tamano_bytes": 180517,
+      "filas": 1000,
+      "llaves": 994,
+      "clases": 231,
+      "congelado": true,
+      "semilla": 42,
+      "tope": 1000,
+      "procedimiento": "P = splits.clasificador_train_candidatos_sin_hard ∪ splits.clasificador_validacion (SHA-256 verificados antes de parsear), en orden de int(id). perm = numpy.random.default_rng(42).permutation(len(P)). Validación aleatoria: las filas sort(perm[:1000]), sin mirar llaves. Train aleatorio: el resto de P con el tope por clase de src/tope_clase.py (aplicar_tope, tope 1,000, con su propio default_rng(42)). Piso de ruido de la TVD (no se escribe): las filas sort(perm[1000:2000]).",
+      "script": "src/split_aleatorio.py",
+      "commit_codigo": "afa8cfd2dff394f143e4b7236e8024d2cf14adb1",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "train_candidatos_sin_hard_sha256": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+        "validacion_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+      },
+      "fecha_registro": "2026-11-22",
+      "solo_experimento": true,
+      "nota": "Solo para el experimento de fuga del paso 10 (split aleatorio contra split por nombre); nunca para elegir ni entrenar los modelos finales."
+    },
+    "experimento_aleatorio_train_final": {
+      "ruta": "data/splits/aleatorio_train_final.jsonl",
+      "sha256": "6a1f29829f266bce7ed005d6e42791489bb1abaf8fa473c00fb713d373608e36",
+      "tamano_bytes": 34331492,
+      "filas": 187342,
+      "llaves": 158931,
+      "clases": 929,
+      "congelado": true,
+      "semilla": 42,
+      "tope": 1000,
+      "procedimiento": "P = splits.clasificador_train_candidatos_sin_hard ∪ splits.clasificador_validacion (SHA-256 verificados antes de parsear), en orden de int(id). perm = numpy.random.default_rng(42).permutation(len(P)). Validación aleatoria: las filas sort(perm[:1000]), sin mirar llaves. Train aleatorio: el resto de P con el tope por clase de src/tope_clase.py (aplicar_tope, tope 1,000, con su propio default_rng(42)). Piso de ruido de la TVD (no se escribe): las filas sort(perm[1000:2000]).",
+      "script": "src/split_aleatorio.py",
+      "commit_codigo": "afa8cfd2dff394f143e4b7236e8024d2cf14adb1",
+      "numpy": "2.5.5",
+      "python": "3.12.10",
+      "campos": [
+        "id",
+        "nom_estab",
+        "codigo_act",
+        "llave",
+        "sin_nombre",
+        "generico",
+        "igual_titulo"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "fuentes": {
+        "train_candidatos_sin_hard_sha256": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+        "validacion_sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+      },
+      "fecha_registro": "2026-11-22",
+      "solo_experimento": true,
+      "nota": "Solo para el experimento de fuga del paso 10 (split aleatorio contra split por nombre); nunca para elegir ni entrenar los modelos finales."
     }
   },
   "kaggle_datasets": {
