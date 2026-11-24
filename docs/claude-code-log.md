@@ -525,3 +525,37 @@ Todos se corrigieron antes de su commit.
 - **Dos detalles de robustez agregados después de la primera versión:**
   - `PYTHONIOENCODING=utf-8` en el entorno de cada proceso, para que su log no dependa del locale;
   - el hilo que copia el log ya no lanza un error si el archivo se cierra tras matar un proceso.
+
+## 2026-11-23 — Fase 2, paso 12 (Parte A): evaluación del barrido, regla de elección y kernel del 4B
+
+**Qué se hizo** (mientras corre el barrido, sin GPU):
+- Comprobaciones de solo lectura del barrido lanzado: `status`, `list --mine` y `pull -m`.
+- Código:
+  - regla de elección como función pura (`src/eleccion_barrido.py`);
+  - modo `--barrido` del evaluador (`src/evaluar_corrida_clasificador.py`);
+  - kernel del 4B: `src/corrida_4b_kaggle.py` y `espec_4b` en `src/construir_kernel.py`, sin escribir;
+  - 48 pruebas.
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con dos ajustes para la PARADA B: comandos que funcionen desde cualquier carpeta y qué revisar en el log a los 15-20 minutos de lanzar el 4B.
+- El commit está sin push.
+
+### Proceso
+
+- **`pull -m` del barrido.** Bajó el código y la metadata a una carpeta nueva del scratchpad, fuera del repo; no se ejecutó nada. El código es el kernel del repo salvo los CRLF, y la metadata trae la imagen de 06b-inicial: Kaggle la aceptó. Sus SHA-256 se agregaron a la prueba de kernels lanzados.
+- **El refactor del evaluador no cambia 06b-inicial.** Antes y después de tocarlo, Claude Code regeneró en memoria el resultado de 06b-inicial con la fecha y el commit de su JSON: los mismos 54,602 bytes las dos veces.
+- **El 4B usa el orquestador del barrido con una sola configuración.** Los 20 pins, la revisión de versiones y la imagen viven en `src/barrido_kaggle.py`, que no se puede tocar porque va incrustado en el barrido ya lanzado. Por eso el 4B es un módulo nuevo que reutiliza el orquestador y cambia solo la estimación y el presupuesto.
+- **Figura.** Antes de dibujarla, Claude Code cargó la skill de visualización y validó la paleta de 5 colores con su script: pasa las separaciones para daltonismo y visión normal; tres colores quedan bajo 3:1 de contraste, así que van marcadores distintos y el valor final en la leyenda.
+
+### Hallazgos
+
+- **El orquestador también protege la salida del 4B.** Mata el proceso al pasar el presupuesto (el `-t` menos 15 min) y sale con 0. Si la inferencia no alcanzara a terminar, el adaptador ya estaría guardado y Kaggle guardaría la salida.
+- **El candado de tiempo del orquestador limita el `-t`:** omite una configuración si 1.3 veces su estimación no cabe en el presupuesto. Con rank 32 (7.27 h) el `-t` debe ser de al menos 9.7 h; el propuesto es de 11 h.
+- **La inferencia del 4B nunca se midió.** La estimación usa la de 06b-inicial × 5.98, que probablemente la sobrestima: con lote 1 la generación depende más de la latencia que del tamaño del modelo.
+- **El orden del train del 4B debería ser el de 06b-inicial**, porque depende de los datos, el lote y `data_seed`, no del modelo. El barrido lo confirmará entre configuraciones con distinto rank y tasa.
+
+### Errores de Claude Code
+
+Se corrigió antes del commit.
+
+- **Primera versión de la figura del barrido:** el subtítulo se salía del lienzo y, con el eje de validación desde 0, las diferencias finales entre configuraciones no se veían. Claude Code la revisó con curvas inventadas; el panel de validación ahora empieza en el paso 1,000.

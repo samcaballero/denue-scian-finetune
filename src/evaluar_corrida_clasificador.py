@@ -18,6 +18,13 @@ Lee la salida que bajó `kaggle kernels output` a `kaggle-output/<corrida>/` (ig
 6. arma `results/<fecha>_fase2_<corrida>.json` (solo agregados: sin nombres, llaves, ids ni
    respuestas crudas) y la figura de las curvas de pérdida, hecha desde ese JSON.
 
+Barrido (Fase 2, paso 12; `--barrido`): la salida de `src/barrido_kaggle.py` trae `barrido.json`
+(el registro del orquestador), `logs/<nombre>.log` y una carpeta por configuración. Se aplican las
+mismas revisiones a cada configuración, más las del orquestador (procesos, memoria y versiones), el
+SHA-256 del orden del train igual al de 06b-inicial y la pareada contra 06b-inicial (configuración −
+06b-inicial, alineada fila por fila por int(id)). Arma un JSON de `results/` por configuración, el
+resumen del barrido con la regla de elección (`src/eleccion_barrido.py`) y la figura de las curvas.
+
 Se detiene (PARADA) ante cualquier problema. Nunca abre `test.jsonl` ni `hard.jsonl`. Los
 archivos bajados solo se leen como datos (JSON y texto); el adaptador solo se hashea. En la
 terminal solo imprime conteos, códigos SCIAN, hashes y tiempos.
@@ -25,6 +32,8 @@ terminal solo imprime conteos, códigos SCIAN, hashes y tiempos.
 Uso:
   .venv/Scripts/python -m src.evaluar_corrida_clasificador --corrida 06b-inicial              # verifica e imprime
   .venv/Scripts/python -m src.evaluar_corrida_clasificador --corrida 06b-inicial --escribir   # además escribe
+  .venv/Scripts/python -m src.evaluar_corrida_clasificador --barrido 06b-barrido [--escribir]
+      [--aceptar-incompletas NOMBRE ...]   # solo con la decisión de Samuel
 """
 
 from __future__ import annotations
@@ -43,6 +52,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 
+import src.barrido_kaggle as bk
 from src import construir_kernel as ck
 from src.clasificador_kaggle import (
     ARCHIVO_MEDICIONES,
@@ -55,6 +65,7 @@ from src.clasificador_kaggle import (
     pasos_warmup,
 )
 from src.denue import REPO_RAIZ
+from src.eleccion_barrido import ErrorEleccion, candidata_desde_resultado, elegir
 from src.evaluador_clasificador import (
     DEFINICION_PAREADA,
     DEFINICIONES,
@@ -459,11 +470,15 @@ def revisar_argumentos(args: Mapping, esperados_args: Mapping, tapados: Sequence
     }
 
 
-def resumen_etapas(m: Mapping, *, espec: ck.EspecKernel, esperados: Mapping[str, str], fuentes_actuales: Mapping[str, str],
+def resumen_etapas(m: Mapping, *, corrida: Mapping, esperados: Mapping[str, str], fuentes_actuales: Mapping[str, str],
                    kernel_igual_al_generado: bool, filas_train: int, filas_val: int, adapter_config: Mapping,
                    archivos_bajados: set[str], llaves: set[str], texto_del_log: str) -> dict:
-    """Terminó bien o falló, etapa por etapa, con su dato clave (sin nombres)."""
-    corrida = dict(espec.corrida)
+    """Terminó bien o falló, etapa por etapa, con su dato clave (sin nombres).
+
+    `corrida` es la configuración que generó el kernel (la de 06b-inicial o una del barrido);
+    `archivos_bajados` son rutas relativas a la carpeta de la corrida.
+    """
+    corrida = dict(corrida)
     e: dict[str, dict] = {}
     g = m.get("gpu", {})
     nombres_gpu = [x.get("nombre", "") for x in g.get("nvidia_smi", [])]
@@ -806,14 +821,6 @@ def cargar_entradas(corrida: str, manifest: Mapping, raiz: Path = REPO_RAIZ) -> 
     }
     textos[conf["log"]] = texto_log(entradas_log)
     adapter_config = json.loads(textos.get(f"{CARPETA_ADAPTADOR}/adapter_config.json", "{}"))
-    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
-    paquete = {
-        a: leer_jsonl_verificado(Path(raiz) / archivos[a]["ruta"], archivos[a]["sha256"]) for a in (ARCHIVO_TRAIN, ARCHIVO_VAL)
-    }
-    tfidf = json.loads((Path(raiz) / RESULTADO_TFIDF).read_bytes())
-    dicc = json.loads((Path(raiz) / RESULTADO_DICCIONARIO).read_bytes())
-    ruta_reg = f"{CARPETA_REGISTROS_BASELINES}/{tfidf['commit'][:12]}/tfidf_nombre_C{tfidf['detalle']['C']:g}.json"
-    datos_reg = (Path(raiz) / ruta_reg).read_bytes()
     return SimpleNamespace(
         corrida=corrida,
         conf=conf,
@@ -825,16 +832,31 @@ def cargar_entradas(corrida: str, manifest: Mapping, raiz: Path = REPO_RAIZ) -> 
         textos=textos,
         adapter_config=adapter_config,
         predicciones=textos[ARCHIVO_PREDICCIONES].encode("utf-8"),
-        train=paquete[ARCHIVO_TRAIN],
-        val_paquete=paquete[ARCHIVO_VAL],
-        val_splits=cargar_referencias(manifest, ENTRADA_VAL, raiz),
-        codigos=cargar_codigos(manifest, raiz),
-        tfidf=tfidf,
-        diccionario=dicc,
-        registro_tfidf=json.loads(datos_reg),
-        ruta_registro_tfidf=ruta_reg,
-        sha_registro_tfidf=sha256_bytes(datos_reg),
+        **_cargar_comunes(manifest, raiz),
     )
+
+
+def _cargar_comunes(manifest: Mapping, raiz: Path = REPO_RAIZ) -> dict:
+    """Paquete de Kaggle, validación, catálogo y baselines, con los hashes verificados (sin test ni hard)."""
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    paquete = {
+        a: leer_jsonl_verificado(Path(raiz) / archivos[a]["ruta"], archivos[a]["sha256"]) for a in (ARCHIVO_TRAIN, ARCHIVO_VAL)
+    }
+    tfidf = json.loads((Path(raiz) / RESULTADO_TFIDF).read_bytes())
+    dicc = json.loads((Path(raiz) / RESULTADO_DICCIONARIO).read_bytes())
+    ruta_reg = f"{CARPETA_REGISTROS_BASELINES}/{tfidf['commit'][:12]}/tfidf_nombre_C{tfidf['detalle']['C']:g}.json"
+    datos_reg = (Path(raiz) / ruta_reg).read_bytes()
+    return {
+        "train": paquete[ARCHIVO_TRAIN],
+        "val_paquete": paquete[ARCHIVO_VAL],
+        "val_splits": cargar_referencias(manifest, ENTRADA_VAL, raiz),
+        "codigos": cargar_codigos(manifest, raiz),
+        "tfidf": tfidf,
+        "diccionario": dicc,
+        "registro_tfidf": json.loads(datos_reg),
+        "ruta_registro_tfidf": ruta_reg,
+        "sha_registro_tfidf": sha256_bytes(datos_reg),
+    }
 
 
 def evaluar_corrida(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) -> tuple[dict, dict]:
@@ -855,7 +877,7 @@ def evaluar_corrida(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) 
     archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
     esperados = {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA}
     etapas = resumen_etapas(
-        m, espec=ent.espec, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
+        m, corrida=ent.espec.corrida, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
         kernel_igual_al_generado=contexto["kernel_igual_al_generado"], filas_train=len(ent.train),
         filas_val=len(ent.val_paquete), adapter_config=ent.adapter_config,
         archivos_bajados={a["ruta"] for a in ent.inventario}, llaves=set(ref["varias"] | ref["una"]),
@@ -868,14 +890,7 @@ def evaluar_corrida(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) 
     aciertos = aciertos_alineados(predicciones, filas, ent.codigos)
     if intervalo_bootstrap(aciertos["clase"]) != metricas["ic95_accuracy"] or sum(aciertos["clase"]) != metricas["regla5"]["aciertos"]:
         raise ErrorCorrida("Los aciertos alineados no reproducen las métricas del evaluador.")
-    codigo = metricas["concentracion"]["codigo_valido_mas_predicho"]
-    concentracion_extra = {
-        "filas_de_validacion_con_ese_codigo": sum(1 for f in filas if f["codigo_act"] == codigo),
-        "clase_mas_frecuente_de_validacion": Counter(f["codigo_act"] for f in filas).most_common(1)[0][0],
-        "filas_de_validacion_con_la_clase_mas_frecuente": Counter(f["codigo_act"] for f in filas).most_common(1)[0][1],
-        "respuestas_distintas_tras_limpiar": len({limpiar(r) for r in predicciones.values()}),
-        "codigos_validos_distintos_predichos": len({c for c in map(limpiar, predicciones.values()) if RE_CODIGO.fullmatch(c)}),
-    }
+    concentracion_extra = _concentracion_extra(predicciones, filas, metricas)
     comprobacion = comprobar_registro_tfidf(ent.registro_tfidf, ent.tfidf, filas)
     comp = comparacion(aciertos, metricas, ent.tfidf, ent.diccionario, ent.registro_tfidf, comprobacion,
                        ent.ruta_registro_tfidf, ent.sha_registro_tfidf)
@@ -901,6 +916,19 @@ def evaluar_corrida(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) 
     )
     candado_resultado(resultado, ref)
     return resultado, privacidad
+
+
+def _concentracion_extra(predicciones: Mapping[str, str], filas: Sequence[Mapping], metricas: Mapping) -> dict:
+    """Cuántas filas de validación tienen el código más predicho y cuántas respuestas distintas hubo."""
+    codigo = metricas["concentracion"]["codigo_valido_mas_predicho"]
+    conteo = Counter(f["codigo_act"] for f in filas).most_common(1)[0]
+    return {
+        "filas_de_validacion_con_ese_codigo": sum(1 for f in filas if f["codigo_act"] == codigo),
+        "clase_mas_frecuente_de_validacion": conteo[0],
+        "filas_de_validacion_con_la_clase_mas_frecuente": conteo[1],
+        "respuestas_distintas_tras_limpiar": len({limpiar(r) for r in predicciones.values()}),
+        "codigos_validos_distintos_predichos": len({c for c in map(limpiar, predicciones.values()) if RE_CODIGO.fullmatch(c)}),
+    }
 
 
 def armar_resultado(*, manifest, contexto, ent, descarga, privacidad, etapas, metricas, concentracion_extra, comparacion,
@@ -1035,11 +1063,782 @@ def figura_curvas(resultado: Mapping, ruta: Path) -> None:
     plt.close(fig)
 
 
+# --- Barrido (Fase 2, paso 12) ---
+
+# Observaciones de cada barrido que no están en su salida. Las que faltan (None) se llenan en la Parte B
+# con `kaggle kernels status` y lo que vea Samuel en la página del kernel; `--escribir` se niega mientras
+# falte alguna.
+BARRIDOS = {
+    "06b-barrido": {
+        "kernel": "06b-barrido",
+        "inicial": "06b-inicial",  # clave en CORRIDAS de la configuración inicial, que también entra a la regla
+        "carpeta": "kaggle-output/06b-barrido",
+        "log": "denue-scian-06b-barrido.log",  # lo escribe la CLI de Kaggle 2.2.5 junto a la salida
+        "resumen": "results/{fecha}_fase2_06b-barrido.json",
+        "resultado_configuracion": "results/{fecha}_fase2_{nombre}.json",
+        "figura": "docs/figuras/{fecha}_fase2_curvas-barrido-06b.png",
+        "observaciones": {
+            "version_kaggle": 1,  # kaggle kernels pull -m, 2026-11-23
+            "lanzamiento": "2026-11-23, 6:55 pm (hora de la Ciudad de México), por Samuel",
+            "last_run_time_cli": "2026-11-24 00:56:39.433000",  # kaggle kernels list --mine (UTC, sin zona)
+            "tiempo_kaggle_s": 27000,  # -t de kaggle kernels push
+            "imagen_docker": ck.DOCKER_06B_INICIAL,  # aceptada: es la de la metadata de kaggle kernels pull -m
+            "estado_cli": None,
+            "duracion_pagina_kaggle": None,
+            "duracion_pagina_kaggle_s": None,
+            "cuota_antes": "28 h 35 min de 30 h",  # bitácora, paso 11
+            "cuota_despues": None,
+            "cuota_descontada_min": None,
+        },
+    },
+}
+SIGNO_CONTRA_INICIAL = "configuración − 06b-inicial (positivo: la configuración acierta más)"
+
+
+def verificar_descarga_barrido(inv: Sequence[Mapping], b: Mapping, mediciones: Mapping[str, Mapping | None],
+                               hashes_manifest: set[str], archivo_log: str, completas: Sequence[str]) -> dict:
+    """Lo bajado contra `archivos_salida` de barrido.json y de cada mediciones.json; PARADA si algo no coincide.
+
+    barrido.json lista todos los archivos de la salida menos él mismo (el log de la CLI tampoco lleva
+    hash). Cada configuración completa debe traer exactamente lo que lista su mediciones.json (más el
+    propio mediciones.json), y sus predicciones deben ser las de su inferencia.
+    """
+    locales = {a["ruta"]: a for a in inv}
+    kaggle = {a["ruta"]: a for a in b.get("archivos_salida", [])}
+    sin_hash = {bk.ARCHIVO_BARRIDO, archivo_log}
+
+    def distinto(r: str, a: Mapping) -> bool:
+        return r not in locales or (locales[r]["bytes"], locales[r]["sha256"]) != (a["bytes"], a["sha256"])
+
+    faltan = sorted(set(kaggle) - set(locales))
+    distintos = sorted(r for r in set(kaggle) & set(locales) if distinto(r, kaggle[r]))
+    extra = sorted(set(locales) - set(kaggle) - sin_hash)
+    sin_archivo = sorted(sin_hash - set(locales))
+    con_hash_del_manifest = sorted(r for r, a in locales.items() if a["sha256"] in hashes_manifest)
+    por_configuracion, malas = {}, []
+    for nombre, m in mediciones.items():
+        if m is None:
+            por_configuracion[nombre] = {"tiene_mediciones": False}
+            if nombre in completas:
+                malas.append(nombre)
+            continue
+        propios = {f"{nombre}/{a['ruta']}": a for a in m.get("archivos_salida", [])}
+        en_carpeta = {r for r in locales if r.startswith(f"{nombre}/")}
+        dif = sorted(r for r, a in propios.items() if distinto(r, a))
+        sin_listar = sorted(en_carpeta - set(propios) - {f"{nombre}/{ARCHIVO_MEDICIONES}"})
+        sha_pred = locales.get(f"{nombre}/{ARCHIVO_PREDICCIONES}", {}).get("sha256")
+        pred_ok = sha_pred is not None and sha_pred == (m.get("inferencia") or {}).get("archivo", {}).get("sha256")
+        por_configuracion[nombre] = {
+            "tiene_mediciones": True,
+            "con_sha256_de_su_mediciones": len(propios),
+            "distintos_o_faltan": dif,
+            "sin_listar_en_su_mediciones": sin_listar,
+            "predicciones_coinciden_con_la_inferencia": pred_ok,
+        }
+        if nombre in completas and (dif or sin_listar or not pred_ok or not propios):
+            malas.append(nombre)
+    res = {
+        "archivos_bajados": len(locales),
+        "con_sha256_de_kaggle": len(kaggle),
+        "coinciden_con_kaggle": len(set(kaggle) & set(locales)) - len(distintos),
+        "sin_sha256_de_kaggle": sorted(sin_hash & set(locales)),
+        "faltan": faltan,
+        "distintos": distintos,
+        "extra": extra,
+        "con_sha256_del_manifest": con_hash_del_manifest,
+        "por_configuracion": por_configuracion,
+    }
+    if faltan or distintos or extra or sin_archivo or con_hash_del_manifest or malas:
+        raise ErrorCorrida(
+            f"La descarga del barrido no coincide con lo que calculó Kaggle: faltan {len(faltan)}, distintos "
+            f"{len(distintos)}, extra {len(extra)}, sin barrido.json o log {len(sin_archivo)}, con hash del manifest "
+            f"{len(con_hash_del_manifest)}, configuraciones con problemas {sorted(malas)}."
+        )
+    return res
+
+
+def revisar_privacidad_barrido(textos: Mapping[str, str], jsons: Mapping[str, Mapping], idx: Mapping, filas: int,
+                               texto_kernel: str, tapados: Mapping[str, int]) -> dict:
+    """Revisión de nombres de cada archivo de texto y de los valores de cada JSON (barrido.json y mediciones)."""
+    palabras_kernel = palabras_del_texto(texto_kernel)
+    entradas = dict(sorted(textos.items()))
+    for nombre, obj in sorted(jsons.items()):
+        entradas[f"{nombre} (valores)"] = textos_de_json(obj)
+    archivos: dict[str, dict] = {}
+    for nombre, texto in entradas.items():
+        resumen, encontrados = buscar_nombres_indexada(texto, idx)
+        archivos[nombre] = {**resumen, "clasificacion": clasificar(encontrados, texto_kernel, palabras_kernel)}
+    fugas = sorted(n for n, r in archivos.items() if posible_fuga(r["clasificacion"]))
+    return {
+        "filas_de_referencia": filas,
+        "nombres_buscados": len(idx["nombres"]),
+        "llaves_varias_palabras_buscadas": len(idx["varias"]),
+        "llaves_una_palabra_buscadas": len(idx["una"]),
+        "tapados_por_el_kernel": dict(tapados),
+        "archivos": archivos,
+        "archivos_con_posible_fuga": fugas,
+        "posible_fuga": bool(fugas),
+    }
+
+
+def privacidad_de_configuracion(p: Mapping, nombre: str) -> dict:
+    """La parte de la revisión de nombres que toca a una configuración: su carpeta y su log."""
+    propios = (f"{nombre}/", f"{bk.CARPETA_LOGS}/{nombre}.log")
+    archivos = {a: r for a, r in p["archivos"].items() if a.startswith(propios)}
+    return {
+        **{k: v for k, v in p.items() if k not in ("archivos", "archivos_con_posible_fuga", "posible_fuga", "tapados_por_el_kernel")},
+        "tapados_por_el_kernel": p["tapados_por_el_kernel"].get(nombre, 0),
+        "archivos": archivos,
+        "archivos_con_posible_fuga": [a for a in p["archivos_con_posible_fuga"] if a in archivos],
+        "posible_fuga": any(a in archivos for a in p["archivos_con_posible_fuga"]),
+    }
+
+
+def resumen_orquestador(b: Mapping, *, corridas: Sequence[Mapping], esperados: Mapping[str, str],
+                        fuentes_actuales: Mapping[str, str], kernel_igual_al_generado: bool,
+                        incompletas_aceptadas: Sequence[str] = ()) -> dict:
+    """La etapa del orquestador (barrido.json): procesos, memoria, versiones y orden del train."""
+    configs = list(b.get("configuraciones", []))
+    nombres = [c["nombre"] for c in corridas]
+    completas = [c for c in configs if c.get("estado") == "completa"]
+    incompletas = [n for n in nombres if n not in {c.get("nombre") for c in completas}]
+    lanzadas = [c for c in configs if c.get("estado") != "omitida"]
+    fallas = [f.get("etapa") for f in b.get("fallas", [])]
+    permitidas = {f"configuracion_{n}" for n in incompletas_aceptadas}
+    gpus = [g.get("nombre", "") for g in b.get("gpu", {}).get("nvidia_smi", [])]
+    v = b.get("versiones", {})
+    return _etapa(
+        {
+            "estado_del_orquestador": b.get("estado") == ("completo" if not incompletas else "completo_con_fallas"),
+            "fallas_solo_de_incompletas_aceptadas": set(fallas) <= permitidas,
+            "incompletas_aceptadas_por_samuel": set(incompletas) <= set(incompletas_aceptadas),
+            "todas_t4": bool(gpus) and all("T4" in g for g in gpus),
+            "sha256_de_los_datos_verificados": b.get("datos", {}).get("sha256_verificados") == dict(esperados),
+            "sha256_esperados_del_kernel": b.get("datos_sha256_esperados") == dict(esperados),
+            "fuentes_incrustadas_iguales_a_src": b.get("fuentes_incrustadas_sha256") == dict(fuentes_actuales),
+            "kernel_escrito_igual_al_generado": kernel_igual_al_generado,
+            "corridas_iguales_a_la_especificacion": b.get("configuracion", {}).get("corridas") == [dict(c) for c in corridas],
+            "configuraciones_en_orden": [c.get("nombre") for c in configs] == nombres,
+            "versiones_fijadas_sin_diferencias": (
+                v.get("fijadas_distintas") == {} and v.get("fijadas_con_pip") == dict(p.split("==") for p in bk.PAQUETES_BARRIDO)
+            ),
+            "completas_con_codigo_0_y_sin_matar": all(
+                c.get("codigo_de_salida") == 0 and c.get("matado_por_tiempo") is False for c in completas
+            ),
+            "memoria_liberada_tras_cada_proceso": all(c.get("memoria_liberada") is True for c in lanzadas),
+            "orden_del_train_igual_al_de_06b_inicial": all(
+                (c.get("mediciones") or {}).get("sha256_orden_train") == bk.SHA256_ORDEN_06B_INICIAL for c in completas
+            ),
+        },
+        estado_del_kernel=b.get("estado"),
+        etapas_con_falla=fallas,
+        incompletas=incompletas,
+        advertencias=b.get("advertencias", {}),
+        no_fijables=v.get("no_fijables"),
+        controlador_nvidia=v.get("controlador_nvidia"),
+        instalacion={k: b.get("instalacion", {}).get(k) for k in ("segundos_pip_install", "cambios_freeze")},
+        configuraciones=[
+            {k: c.get(k) for k in ("nombre", "estado", "estimado_s", "transcurrido_al_empezar_s", "tiempo_maximo_s", "segundos",
+                                   "codigo_de_salida", "matado_por_tiempo", "memoria_gpu0_al_salir_mib", "memoria_liberada")}
+            for c in configs
+        ],
+        segundos_desde_arranque=b.get("segundos_desde_arranque"),
+        duraciones_s=b.get("duraciones_s"),
+    )
+
+
+def revisar_configuracion_del_barrido(m: Mapping, versiones_inicial: Mapping[str, str]) -> dict:
+    """Etapa propia del barrido: orden del train y versiones del entorno contra 06b-inicial.
+
+    Las versiones que se fijan con pip deben ser iguales; las que van con la imagen (torch,
+    torchvision y triton) solo dan una advertencia si cambian.
+    """
+    versiones = m.get("entorno", {}).get("versiones", {})
+    fijadas = [p for p in VERSIONES_A_REGISTRAR if p not in bk.NO_FIJABLES]
+    distintas = {p: {"06b_inicial": versiones_inicial.get(p), "instalada": versiones.get(p)}
+                 for p in fijadas if versiones.get(p) != versiones_inicial.get(p)}
+    advertencias = {p: {"06b_inicial": versiones_inicial.get(p), "instalada": versiones.get(p)}
+                    for p in bk.NO_FIJABLES if versiones.get(p) != versiones_inicial.get(p)}
+    orden = m.get("entrenamiento", {}).get("orden_train", {}).get("sha256_orden")
+    return _etapa(
+        {
+            "orden_del_train_igual_al_de_06b_inicial": orden == bk.SHA256_ORDEN_06B_INICIAL,
+            "versiones_fijadas_iguales_a_06b_inicial": not distintas,
+        },
+        sha256_orden_train=orden,
+        versiones_fijadas_distintas=distintas,
+        advertencias_no_fijables=advertencias,
+    )
+
+
+def aciertos_de_la_inicial(datos_pred: bytes, res_inicial: Mapping, val_splits: Sequence[Mapping],
+                           val_paquete: Sequence[Mapping], codigos) -> tuple[dict[str, list[bool]], dict]:
+    """Aciertos de 06b-inicial por nivel en orden de int(id), comprobados contra su JSON de results/."""
+    sha = sha256_bytes(datos_pred)
+    esperado = next((a["sha256"] for a in res_inicial["corrida_kaggle"]["archivos_bajados"] if a["ruta"] == ARCHIVO_PREDICCIONES), None)
+    if sha != esperado:
+        raise ErrorCorrida("Las predicciones de la inicial no tienen el SHA-256 de las que evaluó su resultado.")
+    pred = leer_predicciones(datos_pred)
+    filas = alinear(pred, val_splits, val_paquete)
+    ac = aciertos_alineados(pred, filas, codigos)
+    m = res_inicial["metricas"]
+    c = {
+        "conteo_clase": sum(ac["clase"]) == m["regla5"]["aciertos"] == m["por_nivel"]["clase"]["aciertos"],
+        "ic_clase_reproducido": intervalo_bootstrap(ac["clase"]) == m["ic95_accuracy"],
+        "conteo_sector": sum(ac["sector"]) == m["por_nivel"]["sector"]["aciertos"],
+        "ic_sector_reproducido": intervalo_bootstrap(ac["sector"]) == m["por_nivel"]["sector"]["ic95"],
+    }
+    malas = sorted(k for k, v in c.items() if not v)
+    if malas:
+        raise ErrorCorrida(f"Los aciertos de la inicial no reproducen su resultado: {malas}.")
+    return ac, {"predicciones_sha256": sha, "filas": len(filas), "comprobaciones": c}
+
+
+def contra_la_inicial(aciertos_inicial: Mapping[str, list[bool]], aciertos: Mapping[str, list[bool]], res_inicial: Mapping,
+                      info_inicial: Mapping, ruta_inicial: str) -> dict:
+    """Diferencia pareada configuración − 06b-inicial, en clase y en sector, sobre las mismas filas."""
+    mi = res_inicial["metricas"]
+    return {
+        "resultado_inicial": ruta_inicial,
+        "accuracy_inicial": mi["regla5"]["accuracy"],
+        "ic95_inicial": mi["ic95_accuracy"],
+        "signo": SIGNO_CONTRA_INICIAL,
+        "clase": diferencia_pareada_bootstrap(aciertos_inicial["clase"], aciertos["clase"]),
+        "sector": diferencia_pareada_bootstrap(aciertos_inicial["sector"], aciertos["sector"]),
+        "definicion": DEFINICION_PAREADA,
+        "alineacion": {
+            "filas": len(aciertos["clase"]),
+            "orden": "int(id) de data/splits/val.jsonl",
+            "comprobada_fila_por_fila": True,
+            "predicciones_inicial_sha256": info_inicial["predicciones_sha256"],
+            "comprobaciones_inicial": dict(info_inicial["comprobaciones"]),
+            "metodo": (
+                "Las dos listas de aciertos salen de alinear las predicciones de cada modelo con data/splits/val.jsonl "
+                "(mismos ids que el val.jsonl del paquete, mismas etiquetas) en orden de int(id); en cada posición, el "
+                "acierto es el de la respuesta de esa fila contra su codigo_act. Las de 06b-inicial salen de su "
+                "predicciones.jsonl con el SHA-256 de su resultado y reproducen sus conteos e IC."
+            ),
+        },
+    }
+
+
+def _ruta(plantilla: str, fecha: str, nombre: str = "") -> str:
+    return plantilla.format(fecha=fecha, nombre=nombre)
+
+
+def cargar_barrido(barrido: str, manifest: Mapping, raiz: Path = REPO_RAIZ) -> SimpleNamespace:
+    """Todo lo que lee la evaluación del barrido, con los hashes verificados. Nunca abre test.jsonl ni hard.jsonl."""
+    conf = BARRIDOS[barrido]
+    espec = ck.KERNELS[conf["kernel"]]
+    carpeta = Path(raiz) / conf["carpeta"]
+    inv = inventario(carpeta)
+    textos = {
+        a["ruta"]: (carpeta / a["ruta"]).read_bytes().decode("utf-8")
+        for a in inv
+        if not a["ruta"].endswith(EXTENSIONES_BINARIAS) and a["ruta"] != conf["log"]
+    }
+    if bk.ARCHIVO_BARRIDO not in textos or not (carpeta / conf["log"]).is_file():
+        raise ErrorCorrida(f"Falta {bk.ARCHIVO_BARRIDO} o el log de la CLI en la descarga.")
+    entradas_log = leer_log((carpeta / conf["log"]).read_bytes())
+    textos[conf["log"]] = texto_log(entradas_log)
+    nombres = [c["nombre"] for c in espec.corridas]
+    mediciones = {
+        n: json.loads(textos[f"{n}/{ARCHIVO_MEDICIONES}"]) if f"{n}/{ARCHIVO_MEDICIONES}" in textos else None for n in nombres
+    }
+    adapter = {n: json.loads(textos.get(f"{n}/{CARPETA_ADAPTADOR}/adapter_config.json", "{}")) for n in nombres}
+    conf_ini = CORRIDAS[conf["inicial"]]
+    return SimpleNamespace(
+        barrido=barrido,
+        conf=conf,
+        espec=espec,
+        carpeta=carpeta,
+        inventario=inv,
+        barrido_json=json.loads(textos[bk.ARCHIVO_BARRIDO]),
+        log=entradas_log,
+        textos=textos,
+        mediciones=mediciones,
+        adapter_configs=adapter,
+        resultado_inicial=json.loads((Path(raiz) / conf_ini["resultado"]).read_bytes()),
+        predicciones_inicial=(Path(raiz) / conf_ini["carpeta"] / ARCHIVO_PREDICCIONES).read_bytes(),
+        **_cargar_comunes(manifest, raiz),
+    )
+
+
+def armar_resultado_configuracion(*, manifest, contexto, ent, corrida, m, proceso, descarga, privacidad, etapas, metricas,
+                                  concentracion_extra, comparacion, contra, curvas, advertencias) -> dict:
+    """JSON de results/ de una configuración del barrido (regla 4); sin nombres, llaves, ids ni respuestas crudas."""
+    nombre = corrida["nombre"]
+    obs = ent.conf["observaciones"]
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    sp = manifest["splits"]
+    proceso_s = proceso.get("segundos")
+    script_s = m.get("segundos_desde_arranque")
+    propios = (f"{nombre}/", f"{bk.CARPETA_LOGS}/{nombre}.log")
+    return {
+        "fecha": contexto["fecha"],
+        "experimento": f"fase2_paso12_{nombre}",
+        "commit": contexto["commit"],
+        "arbol_limpio": contexto["arbol_limpio"],
+        "modelo": {
+            "nombre": f"qwen3_0.6b_qlora_{nombre}",
+            "repo": corrida["modelo"]["repo"],
+            "revision": corrida["modelo"]["revision"],
+            "metodo": "QLoRA (NF4 de bitsandbytes) con Unsloth; enable_thinking=False; responde solo el código de 6 dígitos",
+            "adaptador_sha256": next(
+                (a["sha256"] for a in ent.inventario if a["ruta"] == f"{nombre}/{CARPETA_ADAPTADOR}/adapter_model.safetensors"), None
+            ),
+        },
+        "configuracion": {
+            "corrida": dict(corrida),
+            "del_kernel": m.get("configuracion", {}),
+            "barrido": ent.barrido,
+            "kernel": f"{ent.espec.carpeta_relativa}/{ent.espec.archivo_kernel}",
+            "kernel_generador": "src/construir_kernel.py",
+            "commit_kernel": contexto["commit_kernel"],
+            "kernel_kaggle": {"id": ent.espec.id_kernel, "version": obs["version_kaggle"]},
+            "imagen_docker": obs["imagen_docker"],
+            "script": SCRIPT,
+            "evaluador": "src/evaluador_clasificador.py (regla 5: src/metricas_clasificador.py)",
+            "catalogo": {k: manifest["catalogos"][CATALOGO[manifest["scian_version"]]][k] for k in ("ruta", "sha256")},
+            "scian_version": manifest["scian_version"],
+            "python_local": platform.python_version(),
+        },
+        "semilla": SEMILLA,
+        "split": "validación del split por nombre (congelada); train: train final con tope de 1,000 filas por clase",
+        "hash_split": {
+            "validacion": sp[ENTRADA_VAL]["sha256"],
+            "train": sp[ENTRADA_TRAIN_FINAL]["sha256"],
+            "paquete_kaggle": {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA},
+        },
+        "hash_split_origen": f"data/manifest.json: splits.{ENTRADA_VAL}, splits.{ENTRADA_TRAIN_FINAL} y {SECCION}.{ENTRADA_PAQUETE}",
+        "tamano_muestra": {"train": len(ent.train), "validacion": len(ent.val_paquete)},
+        "horas_gpu": {
+            "valor": round(proceso_s / 3600, 3) if proceso_s else None,
+            "metodo": (
+                "Duración del proceso de esta configuración en barrido.json (una sola T4 de la sesión GPU T4 x2). Las horas "
+                "del barrido completo (página del kernel) y la cuota están en el resumen del barrido."
+            ),
+            "script": round(script_s / 3600, 3) if script_s else None,
+            "resumen_del_barrido": _ruta(ent.conf["resumen"], contexto["fecha"]),
+        },
+        "corrida_kaggle": {
+            "estado_cli": obs["estado_cli"],
+            "last_run_time_cli": obs["last_run_time_cli"],
+            "proceso": {k: proceso.get(k) for k in ("estado", "codigo_de_salida", "matado_por_tiempo", "estimado_s", "tiempo_maximo_s",
+                                                     "transcurrido_al_empezar_s", "segundos", "memoria_gpu0_al_salir_mib")},
+            "estado_kernel": m.get("estado"),
+            "fallas": len(m.get("fallas", [])),
+            "tiempo": {"inicio_script_utc": m.get("inicio_utc"), "script_s": script_s, "duraciones_etapas_s": m.get("duraciones_s")},
+            "archivos_bajados": [dict(a) for a in ent.inventario if a["ruta"].startswith(propios)],
+            "descarga": descarga["por_configuracion"][nombre],
+        },
+        "privacidad": privacidad_para_resultado(privacidad),
+        "etapas": etapas,
+        "metricas": metricas,
+        "concentracion_extra": concentracion_extra,
+        "definiciones": DEFINICIONES,
+        "comparacion": comparacion,
+        "contra_06b_inicial": contra,
+        "curvas": curvas,
+        "advertencias": advertencias,
+    }
+
+
+def fila_de_la_tabla(nombre: str, corrida: Mapping, metricas: Mapping, contra: Mapping | None, estimado_s, proceso_s,
+                     resultado: str) -> dict:
+    """Una fila de la tabla del barrido (la inicial no tiene pareada contra sí misma)."""
+    def pareada(nivel):
+        return None if contra is None else {k: contra[nivel][k] for k in ("diferencia", "ic95", "filas_solo_a_acierta", "filas_solo_b_acierta")}
+
+    return {
+        "nombre": nombre,
+        "rank": corrida["lora"]["r"],
+        "lora_alpha": corrida["lora"]["lora_alpha"],
+        "learning_rate": corrida["learning_rate"],
+        "aciertos": metricas["regla5"]["aciertos"],
+        "accuracy": metricas["regla5"]["accuracy"],
+        "ic95": metricas["ic95_accuracy"],
+        "accuracy_sector": metricas["por_nivel"]["sector"]["accuracy"],
+        "ic95_sector": metricas["por_nivel"]["sector"]["ic95"],
+        "macro_f1_sector": metricas["macro_f1_sector"]["valor"],
+        "pct_formato_valido": metricas["regla5"]["pct_formato_valido"],
+        "pct_codigos_inexistentes": metricas["regla5"]["pct_codigos_inexistentes"],
+        "clases_existentes_distintas_predichas": metricas["concentracion"]["clases_existentes_distintas_predichas"],
+        "pareada_clase_contra_inicial": pareada("clase"),
+        "pareada_sector_contra_inicial": pareada("sector"),
+        "estimado_s": estimado_s,
+        "proceso_s": proceso_s,
+        "resultado": resultado,
+    }
+
+
+def evaluar_barrido(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping,
+                    aceptar_incompletas: Sequence[str] = ()) -> tuple[dict, dict[str, dict], dict]:
+    """Verifica, revisa nombres, resume etapas, mide cada configuración, aplica la regla y arma el resumen.
+
+    Devuelve el resumen, los resultados por configuración (por nombre) y la revisión de privacidad
+    completa (con líneas, solo para la terminal). PARADA ante cualquier problema que no sea una etapa
+    con comprobaciones fallidas; esas las junta `problemas_del_barrido` y detienen `main`.
+    """
+    b = ent.barrido_json
+    corridas = [dict(c) for c in ent.espec.corridas]
+    nombres = [c["nombre"] for c in corridas]
+    desconocidas = sorted(set(aceptar_incompletas) - set(nombres))
+    if desconocidas:
+        raise ErrorCorrida(f"--aceptar-incompletas nombra configuraciones que no son del barrido: {desconocidas}.")
+    procesos = {c.get("nombre"): c for c in b.get("configuraciones", [])}
+    completas = [n for n in nombres if procesos.get(n, {}).get("estado") == "completa"]
+    incompletas = [n for n in nombres if n not in completas]
+
+    descarga = verificar_descarga_barrido(
+        ent.inventario, b, ent.mediciones, ck.hashes_del_manifest(manifest), ent.conf["log"], completas
+    )
+    filas_ref = ent.train + ent.val_paquete
+    ref = referencias_de_nombres(filas_ref)
+    idx = indice_de_nombres(ref)
+    jsons = {bk.ARCHIVO_BARRIDO: b, **{f"{n}/{ARCHIVO_MEDICIONES}": m for n, m in ent.mediciones.items() if m is not None}}
+    tapados = {n: len(m.get("tapados", [])) for n, m in ent.mediciones.items() if m is not None}
+    privacidad = revisar_privacidad_barrido(ent.textos, jsons, idx, len(filas_ref), contexto["texto_kernel"], tapados)
+    if privacidad["posible_fuga"]:
+        raise ErrorCorrida(f"Posible fuga de nombres en {privacidad['archivos_con_posible_fuga']}; decide Samuel.")
+    no_aceptadas = [n for n in incompletas if n not in aceptar_incompletas]
+    if no_aceptadas:
+        raise ErrorCorrida(f"Configuraciones incompletas: {no_aceptadas}; decide Samuel (--aceptar-incompletas).")
+
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    esperados = {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA}
+    orquestador = resumen_orquestador(
+        b, corridas=corridas, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
+        kernel_igual_al_generado=contexto["kernel_igual_al_generado"], incompletas_aceptadas=aceptar_incompletas,
+    )
+    clave_ini = ent.conf["inicial"]
+    ruta_ini = CORRIDAS[clave_ini]["resultado"]
+    res_ini = ent.resultado_inicial
+    aciertos_ini, info_ini = aciertos_de_la_inicial(ent.predicciones_inicial, res_ini, ent.val_splits, ent.val_paquete, ent.codigos)
+    versiones_ini = res_ini["para_el_barrido"]["versiones_entorno"]
+    llaves = set(ref["varias"] | ref["una"])
+    fecha = contexto["fecha"]
+
+    resultados: dict[str, dict] = {}
+    comprobacion_tfidf = None
+    for corrida in corridas:
+        n = corrida["nombre"]
+        if n not in completas:
+            continue
+        m = ent.mediciones[n]
+        log = ent.textos.get(f"{bk.CARPETA_LOGS}/{n}.log")
+        if log is None:
+            raise ErrorCorrida(f"Falta el log de {n}.")
+        prefijo = f"{n}/"
+        etapas = resumen_etapas(
+            m, corrida=corrida, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
+            kernel_igual_al_generado=contexto["kernel_igual_al_generado"], filas_train=len(ent.train),
+            filas_val=len(ent.val_paquete), adapter_config=ent.adapter_configs[n],
+            archivos_bajados={a["ruta"][len(prefijo):] for a in ent.inventario if a["ruta"].startswith(prefijo)},
+            llaves=llaves, texto_del_log=log,
+        )
+        etapas["etapas"]["barrido"] = revisar_configuracion_del_barrido(m, versiones_ini)
+        etapas["todas_ok"] = all(x["estado"] == "ok" for x in etapas["etapas"].values())
+
+        predicciones = leer_predicciones(ent.textos[f"{n}/{ARCHIVO_PREDICCIONES}"].encode("utf-8"))
+        filas = alinear(predicciones, ent.val_splits, ent.val_paquete)
+        metricas = evaluar_validacion(predicciones, filas, ent.codigos)
+        aciertos = aciertos_alineados(predicciones, filas, ent.codigos)
+        if intervalo_bootstrap(aciertos["clase"]) != metricas["ic95_accuracy"] or sum(aciertos["clase"]) != metricas["regla5"]["aciertos"]:
+            raise ErrorCorrida(f"{n}: los aciertos alineados no reproducen las métricas del evaluador.")
+        if comprobacion_tfidf is None:
+            comprobacion_tfidf = comprobar_registro_tfidf(ent.registro_tfidf, ent.tfidf, filas)
+        comp = comparacion(aciertos, metricas, ent.tfidf, ent.diccionario, ent.registro_tfidf, comprobacion_tfidf,
+                           ent.ruta_registro_tfidf, ent.sha_registro_tfidf)
+        contra = contra_la_inicial(aciertos_ini, aciertos, res_ini, info_ini, ruta_ini)
+        advertencias = [
+            f"{p} es {v['instalada']}; en 06b-inicial era {v['06b_inicial']} (va con la imagen de Docker, no se fija con pip)."
+            for p, v in etapas["etapas"]["barrido"]["advertencias_no_fijables"].items()
+        ]
+        resultado = armar_resultado_configuracion(
+            manifest=manifest, contexto=contexto, ent=ent, corrida=corrida, m=m, proceso=procesos[n], descarga=descarga,
+            privacidad=privacidad_de_configuracion(privacidad, n), etapas=etapas,
+            metricas={k: v for k, v in metricas.items() if k != "definiciones"},
+            concentracion_extra=_concentracion_extra(predicciones, filas, metricas), comparacion=comp, contra=contra,
+            curvas={
+                "validacion": etapas["etapas"]["entrenamiento"]["perdida_validacion"],
+                "train_por_ventana": curva_de_train_agregada(m.get("entrenamiento", {}).get("curvas", {}).get("train", [])),
+                "ventana_pasos": VENTANA_CURVA,
+            },
+            advertencias=advertencias,
+        )
+        candado_resultado(resultado, ref)
+        resultados[n] = resultado
+
+    corrida0 = corridas[0]
+    pasos = pasos_por_epoca(len(ent.train), corrida0["lote"], corrida0["gradient_accumulation_steps"]) * corrida0["epocas"]
+    candidatas = [candidata_desde_resultado(res_ini, True)]
+    for corrida in corridas:
+        n = corrida["nombre"]
+        if n in resultados:
+            candidatas.append(candidata_desde_resultado(resultados[n], False))
+        else:
+            med = procesos.get(n, {}).get("mediciones") or {}
+            candidatas.append({
+                "nombre": n, "es_inicial": False, "rank": corrida["lora"]["r"], "learning_rate": corrida["learning_rate"],
+                "pasos_hechos": med.get("pasos_hechos"), "filas_inferidas": med.get("filas_inferidas"),
+                "aciertos_clase": None, "n": len(ent.val_paquete),
+            })
+    try:
+        eleccion = elegir(candidatas, pasos=pasos, filas=len(ent.val_paquete))
+    except ErrorEleccion as e:
+        raise ErrorCorrida(f"No se pudo aplicar la regla de elección: {e}") from e
+
+    rutas = {n: _ruta(ent.conf["resultado_configuracion"], fecha, n) for n in resultados}
+    shas = {n: sha256_bytes(serializar(r)) for n, r in resultados.items()}
+    resumen = armar_resumen_barrido(
+        manifest=manifest, contexto=contexto, ent=ent, corridas=corridas, procesos=procesos, descarga=descarga,
+        privacidad=privacidad, orquestador=orquestador, resultados=resultados, rutas=rutas, shas=shas,
+        eleccion=eleccion, incompletas=incompletas, ruta_inicial=ruta_ini, clave_inicial=clave_ini,
+    )
+    candado_resultado(resumen, ref)
+    return resumen, resultados, privacidad
+
+
+def armar_resumen_barrido(*, manifest, contexto, ent, corridas, procesos, descarga, privacidad, orquestador, resultados, rutas,
+                          shas, eleccion, incompletas, ruta_inicial, clave_inicial) -> dict:
+    """Resumen del barrido en results/: tabla de las 5, regla de elección, tiempos, horas, cuota y advertencias."""
+    obs = ent.conf["observaciones"]
+    b = ent.barrido_json
+    res_ini = ent.resultado_inicial
+    corrida_ini = res_ini["configuracion"]["corrida"]
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    sp = manifest["splits"]
+    pagina_s = obs["duracion_pagina_kaggle_s"]
+    script_s = b.get("segundos_desde_arranque")
+    tabla = [fila_de_la_tabla(clave_inicial, corrida_ini, res_ini["metricas"], None, None,
+                              res_ini["corrida_kaggle"]["tiempo"]["script_s"], ruta_inicial)]
+    for c in corridas:
+        n = c["nombre"]
+        if n in resultados:
+            r = resultados[n]
+            tabla.append(fila_de_la_tabla(n, c, r["metricas"], r["contra_06b_inicial"], procesos[n].get("estimado_s"),
+                                          procesos[n].get("segundos"), rutas[n]))
+    advertencias = [eleccion["advertencia"]]
+    for k, v in (b.get("advertencias") or {}).items():
+        advertencias.append(f"{k} es {v.get('instalada')}; en 06b-inicial era {v.get('06b_inicial')} (no se fija con pip).")
+    for n, r in resultados.items():
+        advertencias += [f"{n}: {a}" for a in r["advertencias"]]
+    for n in incompletas:
+        advertencias.append(f"{n} quedó incompleta: se reporta, no entra a la regla y no se repite antes del 4B.")
+    curvas = {clave_inicial: {"validacion": res_ini["curvas"]["validacion"], "train_por_ventana": res_ini["curvas"]["train_por_ventana"]}}
+    curvas.update({n: {"validacion": r["curvas"]["validacion"], "train_por_ventana": r["curvas"]["train_por_ventana"]}
+                   for n, r in resultados.items()})
+    return {
+        "fecha": contexto["fecha"],
+        "experimento": f"fase2_paso12_{ent.barrido}",
+        "commit": contexto["commit"],
+        "arbol_limpio": contexto["arbol_limpio"],
+        "modelo": {
+            "nombre": "qwen3_0.6b_qlora_barrido",
+            "repo": corrida_ini["modelo"]["repo"],
+            "revision": corrida_ini["modelo"]["revision"],
+            "metodo": "QLoRA (NF4 de bitsandbytes) con Unsloth; enable_thinking=False; responde solo el código de 6 dígitos",
+        },
+        "configuracion": {
+            "barrido": ent.barrido,
+            "inicial": {"nombre": clave_inicial, "corrida": corrida_ini, "resultado": ruta_inicial},
+            "corridas": corridas,
+            "kernel": f"{ent.espec.carpeta_relativa}/{ent.espec.archivo_kernel}",
+            "kernel_generador": "src/construir_kernel.py",
+            "commit_kernel": contexto["commit_kernel"],
+            "kernel_kaggle": {"id": ent.espec.id_kernel, "version": obs["version_kaggle"]},
+            "imagen_docker": obs["imagen_docker"],
+            "tiempo_kaggle_s": obs["tiempo_kaggle_s"],
+            "script": SCRIPT,
+            "regla_de_eleccion": "src/eleccion_barrido.py",
+            "evaluador": "src/evaluador_clasificador.py (regla 5: src/metricas_clasificador.py)",
+            "catalogo": {k: manifest["catalogos"][CATALOGO[manifest["scian_version"]]][k] for k in ("ruta", "sha256")},
+            "scian_version": manifest["scian_version"],
+            "python_local": platform.python_version(),
+        },
+        "semilla": SEMILLA,
+        "split": "validación del split por nombre (congelada); train: train final con tope de 1,000 filas por clase",
+        "hash_split": {
+            "validacion": sp[ENTRADA_VAL]["sha256"],
+            "train": sp[ENTRADA_TRAIN_FINAL]["sha256"],
+            "paquete_kaggle": {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA},
+        },
+        "hash_split_origen": f"data/manifest.json: splits.{ENTRADA_VAL}, splits.{ENTRADA_TRAIN_FINAL} y {SECCION}.{ENTRADA_PAQUETE}",
+        "tamano_muestra": {"train": len(ent.train), "validacion": len(ent.val_paquete)},
+        "horas_gpu": {
+            "valor": round(pagina_s / 3600, 3) if pagina_s else None,
+            "metodo": (
+                f"Duración de la página del kernel en Kaggle ({obs['duracion_pagina_kaggle']}, GPU T4 x2 con una sola T4 en uso), "
+                "para las 4 configuraciones del barrido."
+            ),
+            "script": round(script_s / 3600, 3) if script_s else None,
+            "por_configuracion": {n: round(procesos[n]["segundos"] / 3600, 3) for n in resultados if procesos[n].get("segundos")},
+            "cuota_kaggle": {"antes": obs["cuota_antes"], "despues": obs["cuota_despues"], "descontado_min": obs["cuota_descontada_min"]},
+        },
+        "corrida_kaggle": {
+            "estado_cli": obs["estado_cli"],
+            "lanzamiento": obs["lanzamiento"],
+            "last_run_time_cli": obs["last_run_time_cli"],
+            "estado_kernel": b.get("estado"),
+            "fallas": len(b.get("fallas", [])),
+            "archivos_bajados": [dict(a) for a in ent.inventario],
+            "descarga": {k: v for k, v in descarga.items() if k != "por_configuracion"},
+        },
+        "privacidad": privacidad_para_resultado(privacidad),
+        "orquestador": orquestador,
+        "tabla": tabla,
+        "eleccion": eleccion,
+        "resultados_por_configuracion": {n: {"ruta": rutas[n], "sha256": shas[n]} for n in resultados},
+        "incompletas": incompletas,
+        "advertencias": advertencias,
+        "curvas": curvas,
+        "definiciones": {"pareada": DEFINICION_PAREADA, "signo_contra_inicial": SIGNO_CONTRA_INICIAL, **DEFINICIONES},
+    }
+
+
+def problemas_del_barrido(resumen: Mapping, resultados: Mapping[str, Mapping]) -> list[str]:
+    """Comprobaciones que fallaron (en el orquestador o en una etapa de una configuración); cada una es PARADA."""
+    res = [f"orquestador: {k}" for k, v in resumen["orquestador"]["comprobaciones"].items() if not v]
+    for n, r in resultados.items():
+        for etapa, e in r["etapas"]["etapas"].items():
+            res += [f"{n}, {etapa}: {k}" for k, v in e.get("comprobaciones", {}).items() if not v]
+    return res
+
+
+def imprimir_barrido(resumen: Mapping, resultados: Mapping[str, Mapping], privacidad: Mapping) -> None:
+    d = resumen["corrida_kaggle"]
+    x = d["descarga"]
+    print(f"Archivos bajados: {len(d['archivos_bajados'])}; coinciden con barrido.json {x['coinciden_con_kaggle']} de "
+          f"{x['con_sha256_de_kaggle']}; sin hash de Kaggle: {x['sin_sha256_de_kaggle']}; con hash del manifest: "
+          f"{x['con_sha256_del_manifest']}")
+    p = privacidad
+    print(f"Privacidad: posible fuga = {p['posible_fuga']}; tapados por el kernel = {p['tapados_por_el_kernel']}")
+    for nombre, r in p["archivos"].items():
+        c = r["clasificacion"]
+        print(f"  {nombre}: crudos {r['nombres_crudos']} (cortos dentro de un token {c['nombres_crudos_cortos_solo_dentro_de_un_token']}, "
+              f"posible fuga {c['nombres_crudos_posible_fuga']}), varias palabras {r['llaves_varias_palabras']} "
+              f"(solo dígitos {c['llaves_varias_palabras_solo_digitos']}), una palabra {r['llaves_una_palabra']}")
+    o = resumen["orquestador"]
+    malas = [k for k, v in o["comprobaciones"].items() if not v]
+    print(f"Orquestador: {o['estado']}" + (f" (fallan: {malas})" if malas else "") + f"; advertencias: {o['advertencias']}")
+    for c in o["configuraciones"]:
+        print(f"  {c['nombre']}: {c['estado']}, {c['segundos']} s (estimado {c['estimado_s']} s), salida {c['codigo_de_salida']}, "
+              f"GPU 0 al salir {c['memoria_gpu0_al_salir_mib']} MiB")
+    for n, r in resultados.items():
+        estados = {e: v["estado"] for e, v in r["etapas"]["etapas"].items()}
+        malas = [f"{e}: {k}" for e, v in r["etapas"]["etapas"].items() for k, ok in v.get("comprobaciones", {}).items() if not ok]
+        print(f"Etapas de {n}: " + ", ".join(f"{e} {s}" for e, s in estados.items()) + (f" (fallan: {malas})" if malas else ""))
+    print("Tabla (accuracy de clase y de sector con IC 95 %; pareada = configuración − 06b-inicial):")
+    for f in resumen["tabla"]:
+        pc, ps = f["pareada_clase_contra_inicial"], f["pareada_sector_contra_inicial"]
+        texto_p = "" if pc is None else (
+            f"; pareada clase {pc['diferencia']:+.3f} ({pc['ic95']['inferior']:+.3f} a {pc['ic95']['superior']:+.3f}), "
+            f"sector {ps['diferencia']:+.3f} ({ps['ic95']['inferior']:+.3f} a {ps['ic95']['superior']:+.3f})"
+        )
+        print(f"  {f['nombre']} (r {f['rank']}, lr {f['learning_rate']:g}): {f['accuracy']} ({f['ic95']['inferior']}-{f['ic95']['superior']}), "
+              f"sector {f['accuracy_sector']} ({f['ic95_sector']['inferior']}-{f['ic95_sector']['superior']}), macro-F1 sector "
+              f"{f['macro_f1_sector']}, formato válido {f['pct_formato_valido']} %, inexistentes {f['pct_codigos_inexistentes']} %"
+              f"{texto_p}; proceso {f['proceso_s']} s")
+    e = resumen["eleccion"]
+    print(f"Regla de elección: gana {e['ganadora']} ({e['clausula_texto']}); empatadas {e['empatadas']}; "
+          f"excluidas por incompletas {e['excluidas_incompletas']}")
+    for a in resumen["advertencias"]:
+        print(f"  ADVERTENCIA: {a}")
+    print(f"Horas de GPU: {resumen['horas_gpu']['valor']} (script {resumen['horas_gpu']['script']})")
+
+
+# Posiciones 1 a 5 de la paleta categórica de referencia (las mismas SERIE_1 y SERIE_2 de las demás
+# figuras), en orden fijo: la inicial y luego las configuraciones en el orden del barrido. Validadas con
+# validate_palette.js en modo claro: pares adyacentes con ΔE CVD de 9.1 y normal de 19.6 como mínimo.
+# Tres quedan bajo 3:1 de contraste con la superficie: por eso cada serie lleva su propio marcador y la
+# leyenda escribe en texto el valor final de validación.
+SERIES_BARRIDO = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
+MARCADORES_BARRIDO = ("o", "s", "^", "D", "v")
+# El panel de validación empieza aquí: en los primeros pasos la pérdida cae de ~3 a ~0.3 y, con el eje
+# desde 0, las diferencias finales entre configuraciones no se verían. El paso 0 y el 500 quedan en los JSON.
+PASO_INICIAL_PANEL_VALIDACION = 1000
+
+
+def figura_barrido(resumen: Mapping, ruta: Path) -> None:
+    """Curvas de pérdida de las 5 configuraciones (train por ventanas y validación), desde el resumen."""
+    from src.exploracion_clasificador import EJE, REJILLA, TINTA_2, _figura, _guardar, _pyplot, _titulos
+
+    curvas = resumen["curvas"]
+    if len(curvas) > len(SERIES_BARRIDO):
+        raise ErrorCorrida("La figura del barrido admite hasta 5 series.")
+    corrida = resumen["configuracion"]["inicial"]["corrida"]
+    plt = _pyplot()
+    fig = _figura(plt)
+    ax_t = fig.add_axes([0.07, 0.13, 0.41, 0.56])
+    ax_v = fig.add_axes([0.56, 0.13, 0.41, 0.56])
+    manijas, etiquetas = [], []
+    pasos_max = 0
+    for i, (nombre, c) in enumerate(curvas.items()):
+        color, marca = SERIES_BARRIDO[i], MARCADORES_BARRIDO[i]
+        xs = [(v["paso_inicial"] + v["paso_final"]) / 2 for v in c["train_por_ventana"]]
+        ax_t.plot(xs, [v["media"] for v in c["train_por_ventana"]], color=color, linewidth=2.5)
+        cola = [v for v in c["validacion"] if v["paso"] >= PASO_INICIAL_PANEL_VALIDACION]
+        (linea,) = ax_v.plot([v["paso"] for v in cola], [v["eval_loss"] for v in cola], color=color, linewidth=2.5,
+                             marker=marca, markersize=10, markeredgecolor="#fcfcfb", markeredgewidth=1.5)
+        manijas.append(linea)
+        etiquetas.append(f"{nombre} (validación final {c['validacion'][-1]['eval_loss']:.3f})")
+        pasos_max = max([pasos_max, *(v["paso"] for v in c["validacion"]), *xs])
+    for ax, titulo in ((ax_t, f"Train (media de cada {VENTANA_CURVA} pasos)"),
+                       (ax_v, f"Validación (1,000 filas), desde el paso {PASO_INICIAL_PANEL_VALIDACION:,}")):
+        ax.set_title(titulo, fontsize=26, color=TINTA_2, pad=14)
+        ax.set_xlabel(f"Paso de entrenamiento (lote de {corrida['lote']})")
+        ax.grid(axis="y", color=REJILLA, linewidth=1.2)
+        ax.tick_params(colors=TINTA_2)
+        for lado in ("left", "bottom"):
+            ax.spines[lado].set_color(EJE)
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+    ax_t.set_xlim(0, pasos_max * 1.01)
+    ax_t.set_ylim(0, None)
+    ax_v.set_xlim(PASO_INICIAL_PANEL_VALIDACION * 0.9, pasos_max * 1.02)
+    ax_v.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.3f}"))
+    ax_t.set_ylabel("Pérdida (entropía cruzada por ficha)")
+    fig.legend(manijas, etiquetas, loc="upper left", bbox_to_anchor=(0.04, 0.84), ncol=3, fontsize=19,
+               handlelength=2.2, columnspacing=1.6)
+    _titulos(
+        fig,
+        "Curvas de pérdida del barrido del Qwen3-0.6B",
+        f"06b-inicial y {len(curvas) - 1} configuraciones del barrido (alpha = rank); lote {corrida['lote']}, "
+        f"{corrida['epocas']} época; validación cada {corrida['eval_cada_pasos']} pasos y al final.",
+    )
+    _guardar(fig, ruta)
+    plt.close(fig)
+
+
+def escribir_barrido(resumen: Mapping, resultados: Mapping[str, Mapping], conf: Mapping, raiz: Path = REPO_RAIZ) -> list[str]:
+    """Escribe los JSON de las configuraciones, el resumen y la figura; devuelve las rutas escritas."""
+    escritos = []
+    for n, r in resultados.items():
+        info = resumen["resultados_por_configuracion"][n]
+        datos = serializar(r)
+        if sha256_bytes(datos) != info["sha256"]:
+            raise ErrorCorrida(f"El JSON de {n} no es el que registra el resumen.")
+        (Path(raiz) / info["ruta"]).write_bytes(datos)
+        escritos.append(info["ruta"])
+    ruta_resumen = _ruta(conf["resumen"], resumen["fecha"])
+    (Path(raiz) / ruta_resumen).write_bytes(serializar(resumen))
+    escritos.append(ruta_resumen)
+    ruta_fig = _ruta(conf["figura"], resumen["fecha"])
+    figura_barrido(json.loads((Path(raiz) / ruta_resumen).read_bytes()), Path(raiz) / ruta_fig)
+    escritos.append(ruta_fig)
+    return escritos
+
+
 # --- Programa principal ---
 
 
 def contexto_git(manifest: Mapping, corrida: str) -> dict:
-    espec = ck.KERNELS[CORRIDAS[corrida]["kernel"]]
+    return contexto_de_kernel(manifest, CORRIDAS[corrida]["kernel"])
+
+
+def contexto_de_kernel(manifest: Mapping, clave_kernel: str) -> dict:
+    """Fecha, commit, árbol limpio y lo que se compara con el kernel generado hoy."""
+    espec = ck.KERNELS[clave_kernel]
     generados = ck.generar(manifest, espec=espec)
     return {
         "fecha": datetime.date.today().isoformat(),
@@ -1114,9 +1913,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     from src.splits import esta_ignorado
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--corrida", required=True, choices=list(CORRIDAS))
-    parser.add_argument("--escribir", action="store_true", help="escribe el JSON de results/ y la figura")
+    cual = parser.add_mutually_exclusive_group(required=True)
+    cual.add_argument("--corrida", choices=list(CORRIDAS))
+    cual.add_argument("--barrido", choices=list(BARRIDOS))
+    parser.add_argument("--escribir", action="store_true", help="escribe los JSON de results/ y la figura")
+    parser.add_argument("--aceptar-incompletas", nargs="+", default=[], metavar="NOMBRE",
+                        help="solo con --barrido y con la decisión de Samuel: configuraciones incompletas que se reportan y no entran a la regla")
     args = parser.parse_args(argv)
+    if args.barrido:
+        main_barrido(args)
+        return
+    if args.aceptar_incompletas:
+        parser.error("--aceptar-incompletas solo va con --barrido.")
 
     conf = CORRIDAS[args.corrida]
     carpeta = REPO_RAIZ / conf["carpeta"]
@@ -1140,6 +1948,40 @@ def main(argv: Sequence[str] | None = None) -> None:
         fig = REPO_RAIZ / conf["figura"]
         figura_curvas(json.loads(ruta.read_bytes()), fig)
         print(f"Escrita {conf['figura']} ({fig.stat().st_size:,} bytes, SHA-256 {sha256_archivo(fig)}).")
+
+
+def main_barrido(args) -> None:
+    from src.muestra_humo import ErrorMuestra
+    from src.scian import leer_manifest
+    from src.splits import esta_ignorado
+
+    conf = BARRIDOS[args.barrido]
+    carpeta = REPO_RAIZ / conf["carpeta"]
+    manifest = leer_manifest()
+    try:
+        if not carpeta.is_dir():
+            raise ErrorCorrida(f"No existe {conf['carpeta']}: falta bajar la salida del barrido.")
+        if not esta_ignorado(carpeta) or not all(esta_ignorado(carpeta / a["ruta"]) for a in inventario(carpeta)):
+            raise ErrorCorrida("La carpeta de la salida o alguno de sus archivos no está ignorado por git.")
+        contexto = contexto_de_kernel(manifest, conf["kernel"])
+        ent = cargar_barrido(args.barrido, manifest)
+        resumen, resultados, privacidad = evaluar_barrido(ent, manifest, contexto, args.aceptar_incompletas)
+    except (ErrorCorrida, ErrorMetricas, ErrorEvaluador, ErrorMuestra, AbortoHumo) as e:
+        sys.exit(f"PARADA: {e}")
+    imprimir_barrido(resumen, resultados, privacidad)
+    print(f"commit {contexto['commit'][:7]} | árbol limpio: {contexto['arbol_limpio']} | kernel de {contexto['commit_kernel'][:7]}")
+    problemas = problemas_del_barrido(resumen, resultados)
+    if problemas:
+        sys.exit(f"PARADA: comprobaciones que fallan: {problemas}")
+    if args.escribir:
+        if not contexto["arbol_limpio"]:
+            sys.exit("PARADA: el árbol tiene cambios sin commit; el resultado debe registrar un commit limpio.")
+        faltan = sorted(k for k, v in conf["observaciones"].items() if v is None)
+        if faltan:
+            sys.exit(f"PARADA: faltan observaciones del barrido (BARRIDOS): {faltan}.")
+        for ruta in escribir_barrido(resumen, resultados, conf):
+            p = REPO_RAIZ / ruta
+            print(f"Escrito {ruta} ({p.stat().st_size:,} bytes, SHA-256 {sha256_archivo(p)}).")
 
 
 if __name__ == "__main__":

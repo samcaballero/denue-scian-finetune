@@ -712,3 +712,70 @@
   - `41e324a`: código, pruebas y kernel;
   - el de esta bitácora, el registro y las dos capturas.
 - PARADA 2: el kernel está listo y sin lanzar. Falta que Samuel corra `--verificar`, el push de git y `kaggle kernels push` desde PowerShell.
+
+## 2026-11-23 - Fase 2, paso 12 (Parte A): evaluación del barrido, regla de elección y kernel del 4B, preparados sin GPU
+
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con dos ajustes para la PARADA B:
+    - comandos completos que funcionen desde cualquier carpeta de PowerShell;
+    - qué revisar en el log entre 15 y 20 minutos después de lanzar el 4B.
+- **Lanzamiento del barrido:**
+  - Samuel lanzó `samcaballero/denue-scian-06b-barrido` (versión 1) el 2026-11-23 a las 6:55 pm (hora de la Ciudad de México), con `-t 27000`. El `lastRunTime` de la CLI es 2026-11-24 00:56:39 UTC.
+  - Kaggle aceptó la imagen fijada: la metadata que bajó `kaggle kernels pull -m` (a una carpeta fuera del repo, sin ejecutar nada) trae `docker_image` igual a la de 06b-inicial (`fc720c15…`).
+  - El código bajado es idéntico al kernel del repo salvo los CRLF de sus 3,044 líneas (SHA-256 normalizado `a3d30180…`). Sus SHA-256 de kernel y metadata quedan en la prueba de kernels lanzados, junto a los de humo-6b y 06b-inicial.
+  - A las 7:46 pm, `kaggle kernels status` daba RUNNING. Debe terminar hacia la medianoche (4.98 h estimadas).
+- **Regla de elección** (`src/eleccion_barrido.py`), como función pura, tal como está escrita en el paso 11 con su complemento:
+  - solo cuentan las configuraciones completas (5,855 pasos e inferencia de las 1,000 filas); las incompletas se reportan;
+  - gana el mayor número de aciertos de clase (se comparan enteros, no flotantes);
+  - en empate exacto: la inicial si está entre las empatadas; si no, la de menor rank; si siguen empatadas, la de lr 2e-4;
+  - devuelve la ganadora, la cláusula que decidió, las empatadas, las excluidas y el orden de todas.
+- **Evaluación del barrido** (`--barrido 06b-barrido` en `src/evaluar_corrida_clasificador.py`), con las revisiones del paso 11:
+  - la descarga contra `barrido.json` y contra el `mediciones.json` de cada configuración;
+  - los nombres, con la regla acotada, sobre todos los textos (logs de cada configuración, `barrido.json`, mediciones, predicciones, pip freeze y adaptador);
+  - el orquestador: procesos, memoria liberada, versiones fijadas y advertencias de las no fijables;
+  - por configuración: las etapas, el orden del train igual al de 06b-inicial (`b6b53a85…`), el punto 0 de validación sacado de su log y las versiones contra 06b-inicial;
+  - las métricas con el evaluador y la diferencia pareada contra 06b-inicial (configuración − 06b-inicial), alineada fila por fila por `int(id)`. Los aciertos de 06b-inicial salen de su `predicciones.jsonl`, con el SHA-256 de su resultado, y deben reproducir sus conteos e IC;
+  - salidas: un JSON de `results/` por configuración, el resumen del barrido con la regla y la figura de las curvas de las 5;
+  - una configuración incompleta es PARADA; solo con la decisión de Samuel, `--aceptar-incompletas` la deja fuera de la regla.
+  - El refactor del evaluador no cambia el resultado de 06b-inicial: regenerado con la fecha y el commit de su JSON, da los mismos 54,602 bytes.
+- **Figura del barrido:** dos paneles, train por ventanas de 50 pasos y validación desde el paso 1,000 (con el eje desde 0, las diferencias finales no se verían). Colores: las posiciones 1 a 5 de la paleta de referencia, validadas con el script de la skill de visualización. Tres tienen poco contraste con el fondo, así que cada serie lleva su propio marcador y la leyenda escribe el valor final de validación.
+- **Kernel del 4B** (`src/corrida_4b_kaggle.py` y `espec_4b` en `src/construir_kernel.py`), sin escribir todavía:
+  - usa el orquestador del barrido con una sola configuración: los mismos 20 pins, la revisión de versiones, la imagen de Docker y `src/clasificador_kaggle.py` sin cambios en su propio proceso;
+  - `src/barrido_kaggle.py` tampoco cambia: va incrustado en el barrido lanzado;
+  - parámetros: tasa y rank, con alpha = rank; si gana la inicial, rank 16, alpha 16 y tasa 2e-4. Modelo `Qwen/Qwen3-4B` en la revisión `1cfa9a72…`; id `samcaballero/denue-scian-4b`;
+  - el adaptador ya se guarda al terminar el entrenamiento y antes de la inferencia (etapa `adaptador` de `src/clasificador_kaggle.py`); una prueba lo comprueba sobre el código;
+  - el orquestador mata el proceso al pasar el presupuesto (el `-t` menos 15 min) y sale con 0, así que Kaggle guarda la salida con el adaptador aunque la inferencia no termine;
+  - las pruebas usan la configuración inicial. El kernel se registra y se escribe con la ganadora en la Parte B.
+- **De dónde salen las ~6.1 h por época del 4B:**
+  - de la tabla del tope por clase del paso 8 (`results/2026-11-22_fase1_train-final.json`): 187,350 filas ÷ 8.515 ejemplos/s ÷ 3,600 = 6.11 h (6.15 h con 154 s de costo fijo);
+  - los 8.515 ejemplos/s se midieron en la prueba de punta a punta del paso 6 (`results/2026-11-21_fase2_prueba-humo.json`): Qwen3-4B, lote 32, 25 pasos (20 medidos), largo 128, rank 16;
+  - solo cuentan los pasos de entrenamiento: ni las 13 validaciones, ni la inferencia, ni el arranque.
+- **Lote 32 en la T4 con el 4B y largo 256: cabe.** No hace falta acumulación de gradiente y no hay CAMBIO DE DISEÑO.
+  - En el paso 6, el lote 32 del 4B usó 4,886 MiB reservados como máximo (4,581 asignados) de los 14,912 MiB que ve torch: un 33 %.
+  - El largo 256 no cambia la memoria: el colador rellena hasta la fila más larga del lote. La fila más larga del train real tiene 118 fichas, contra 104 en la muestra (13 % más de activaciones).
+  - En el 0.6B, pasar del largo 128 (prueba) al 256 (06b-inicial) no subió el pico: de 1,458 a 1,152 MiB.
+  - Rank 32 agrega unos 33 millones de parámetros entrenables, unos 0.4 GB con gradientes y AdamW de 8 bits. El peor caso queda cerca de 6 GB.
+- **Tiempo estimado del 4B** (`estimacion_s`): tiempos reales de 06b-inicial × la razón de segundos por paso 4B/0.6B medida en la prueba de punta a punta con el mismo lote 32 en la misma T4 (3.758 / 0.629 = 5.98). La descarga y la carga del 4B también se midieron en esa prueba (63.6 + 11.8 s). El rank usa el factor del barrido (8 y 16: 1.0; 32: 1.05).
+
+  | Parte | Rank 8 | Rank 16 | Rank 32 |
+  |---|---:|---:|---:|
+  | Orquestador (GPU, hashes, pip común) | 2.5 min | 2.5 min | 2.5 min |
+  | Antes de entrenar (pip, imports, descarga y carga, tokens, LoRA) | 4.9 min | 4.9 min | 4.9 min |
+  | 5,855 pasos de entrenamiento | 6.31 h | 6.31 h | 6.62 h |
+  | 13 validaciones de 1,000 filas | 8.5 min | 8.5 min | 9.0 min |
+  | Adaptador e inferencia de 1,000 filas | 22.7 min | 22.7 min | 22.7 min |
+  | **Total** | **6.95 h** | **6.95 h** | **7.27 h** |
+
+  - La inferencia del 4B no se midió: la cifra es una cota (la de 06b-inicial × 5.98).
+  - Las 6.31 h de pasos son las 6.11 h de la tabla del paso 8 más un 3 %: lo que el 0.6B real tardó de más frente a la prueba (2 % por paso, más los pasos de calentamiento).
+  - **`-t` propuesto: 39,600 s (11 h).** Es 1.58 veces el total de rank 8 y 16 y 1.51 el de rank 32, y queda 1 h por debajo del límite de 12 h. El candado del orquestador deja lanzar los tres ranks; el proceso se mata hacia los 38,550 s si se cuelga.
+  - **Cuota:** antes del barrido quedaban 28 h 35 min. Después del barrido quedarían unas 23 h 36 min (21 h 5 min en el peor caso). Después del 4B, unas 16 h 39 min con rank 8 o 16, o 16 h 20 min con rank 32; en el peor caso de los dos, 10 h 5 min. En la Parte B se usa la cuota real.
+  - En la Parte B la estimación se contrasta con los tiempos reales del barrido.
+- Código:
+  - `src/eleccion_barrido.py` y `src/corrida_4b_kaggle.py`, nuevos;
+  - `src/evaluar_corrida_clasificador.py`, con el modo `--barrido`;
+  - `src/construir_kernel.py`, con `corrida_4b`, `espec_4b` y el campo opcional `corrida_unica`. Los kernels de humo-6b, 06b-inicial y barrido siguen idénticos byte a byte.
+- Pruebas: 48 nuevas con datos inventados; pasan las 754 del repo.
+- Commit: el de esta entrada (código, pruebas, bitácora y registro).
+- PARADA A: falta que Samuel confirme que el barrido terminó (0 Active Events) y dé la duración de la página del kernel y la cuota que queda.

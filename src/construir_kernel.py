@@ -16,9 +16,12 @@ Cada kernel tiene una especificación (`EspecKernel`) en `KERNELS`:
   byte a byte, y sus módulos (`src/humo_kaggle.py` y los que incrusta) no se modifican;
 - `06b-inicial`: la primera corrida real del clasificador con Qwen3-0.6B (paso 9);
 - `06b-barrido`: el barrido del 0.6B (paso 11), 4 configuraciones en un solo kernel, cada una en
-  su propio proceso (`src/barrido_kaggle.py`), con la imagen de Docker de 06b-inicial fijada.
-Un kernel ya lanzado no se regenera con otro contenido: los campos que se agregaron para el
-barrido (`corridas` y `docker_image`) son opcionales y, sin ellos, el texto generado no cambia.
+  su propio proceso (`src/barrido_kaggle.py`), con la imagen de Docker de 06b-inicial fijada;
+- `4b` (paso 12, `espec_4b`): la configuración ganadora del barrido sobre Qwen3-4B, con el mismo
+  orquestador y una sola configuración (`src/corrida_4b_kaggle.py`); se registra en `KERNELS`
+  cuando se conoce la ganadora.
+Un kernel ya lanzado no se regenera con otro contenido: los campos que se agregaron después
+(`corridas`, `docker_image` y `corrida_unica`) son opcionales y, sin ellos, el texto generado no cambia.
 Las corridas siguientes se arman con `corrida()` sobre `CORRIDA_POR_OMISION`.
 
 También genera `kernel-metadata.json` (privado, GPU T4, internet y el dataset como única
@@ -50,7 +53,7 @@ from src.clasificador_kaggle import ARCHIVO_TRAIN as ARCHIVO_TRAIN_FINAL
 from src.clasificador_kaggle import ARCHIVO_VAL as ARCHIVO_VAL_CLASIFICADOR
 from src.clasificador_kaggle import validar_corrida
 from src.denue import REPO_RAIZ
-from src.humo_kaggle import ARCHIVO_TRAIN, ARCHIVO_VAL, LORA, MACHINE_SHAPE, MODELO_06B
+from src.humo_kaggle import ARCHIVO_TRAIN, ARCHIVO_VAL, LORA, MACHINE_SHAPE, MODELO_06B, MODELO_4B
 
 ARCHIVO_METADATA = "kernel-metadata.json"  # nombre que usa el código de la CLI de Kaggle 2.2.5
 DIR_EXTRACCION = "/tmp/denue_src"
@@ -139,6 +142,7 @@ class EspecKernel:
     corrida: Mapping | None = field(default=None)
     corridas: tuple | None = field(default=None)  # barrido: varias corridas en un kernel
     docker_image: str | None = field(default=None)  # imagen fijada en kernel-metadata.json
+    corrida_unica: bool = field(default=False)  # 4B: una sola corrida con el orquestador (solo cambia el texto)
 
     @property
     def carpeta(self) -> Path:
@@ -236,6 +240,49 @@ BARRIDO_06B = EspecKernel(
     docker_image=DOCKER_06B_INICIAL,
 )
 
+# Corrida del 4B (Fase 2, paso 12): la configuración que gane el barrido del 0.6B, sobre Qwen3-4B en su
+# revisión fijada y con alpha = rank; si gana la inicial, rank 16, alpha 16 y tasa 2e-4. Lo demás (lote
+# 32, una época, warmup, largo 256, datos, paquetes fijados e imagen de Docker) es la receta del barrido.
+# Corre con el orquestador del barrido y una sola configuración (`src/corrida_4b_kaggle.py`). La
+# especificación se registra en KERNELS cuando se conoce la ganadora.
+
+
+def corrida_4b(etiqueta_tasa: str, tasa: float, rank: int) -> dict:
+    """La corrida del 4B: la de 06b-inicial con el modelo 4B, otra tasa, otro rank y alpha = rank."""
+    if float(etiqueta_tasa) != tasa:
+        raise ErrorKernel(f"La etiqueta de la tasa ({etiqueta_tasa}) no es la tasa ({tasa}).")
+    return corrida(
+        f"4b-lr{etiqueta_tasa}-r{rank}",
+        f"Corrida del clasificador con Qwen3-4B (Fase 2, paso 12): tasa {etiqueta_tasa}, rank {rank} y alpha {rank}; "
+        "lo demás como el barrido del 0.6B.",
+        MODELO_4B,
+        lote=32,
+        learning_rate=tasa,
+        lora={**CORRIDA_POR_OMISION["lora"], "r": rank, "lora_alpha": rank},
+    )
+
+
+def espec_4b(etiqueta_tasa: str, tasa: float, rank: int) -> EspecKernel:
+    """El kernel del 4B con la configuración dada: los módulos del barrido más src/corrida_4b_kaggle.py."""
+    c = corrida_4b(etiqueta_tasa, tasa, rank)
+    return EspecKernel(
+        clave="4b",
+        carpeta_relativa="notebooks/kaggle-4b",
+        archivo_kernel="clasificador_4b.py",
+        id_kernel="samcaballero/denue-scian-4b",
+        titulo="DENUE SCIAN 4b",
+        entrada="denue_scian_clasificador",
+        archivos_datos=(ARCHIVO_TRAIN_FINAL, ARCHIVO_VAL_CLASIFICADOR),
+        fuentes=(*BARRIDO_06B.fuentes, "src/corrida_4b_kaggle.py"),
+        modulo="src.corrida_4b_kaggle",
+        resumen=f"Kernel de Kaggle: corrida {c['nombre']} del clasificador con Qwen3-4B (Fase 2, paso 12).",
+        comentario_esperados="SHA-256 de los archivos del dataset privado",
+        corridas=(c,),
+        docker_image=DOCKER_06B_INICIAL,
+        corrida_unica=True,
+    )
+
+
 KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B)}
 
 # Nombres de antes de la generalización; apuntan a la prueba (los usa src/evaluar_humo.py).
@@ -320,7 +367,16 @@ def generar_kernel(textos: Mapping[str, str], hashes_datos: Mapping[str, str], e
     modulos = ", ".join(f"`{f}`" for f in textos)
     if espec.corrida is not None and espec.corridas is not None:
         raise ErrorKernel("Un kernel lleva una corrida o un barrido, no los dos.")
-    if espec.corridas is not None:
+    if espec.corrida_unica and (espec.corridas is None or len(espec.corridas) != 1):
+        raise ErrorKernel("Un kernel de corrida única lleva exactamente una corrida en `corridas`.")
+    if espec.corrida_unica:
+        nota = " con la\nconfiguración de la corrida (CORRIDAS, una sola)"
+        bloque_corrida = (
+            f'\n# Configuración de la corrida "{espec.clave}" (src/construir_kernel.py): una sola, con el orquestador del barrido.\n'
+            f"CORRIDAS = {_valor_literal([dict(c) for c in espec.corridas])}\n"
+        )
+        argumentos = "ESPERADOS, T_ARRANQUE, SHA256_FUENTES, CORRIDAS"
+    elif espec.corridas is not None:
         nota = " con las\nconfiguraciones del barrido (CORRIDAS)"
         bloque_corrida = (
             f'\n# Configuraciones del barrido "{espec.clave}" (src/construir_kernel.py), en el orden en que corren.\n'

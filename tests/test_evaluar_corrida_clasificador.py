@@ -435,3 +435,248 @@ def test_figura_desde_el_resultado(tmp_path):
     ec.figura_curvas(res, ruta)
     datos = ruta.read_bytes()
     assert datos.startswith(b"\x89PNG") and b"Software" not in datos and b"matplotlib" not in datos.lower()
+
+
+# --- Barrido (paso 12) ---
+
+import dataclasses  # noqa: E402
+
+from src import barrido_kaggle as bk  # noqa: E402
+from src import construir_kernel as ck  # noqa: E402
+from src.humo_kaggle import MODELO_06B, VERSIONES_A_REGISTRAR  # noqa: E402
+
+VERSIONES_INI = dict(bk.VERSIONES_06B_INICIAL)
+NOMBRES_BARRIDO = ("p-lr1e-4-r8", "p-lr2e-4-r32")
+
+
+def _corridas_inventadas():
+    return tuple(
+        ck.corrida(n, "Configuración inventada.", MODELO_06B, lote=32, learning_rate=lr,
+                   lora={**ck.CORRIDA_POR_OMISION["lora"], "r": r, "lora_alpha": r})
+        for n, lr, r in ((NOMBRES_BARRIDO[0], 1e-4, 8), (NOMBRES_BARRIDO[1], 2e-4, 32))
+    )
+
+
+def _pred_bytes(val_regs, fallar_cada, desordenar=False):
+    # 999999 tiene formato válido pero no existe en el catálogo inventado: siempre es error.
+    filas = [(r["id"], "999999" if i % fallar_cada == 0 else r["codigo_act"]) for i, r in enumerate(val_regs)]
+    if desordenar:
+        random.Random(5).shuffle(filas)
+    return serializar_predicciones(filas)
+
+
+def _inv_de(carpeta: Path, excluir=()):
+    return [a for a in ec.inventario(carpeta) if a["ruta"] not in excluir]
+
+
+def _barrido_inventado(tmp_path, monkeypatch, *, log_extra="", orden=None, incompleta=False, desordenar=False):
+    """Repo inventado con la inicial evaluada y un barrido de 2 configuraciones; devuelve lo necesario para evaluarlo."""
+    raiz, manifest, contexto, val_regs = _repo_inventado(tmp_path, monkeypatch)
+    filas = validar_referencias(val_regs)
+
+    # La inicial: sus predicciones y su JSON de results/ (solo los campos que usa el barrido).
+    pred_ini = _pred_bytes(val_regs, 4)
+    sha_ini = _escribir(raiz / "kaggle-output" / "inicial" / "predicciones.jsonl", pred_ini)
+    m_ini = evaluar_validacion(ec.leer_predicciones(pred_ini), filas, CATALOGO)
+    corrida_ini = dict(ck.CLASIFICADOR_06B_INICIAL.corrida)
+    res_ini = {
+        "configuracion": {"corrida": corrida_ini},
+        "metricas": m_ini,
+        "etapas": {"etapas": {"entrenamiento": {"pasos": 1}}},
+        "corrida_kaggle": {"archivos_bajados": [{"ruta": "predicciones.jsonl", "sha256": sha_ini}], "tiempo": {"script_s": 4351.0}},
+        "curvas": {"validacion": [{"paso": 0, "eval_loss": 3.0}, {"paso": 1, "eval_loss": 1.0}],
+                   "train_por_ventana": [{"paso_inicial": 1, "paso_final": 1, "pasos": 1, "media": 2.0}]},
+        "para_el_barrido": {"versiones_entorno": VERSIONES_INI},
+    }
+    _escribir(raiz / "results" / "inicial.json", json.dumps(res_ini).encode())
+    monkeypatch.setitem(ec.CORRIDAS, "inicial-prueba", {"kernel": "06b-inicial", "carpeta": "kaggle-output/inicial",
+                                                         "resultado": "results/inicial.json"})
+
+    corridas = _corridas_inventadas()
+    monkeypatch.setitem(ck.KERNELS, "barrido-prueba", dataclasses.replace(ck.BARRIDO_06B, clave="barrido-prueba", corridas=corridas))
+    obs = {**ec.BARRIDOS["06b-barrido"]["observaciones"], "estado_cli": "COMPLETE", "duracion_pagina_kaggle": "5h",
+           "duracion_pagina_kaggle_s": 18000, "cuota_despues": "23 h de 30 h", "cuota_descontada_min": 300}
+    monkeypatch.setitem(ec.BARRIDOS, "prueba", {
+        **ec.BARRIDOS["06b-barrido"], "kernel": "barrido-prueba", "inicial": "inicial-prueba",
+        "carpeta": "kaggle-output/barrido", "log": "barrido.log", "observaciones": obs,
+    })
+
+    carpeta = raiz / "kaggle-output" / "barrido"
+    archivos = manifest["kaggle_datasets"]["denue_scian_clasificador"]["archivos"]
+    esperados = {a: archivos[a]["sha256"] for a in ("train_final.jsonl", "val.jsonl")}
+    configs = []
+    for k, c in enumerate(corridas):
+        n = c["nombre"]
+        completa = not (incompleta and k == 1)
+        med = {"estado": "completo" if completa else "en_curso", "fallas": [], "configuracion": {"corrida": dict(c)},
+               "entorno": {"versiones": VERSIONES_INI},
+               "entrenamiento": {"pasos_hechos": 1 if completa else None,
+                                 "orden_train": {"sha256_orden": orden or bk.SHA256_ORDEN_06B_INICIAL}},
+               "segundos_desde_arranque": 100.0, "inicio_utc": "2026-01-01T00:00:00+00:00"}
+        if completa:
+            pred = _pred_bytes(val_regs, 3 + k, desordenar)
+            sha = _escribir(carpeta / n / "predicciones.jsonl", pred)
+            med["archivos_salida"] = [{"ruta": "predicciones.jsonl", "bytes": len(pred), "sha256": sha}]
+            med["inferencia"] = {"archivo": {"sha256": sha}, "filas": len(val_regs)}
+        _escribir(carpeta / n / "mediciones.json", json.dumps(med).encode())
+        _escribir(carpeta / "logs" / f"{n}.log",
+                  f"[clasificador 00:00:01] pérdida de validación en el paso 0: 3.0\n{log_extra if k == 0 else ''}".encode())
+        configs.append({"nombre": n, "estado": "completa" if completa else "fallida", "codigo_de_salida": 0 if completa else -9,
+                        "matado_por_tiempo": not completa, "memoria_liberada": True, "estimado_s": 4400.0,
+                        "segundos": 4300.0 + k, "memoria_gpu0_al_salir_mib": 3,
+                        "mediciones": {"sha256_orden_train": orden or bk.SHA256_ORDEN_06B_INICIAL,
+                                       "pasos_hechos": 1 if completa else 0, "filas_inferidas": len(val_regs) if completa else None}})
+    _escribir(carpeta / "pip_freeze_antes.txt", b"numpy==2.1.3\n")
+    b = {
+        "estado": "completo" if not incompleta else "completo_con_fallas",
+        "fallas": [] if not incompleta else [{"etapa": f"configuracion_{NOMBRES_BARRIDO[1]}", "error": "x"}],
+        "configuracion": {"corridas": [dict(c) for c in corridas]},
+        "configuraciones": configs,
+        "versiones": {"fijadas_distintas": {}, "fijadas_con_pip": dict(p.split("==") for p in bk.PAQUETES_BARRIDO),
+                      "no_fijables": {}, "controlador_nvidia": bk.CONTROLADOR_06B_INICIAL},
+        "advertencias": {},
+        "gpu": {"nvidia_smi": [{"nombre": "Tesla T4"}, {"nombre": "Tesla T4"}]},
+        "datos": {"sha256_verificados": esperados},
+        "datos_sha256_esperados": esperados,
+        "fuentes_incrustadas_sha256": {},
+        "segundos_desde_arranque": 9000.0,
+        "archivos_salida": _inv_de(carpeta),
+    }
+    _escribir(carpeta / "barrido.json", json.dumps(b).encode())
+    _escribir(carpeta / "barrido.log", json.dumps([{"stream_name": "stdout", "time": 1.0, "data": "[barrido 00:00:01] inicio: gpu\n"}]).encode())
+    return raiz, manifest, contexto, val_regs, carpeta
+
+
+def _evaluar_barrido(raiz, manifest, contexto, aceptar=()):
+    ent = ec.cargar_barrido("prueba", manifest, raiz)
+    return ec.evaluar_barrido(ent, manifest, contexto, aceptar)
+
+
+def test_barrido_flujo_completo_sin_test_ni_hard_y_sin_ids(tmp_path, monkeypatch):
+    raiz, manifest, contexto, val_regs, _ = _barrido_inventado(tmp_path, monkeypatch)
+    abiertos: list[str] = []
+    original = io.open
+
+    def espia(archivo, *args, **kwargs):
+        if not isinstance(archivo, int):
+            abiertos.append(Path(os.fspath(archivo)).name)
+        return original(archivo, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", espia)
+    monkeypatch.setattr(io, "open", espia)
+    resumen, resultados, privacidad = _evaluar_barrido(raiz, manifest, contexto)
+    monkeypatch.setattr(builtins, "open", original)
+    monkeypatch.setattr(io, "open", original)
+    assert "val.jsonl" in abiertos and "barrido.json" in abiertos
+    assert "test.jsonl" not in abiertos and "hard.jsonl" not in abiertos
+    assert privacidad["posible_fuga"] is False
+    for texto in [ec.serializar(resumen).decode("utf-8")] + [ec.serializar(r).decode("utf-8") for r in resultados.values()]:
+        assert not any(r["id"] in texto for r in val_regs)
+        assert "Inventad" not in texto and "INVENTAD" not in texto
+    assert list(resultados) == list(NOMBRES_BARRIDO)
+    assert [f["nombre"] for f in resumen["tabla"]] == ["inicial-prueba", *NOMBRES_BARRIDO]
+    # Aciertos: la inicial falla 1 de cada 4 filas, la primera 1 de cada 3 y la segunda 1 de cada 4.
+    assert [f["aciertos"] for f in resumen["tabla"]] == [22, 20, 22]
+    e = resumen["eleccion"]
+    assert e["ganadora"] == "06b-inicial" and e["clausula"] == "empate_con_la_inicial"
+    assert resumen["orquestador"]["estado"] == "ok"
+    assert all(r["etapas"]["etapas"]["barrido"]["estado"] == "ok" for r in resultados.values())
+    assert resumen["resultados_por_configuracion"][NOMBRES_BARRIDO[0]]["ruta"] == f"results/2026-01-01_fase2_{NOMBRES_BARRIDO[0]}.json"
+    assert resumen["horas_gpu"]["valor"] == 5.0
+
+
+def test_barrido_pareada_contra_la_inicial_signo_y_alineacion(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _barrido_inventado(tmp_path, monkeypatch, desordenar=True)
+    resumen, resultados, _ = _evaluar_barrido(raiz, manifest, contexto)
+    contra = resultados[NOMBRES_BARRIDO[0]]["contra_06b_inicial"]
+    # Configuración − inicial: 20/30 − 22/30; las filas en que solo una acierta salen de alinear por int(id).
+    assert contra["clase"]["diferencia"] == pytest.approx(20 / 30 - 22 / 30, abs=1e-6)
+    assert contra["signo"].startswith("configuración − 06b-inicial")
+    assert contra["clase"]["filas_solo_a_acierta"] - contra["clase"]["filas_solo_b_acierta"] == 2
+    assert resultados[NOMBRES_BARRIDO[1]]["contra_06b_inicial"]["clase"]["diferencia"] == 0
+    assert resumen["tabla"][1]["pareada_clase_contra_inicial"]["diferencia"] == contra["clase"]["diferencia"]
+
+
+def test_barrido_para_ante_un_nombre_en_el_log_de_una_configuracion(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _barrido_inventado(tmp_path, monkeypatch, log_extra="cargando Ferretería Inventada 7 ...\n")
+    with pytest.raises(ec.ErrorCorrida, match="Posible fuga"):
+        _evaluar_barrido(raiz, manifest, contexto)
+
+
+def test_barrido_orden_distinto_al_de_06b_inicial_es_parada(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _barrido_inventado(tmp_path, monkeypatch, orden="0" * 64)
+    resumen, resultados, _ = _evaluar_barrido(raiz, manifest, contexto)
+    problemas = ec.problemas_del_barrido(resumen, resultados)
+    assert "orquestador: orden_del_train_igual_al_de_06b_inicial" in problemas
+    assert f"{NOMBRES_BARRIDO[0]}, barrido: orden_del_train_igual_al_de_06b_inicial" in problemas
+
+
+def test_barrido_incompleta_para_salvo_que_samuel_la_acepte(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _barrido_inventado(tmp_path, monkeypatch, incompleta=True)
+    with pytest.raises(ec.ErrorCorrida, match="incompletas"):
+        _evaluar_barrido(raiz, manifest, contexto)
+    with pytest.raises(ec.ErrorCorrida, match="no son del barrido"):
+        _evaluar_barrido(raiz, manifest, contexto, aceptar=("otra",))
+    resumen, resultados, _ = _evaluar_barrido(raiz, manifest, contexto, aceptar=(NOMBRES_BARRIDO[1],))
+    assert list(resultados) == [NOMBRES_BARRIDO[0]]
+    assert resumen["eleccion"]["excluidas_incompletas"] == [NOMBRES_BARRIDO[1]]
+    assert resumen["orquestador"]["estado"] == "ok"
+    assert any("quedó incompleta" in a for a in resumen["advertencias"])
+
+
+@pytest.mark.parametrize("dano", ["extra", "distinto", "manifest", "sin_log"])
+def test_barrido_descarga_que_no_coincide_es_parada(tmp_path, monkeypatch, dano):
+    raiz, manifest, contexto, val_regs, carpeta = _barrido_inventado(tmp_path, monkeypatch)
+    if dano == "extra":
+        _escribir(carpeta / "sobra.txt", b"x\n")
+    elif dano == "distinto":
+        _escribir(carpeta / NOMBRES_BARRIDO[0] / "predicciones.jsonl", _pred_bytes(val_regs, 2))
+    elif dano == "manifest":
+        datos = (raiz / "data" / "splits" / "val.jsonl").read_bytes()
+        _escribir(carpeta / "copia.jsonl", datos)
+        b = json.loads((carpeta / "barrido.json").read_bytes())
+        b["archivos_salida"] = _inv_de(carpeta, excluir=("barrido.json", "barrido.log"))
+        _escribir(carpeta / "barrido.json", json.dumps(b).encode())
+    else:
+        (carpeta / "barrido.log").unlink()
+    with pytest.raises(ec.ErrorCorrida):
+        _evaluar_barrido(raiz, manifest, contexto)
+
+
+def test_barrido_predicciones_de_la_inicial_alteradas_es_parada(tmp_path, monkeypatch):
+    raiz, manifest, contexto, val_regs, _ = _barrido_inventado(tmp_path, monkeypatch)
+    _escribir(raiz / "kaggle-output" / "inicial" / "predicciones.jsonl", _pred_bytes(val_regs, 2))
+    with pytest.raises(ec.ErrorCorrida, match="inicial"):
+        _evaluar_barrido(raiz, manifest, contexto)
+
+
+def test_revisar_configuracion_del_barrido_versiones():
+    m = {"entorno": {"versiones": {**VERSIONES_INI, "torch": "2.12.0"}},
+         "entrenamiento": {"orden_train": {"sha256_orden": bk.SHA256_ORDEN_06B_INICIAL}}}
+    e = ec.revisar_configuracion_del_barrido(m, VERSIONES_INI)
+    assert e["estado"] == "ok" and set(e["advertencias_no_fijables"]) == {"torch"}
+    m["entorno"]["versiones"]["peft"] = "0.21.2"
+    e = ec.revisar_configuracion_del_barrido(m, VERSIONES_INI)
+    assert e["estado"] == "fallo" and set(e["versiones_fijadas_distintas"]) == {"peft"}
+    assert set(VERSIONES_INI) == set(VERSIONES_A_REGISTRAR)
+
+
+def test_barrido_escribe_resultados_resumen_y_figura(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _barrido_inventado(tmp_path, monkeypatch)
+    resumen, resultados, _ = _evaluar_barrido(raiz, manifest, contexto)
+    (raiz / "docs" / "figuras").mkdir(parents=True)
+    escritos = ec.escribir_barrido(resumen, resultados, ec.BARRIDOS["prueba"], raiz)
+    assert escritos[-2] == "results/2026-01-01_fase2_06b-barrido.json"
+    assert escritos[-1] == "docs/figuras/2026-01-01_fase2_curvas-barrido-06b.png"
+    for n in NOMBRES_BARRIDO:
+        info = resumen["resultados_por_configuracion"][n]
+        assert hashlib.sha256((raiz / info["ruta"]).read_bytes()).hexdigest() == info["sha256"]
+    png = (raiz / escritos[-1]).read_bytes()
+    assert png.startswith(b"\x89PNG") and b"Software" not in png
+
+
+def test_cli_aceptar_incompletas_solo_con_barrido():
+    with pytest.raises(SystemExit):
+        ec.main(["--corrida", "06b-inicial", "--aceptar-incompletas", "x"])
+    with pytest.raises(SystemExit):
+        ec.main(["--corrida", "06b-inicial", "--barrido", "06b-barrido"])
