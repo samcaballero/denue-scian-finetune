@@ -165,7 +165,8 @@ def espacio_06b(generados_por_kernel):
 
 
 def test_registro_de_kernels():
-    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial", "06b-barrido"]
+    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial", "06b-barrido", "4b"]
+    assert ck.KERNELS["4b"] is ck.CLASIFICADOR_4B
     assert ck.KERNELS["humo-6b"] is ck.HUMO and ck.HUMO.corrida is None
     assert (ck.CARPETA, ck.ARCHIVO_KERNEL, ck.ID_KERNEL, ck.FUENTES) == (
         ck.HUMO.carpeta, ck.HUMO.archivo_kernel, ck.HUMO.id_kernel, ck.HUMO.fuentes

@@ -145,8 +145,19 @@ def test_etiqueta_de_tasa_distinta_no_genera():
         ck.corrida_4b("1e-4", 2e-4, 16)
 
 
-def test_el_4b_no_esta_registrado_en_la_parte_a():
-    assert "4b" not in ck.KERNELS
+def test_el_4b_registrado_es_la_ganadora_del_barrido():
+    """El kernel del 4B lleva la tasa y el rank de la configuración que eligió la regla en results/."""
+    resumen = json.loads((REPO_RAIZ / "results" / "2026-11-24_fase2_06b-barrido.json").read_bytes())
+    ganadora = resumen["eleccion"]["ganadora"]
+    corrida_ganadora = next(c for c in resumen["configuracion"]["corridas"] if c["nombre"] == ganadora)
+    (c4,) = ck.KERNELS["4b"].corridas
+    assert ganadora == "06b-lr2e-4-r32" and resumen["eleccion"]["clausula"] == "mayor_accuracy"
+    assert c4["learning_rate"] == corrida_ganadora["learning_rate"]
+    assert c4["lora"]["r"] == c4["lora"]["lora_alpha"] == corrida_ganadora["lora"]["r"] == 32
+    assert ck.KERNELS["4b"] == ck.espec_4b("2e-4", 2e-4, 32) and c4["nombre"] == "4b-lr2e-4-r32"
+    assert k4.validar_corridas_4b([c4]) == [dict(c4)]
+    d = bk.decidir(k4.estimacion_s(c4), bk.S_ORQUESTADOR, k4.PRESUPUESTO_S)
+    assert d["lanzar"] is True
 
 
 def test_kernel_del_4b_lleva_una_corrida_y_sus_datos(generados, manifest):

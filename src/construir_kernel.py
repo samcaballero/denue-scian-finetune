@@ -17,9 +17,8 @@ Cada kernel tiene una especificación (`EspecKernel`) en `KERNELS`:
 - `06b-inicial`: la primera corrida real del clasificador con Qwen3-0.6B (paso 9);
 - `06b-barrido`: el barrido del 0.6B (paso 11), 4 configuraciones en un solo kernel, cada una en
   su propio proceso (`src/barrido_kaggle.py`), con la imagen de Docker de 06b-inicial fijada;
-- `4b` (paso 12, `espec_4b`): la configuración ganadora del barrido sobre Qwen3-4B, con el mismo
-  orquestador y una sola configuración (`src/corrida_4b_kaggle.py`); se registra en `KERNELS`
-  cuando se conoce la ganadora.
+- `4b` (paso 12, `espec_4b`): la configuración ganadora del barrido (tasa 2e-4, rank 32 y alpha
+  32) sobre Qwen3-4B, con el mismo orquestador y una sola configuración (`src/corrida_4b_kaggle.py`).
 Un kernel ya lanzado no se regenera con otro contenido: los campos que se agregaron después
 (`corridas`, `docker_image` y `corrida_unica`) son opcionales y, sin ellos, el texto generado no cambia.
 Las corridas siguientes se arman con `corrida()` sobre `CORRIDA_POR_OMISION`.
@@ -243,8 +242,7 @@ BARRIDO_06B = EspecKernel(
 # Corrida del 4B (Fase 2, paso 12): la configuración que gane el barrido del 0.6B, sobre Qwen3-4B en su
 # revisión fijada y con alpha = rank; si gana la inicial, rank 16, alpha 16 y tasa 2e-4. Lo demás (lote
 # 32, una época, warmup, largo 256, datos, paquetes fijados e imagen de Docker) es la receta del barrido.
-# Corre con el orquestador del barrido y una sola configuración (`src/corrida_4b_kaggle.py`). La
-# especificación se registra en KERNELS cuando se conoce la ganadora.
+# Corre con el orquestador del barrido y una sola configuración (`src/corrida_4b_kaggle.py`).
 
 
 def corrida_4b(etiqueta_tasa: str, tasa: float, rank: int) -> dict:
@@ -283,7 +281,11 @@ def espec_4b(etiqueta_tasa: str, tasa: float, rank: int) -> EspecKernel:
     )
 
 
-KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B)}
+# Ganadora del barrido por la regla de elección (results/2026-11-24_fase2_06b-barrido.json):
+# 06b-lr2e-4-r32, la única con la mayor accuracy de clase en validación.
+CLASIFICADOR_4B = espec_4b("2e-4", 2e-4, 32)
+
+KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B, CLASIFICADOR_4B)}
 
 # Nombres de antes de la generalización; apuntan a la prueba (los usa src/evaluar_humo.py).
 CARPETA_RELATIVA = HUMO.carpeta_relativa
