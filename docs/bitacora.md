@@ -694,9 +694,12 @@
   - Se reportan el IC 95 % de cada una y la diferencia pareada contra la inicial (configuración − 06b-inicial).
   - Advertencia: como se elige en la misma validación, la accuracy de la elegida es algo optimista.
   - La regla la redactó el chat de Claude del proyecto en la instrucción y Samuel la aprobó.
-  - Casos no cubiertos, que señaló Claude Code y decide Samuel:
-    - si dos configuraciones del barrido empatan arriba de la inicial;
-    - si una configuración no termina completa (Claude Code propone que no cuente).
+  - **Complemento, escrito antes de lanzar.** Claude Code señaló los dos casos que la regla no cubría; el chat de Claude del proyecto propuso el complemento y Samuel lo aprobó:
+    - **Solo cuentan las configuraciones completas:** 5,855 pasos de entrenamiento e inferencia de las 1,000 filas de validación. Una configuración incompleta se reporta y no se repite antes del 4B.
+    - **Empate exacto en accuracy de clase:**
+      - si la inicial está entre las empatadas, gana la inicial;
+      - si no, gana la de menor rank;
+      - si siguen empatadas, gana la de lr 2e-4.
 - Código:
   - `src/barrido_kaggle.py`, nuevo;
   - `src/construir_kernel.py`, con dos campos opcionales: `corridas` y `docker_image`;
