@@ -864,3 +864,160 @@
   - `2c7198f`: kernel del 4B y pruebas;
   - el de esta bitácora, el registro y las capturas.
 - PARADA B: el kernel del 4B está listo y sin lanzar. Falta que Samuel corra `--verificar`, el push de git y `kaggle kernels push` desde PowerShell.
+
+## 2026-11-24 - Fase 2, paso 13: cierre de la Fase 2
+
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con tres ajustes:
+    - la decisión sobre el modelo base en la Fase 4;
+    - la nota sobre TF-IDF para la Fase 4;
+    - los segundos por fila de la inferencia y la carga del modelo en la PARADA.
+  - **Regla de las horas de GPU con cola:** la propuso Claude Code en el plan y Samuel la aprobó con él. Si el contenedor arranca más de 5 min después del `lastRunTime`, las horas son las del orquestador; si no, se cuentan desde el `lastRunTime`, como en el barrido.
+- **Corrida:**
+  - Samuel lanzó `samcaballero/denue-scian-4b` (versión 1) hacia la 1:05 am, con `-t 39600`.
+  - Estuvo en Queued hasta el `lastRunTime` de la CLI, 08:23:28 UTC (2:23 am, hora de la Ciudad de México). El contenedor arrancó 2.3 s después, así que la cola, de unos 78 min, quedó antes de esa marca.
+  - El orquestador corrió de 08:23:31 a 15:35:59 UTC (de 2:23 am a 9:36 am): 25,948.5 s.
+  - `kaggle kernels status` dio COMPLETE a las 12:54 pm.
+  - `kaggle kernels pull -m` bajó el código y la metadata a una carpeta nueva del scratchpad; no se ejecutó nada.
+    - El código es el kernel del repo salvo los CRLF de sus 3,164 líneas (SHA-256 `ae2313ce…`).
+    - La metadata trae la imagen de 06b-inicial (`fc720c15…`).
+    - Sus SHA-256 quedan en la prueba de kernels lanzados.
+- **Horas de GPU y cuota:**
+  - 7.209 h (25,950.8 s), del `lastRunTime` al fin del orquestador. Es el valor de `horas_gpu`.
+  - Kaggle descontó 7 h 12 min (432 min): 23 h 49 min antes y 16 h 37 min después, observadas por Samuel. La medida pasa en 0.5 min a lo descontado: la cola no se cobró.
+  - Estaban estimadas 7.27 h.
+- **Captura**, de `../evidencia/` a `docs/evidencia/`, copiada sin cambios: `2026-11-24_fase2_tabla-barrido.png` (`02a9f402…`), la tabla de las 5 configuraciones del barrido en validación.
+  - Claude Code la revisó: solo muestra números y nombres de configuración, sin metadatos de texto ni EXIF.
+  - `2026-11-17_fase0_gpu-kaggle-1.png` sigue fuera, por la decisión de Samuel del 2026-11-18.
+- **Descarga** a `kaggle-output/4b/`, carpeta nueva e ignorada por git:
+  - 12 archivos y 255 MB, casi todo del adaptador (264,308,896 bytes);
+  - coinciden los 10 que lista `barrido.json` con su SHA-256; no lo traen `barrido.json` ni el log de la CLI;
+  - la configuración trae exactamente lo que lista su `mediciones.json`, y sus predicciones son las de su inferencia;
+  - ningún archivo tiene un SHA-256 del manifest.
+- **Revisión de nombres**, con la regla acotada del paso 11 y antes de mirar logs o mediciones:
+  - sin posible fuga en ningún archivo, y ninguna llave de varias palabras;
+  - los nombres crudos con letras son de 4 caracteres o menos y siempre van dentro de un token más largo (pip freeze y logs); los demás son solo dígitos;
+  - el kernel tapó los mismos dos valores de siempre.
+- **Orquestador:**
+  - dos T4 en la sesión y una en uso;
+  - las 20 versiones fijadas con pip quedaron instaladas;
+  - torch 2.11.0+cu130, torchvision 0.26.0+cu130, triton 3.6.0 y el controlador 580.178.04 son los de 06b-inicial, así que no hay advertencias;
+  - el proceso terminó con código 0, sin que lo mataran, en 25,906 s (tiempo máximo: 38,658.5 s), y dejó la GPU 0 en 0 MiB.
+- **Etapas:** todas bien, incluida la nueva de la referencia.
+  - **GPU:** una T4 visible para torch (14,912 MiB). Sin bf16 nativo, así que fp16.
+  - **Datos:** 187,350 filas de train (929 clases) y 1,000 de validación (228), con su SHA-256.
+  - **Modelo:**
+    - `Qwen/Qwen3-4B` en la revisión `1cfa9a72…`, con sus 4 archivos LFS verificados y nada más en la caché;
+    - NF4, con 252 capas de 4 bits; 2,538 MiB de VRAM tras cargar;
+    - LoRA de rank 32: 66,060,288 parámetros entrenables. Es lo que da el cálculo con las dimensiones de Qwen3-4B, y en fp32 son unos 264 MB, el tamaño del adaptador.
+  - **Tokens:** la fila más larga tiene 118 fichas en train y 98 en validación. Cada fila etiqueta 7 fichas.
+  - **Entrenamiento:**
+    - 5,855 pasos y 176 de warmup;
+    - el orden del train es el de 06b-inicial (`b6b53a85…`);
+    - 4.198 s/paso de media (mediana 4.240) y 7.62 ejemplos/s;
+    - VRAM pico: 4,604 MiB reservados (4,323 asignados), un 31 % de lo que ve torch.
+  - **Pérdida de validación del paso 0:** 2.1778, sacada del log; en el 0.6B era 3.3235. Los otros 12 puntos coinciden con `mediciones.json`.
+  - **Adaptador:** rank 32, alpha 32, dropout 0 y base `Qwen/Qwen3-4B`.
+  - **Inferencia:** 1,000 filas en 430 s (0.430 s/fila), greedy. Todas terminan en el token de fin, con 7 fichas como máximo.
+  - **Referencia:**
+    - `06b-lr2e-4-r32` es la ganadora del barrido, y su resultado es el que registra el resumen;
+    - la receta es la misma salvo nombre, descripción y modelo;
+    - su adaptador es el de su resultado.
+- **Curvas**, en `docs/figuras/2026-11-24_fase2_curvas-4b-vs-06b.png`, junto a las de `06b-lr2e-4-r32`:
+  - la pérdida de train baja de 2.061 (media de los primeros 10 pasos) a 0.253 (media de los últimos 10);
+  - la de validación baja de 2.178 en el paso 0 a 0.193 en el paso 5,855. Sube un poco dos veces: de 0.248 a 0.252 en el paso 2,000 y de 0.193 a 0.194 en el 5,500;
+  - la del 0.6B ganador termina en 0.217.
+- **Resultados en validación de todos los modelos.** 1,000 filas, con el IC 95 % de un bootstrap de 1,000 remuestreos y semilla 42. Todo sale de `results/2026-11-24_fase2_4b-lr2e-4-r32.json` (`tabla_validacion`), que guarda la ruta y el SHA-256 del JSON de cada fila.
+
+  | Modelo | Base | Tasa | Rank | Accuracy (IC 95 %) | Sector (IC 95 %) | Macro-F1 de sector | Clases distintas predichas | 461110 (% de respuestas) |
+  |---|---|---:|---:|---|---|---:|---:|---:|
+  | 06b-inicial | 0.6B | 2e-4 | 16 | 0.678 (0.646-0.707) | 0.847 (0.824-0.869) | 0.731 | 194 | 7.0 |
+  | 06b-lr1e-4-r8 | 0.6B | 1e-4 | 8 | 0.643 (0.612-0.673) | 0.830 (0.805-0.853) | 0.709 | 196 | 6.9 |
+  | 06b-lr1e-4-r32 | 0.6B | 1e-4 | 32 | 0.664 (0.632-0.694) | 0.839 (0.817-0.862) | 0.726 | 195 | 6.9 |
+  | 06b-lr2e-4-r8 | 0.6B | 2e-4 | 8 | 0.665 (0.634-0.694) | 0.839 (0.817-0.862) | 0.712 | 198 | 7.0 |
+  | 06b-lr2e-4-r32 | 0.6B | 2e-4 | 32 | 0.687 (0.656-0.715) | 0.849 (0.826-0.870) | 0.727 | 199 | 6.9 |
+  | **4b-lr2e-4-r32** | 4B | 2e-4 | 32 | **0.707 (0.676-0.735)** | 0.862 (0.840-0.883) | 0.760 | 209 | 6.9 |
+  | TF-IDF + LR, C = 10 | — | — | — | 0.682 (0.652-0.711) | 0.845 (0.824-0.867) | 0.780 | 213 | 6.5 |
+  | Diccionario | — | — | — | 0.083 (0.066-0.099) | 0.443 (0.412-0.473) | 0.034 | 1 | 100.0 |
+
+  - **Regla 5:** en los 8, 0 respuestas con formato inválido y 0 con código inexistente. El 4B tiene 1,000 con código existente.
+  - **Accuracy del 4B por nivel:** sector 0.862, subsector 0.802, rama 0.775, subrama 0.753 y clase 0.707.
+  - **Subgrupos del 4B:**
+    - filas con "SIN NOMBRE": 0.814 (59 filas); sin la frase: 0.700 (941);
+    - genéricas: 0.714 (77 filas); no genéricas: 0.706 (923).
+  - **Diferencia pareada 4B − 06b-lr2e-4-r32** (positiva si el 4B acierta más), alineada fila por fila por `int(id)`:
+    - clase: +0.020 (IC +0.004 a +0.034); solo 06b-lr2e-4-r32 acierta en 21 filas y solo el 4B en 41;
+    - sector: +0.013 (IC 0.000 a +0.026); solo 06b-lr2e-4-r32 acierta en 16 filas y solo el 4B en 29. El límite inferior del IC es exactamente 0.
+    - En clase, el IC excluye el cero.
+  - **Diferencia pareada 4B − TF-IDF** (positiva si el 4B acierta más):
+    - clase: +0.025 (IC +0.004 a +0.046); solo TF-IDF acierta en 45 filas y solo el 4B en 70;
+    - sector: +0.017 (IC −0.001 a +0.036); solo TF-IDF acierta en 36 filas y solo el 4B en 53. El IC incluye el cero.
+    - Con la misma nota del paso 11 sobre la alineación: los aciertos de TF-IDF salen del registro de `data/baselines/d5e7a84b2cc4/tfidf_nombre_C10.json`, que no trae códigos ni ids. El orden se confirmó con alta probabilidad (conteos e IC reproducidos), pero no fila por fila.
+    - El macro-F1 de sector del 4B (0.760) sigue por debajo del de TF-IDF (0.780).
+  - **Sin señales de colapso:**
+    - el 4B responde 209 clases distintas (199 el 0.6B ganador y 213 TF-IDF) y 209 respuestas distintas;
+    - la más predicha, 461110, sale en 69 respuestas (6.9 %); en validación son 83 filas (8.3 %);
+    - ninguna respuesta queda fuera del formato.
+- **Advertencias:**
+  - La configuración (tasa 2e-4, rank 32, alpha 32) se eligió en el 0.6B y se transfirió al 4B sin barrido propio, así que puede no ser la mejor para el 4B.
+  - La accuracy en validación del 0.6B elegido (0.687) es algo optimista, porque se eligió con la misma validación con la que se mide.
+  - La del 4B no lo es: es una sola corrida, no se eligió entre varias con su validación. Claude Code agrega un matiz: la configuración sí salió de esta validación, pero en el 0.6B.
+  - Por eso la pareada 4B − 06b-lr2e-4-r32 queda, si acaso, sesgada en contra del 4B.
+- **Tiempo estimado contra real**, de `barrido.json` y `mediciones.json`:
+
+  | Parte | Estimado | Real | Real / estimado |
+  |---|---:|---:|---:|
+  | Antes de entrenar (pip, imports, descarga y carga, tokens, LoRA) | 292.7 s | 287.6 s | 0.98 |
+  | Pasos de entrenamiento | 23,833.7 s (6.62 h) | 24,620.8 s (6.84 h) | 1.03 |
+  | 13 validaciones | 538.0 s | 555.9 s | 1.03 |
+  | Adaptador, inferencia y cierre | 1,363.1 s | 431.9 s | 0.32 |
+  | Proceso | 26,027.6 s | 25,906.0 s | 0.995 |
+  | Orquestador | 150 s | 42.3 s | 0.28 |
+  | **Total** | **26,177.6 s (7.27 h)** | **25,948.5 s (7.21 h)** | **0.99** |
+
+  - **Pasos de entrenamiento:** 4.198 s/paso de media, contra 4.071 estimados. La razón real de s/paso entre el 4B y el 0.6B de rank 32 es 4.198 / 0.650 = 6.46, contra los 5.98 de la prueba de humo.
+  - **Inferencia:** la estimación era una cota (la de 06b-inicial × 5.98). Tardó 1.92 veces la del 0.6B, no 5.98.
+  - Las dos desviaciones casi se compensan.
+- **Para estimar la GPU de la Fase 4** (ajuste de Samuel), de `mediciones.json` y a través de los resultados:
+
+  | | 4b-lr2e-4-r32 | 06b-lr2e-4-r32 |
+  |---|---:|---:|
+  | Inferencia (s/fila) | 0.430 | 0.224 |
+  | Inferencia de 1,000 filas | 430.2 s | 223.9 s |
+  | VRAM pico de la inferencia | 3,168 MiB | 749 MiB |
+  | Descarga del modelo | 66.7 s | 4.3 s |
+  | Carga del modelo | 13.7 s | 8.1 s |
+
+  - Es inferencia greedy, una fila a la vez, con el adaptador y el prompt del clasificador, sin ejemplos.
+  - Un prompt few-shot será más largo y más lento.
+- **Decisión de Samuel para la Fase 4** (24 nov, 12:51 pm; la propuso el chat de Claude del proyecto):
+  - en la Fase 4 se medirá también el modelo base sin afinar (Qwen3-0.6B y Qwen3-4B), 0-shot y few-shot, sobre test y hard set, como pide la guía;
+  - el número de ejemplos del few-shot y cómo se eligen se fijan en el plan de la Fase 4, antes de abrir test.
+- **Nota para la Fase 4: TF-IDF + LR con C = 10** (ajuste de Samuel):
+  - **El modelo no quedó guardado.** `src/baselines.py` no guarda los modelos y no hay `.joblib` ni `.pkl`. Solo existe el registro de aciertos `data/baselines/d5e7a84b2cc4/tfidf_nombre_C10.json` (30,189 bytes, commit `d5e7a84`, ignorado por git).
+  - Hay que reentrenarlo: 33.4 s de vectorizador más 3,300.7 s de ajuste, unos 56 min de CPU (`results/2026-11-23_fase1_baseline-tfidf-lr_split-nombre.json`).
+  - Al reentrenarlo, comprobar que reproduce fila por fila los aciertos de validación de ese registro.
+  - Además, guardar sus predicciones (id y código) de validación, test y hard set en una carpeta ignorada, para que las pareadas contra TF-IDF queden comprobadas fila por fila.
+- **Adaptadores completos en `kaggle-output/`**, ignorado por git:
+  - el del 4B (`kaggle-output/4b/4b-lr2e-4-r32/adaptador/adapter_model.safetensors`): 264,308,896 bytes y SHA-256 `68898fd8…`, igual al de `barrido.json` y al de su `mediciones.json`;
+  - el de 06b-lr2e-4-r32 (`kaggle-output/06b-barrido/06b-lr2e-4-r32/adaptador/adapter_model.safetensors`): 80,792,456 bytes y SHA-256 `19d9f15e…`, igual al de su resultado. Se volvió a hashear.
+- **Bug del ayudante de la figura, introducido por Claude Code:**
+  - al extraer de `figura_barrido` un ayudante de dos paneles, el bucle de los títulos de los paneles (`titulo`) pisó el parámetro con el título de la figura;
+  - la regeneración byte a byte de la figura del barrido lo detectó antes del commit: el título grande salía como el del panel de validación;
+  - se corrigió renombrando la variable del bucle. La figura del barrido regenerada vuelve a ser idéntica a la versionada.
+- Archivos:
+  - `results/2026-11-24_fase2_4b-lr2e-4-r32.json`: 91,112 bytes, generado dos veces desde `b45dfd4` con bytes idénticos (`e4cba27b…`). Pasa el candado de llaves;
+  - de los 188,350 ids del paquete buscados como números en ese JSON aparecen 6: 5 son cifras decimales y 1 va dentro de un SHA-256;
+  - la figura de las curvas, también idéntica en las dos escrituras.
+- Código:
+  - `--barrido 4b` en `src/evaluar_corrida_clasificador.py`: las revisiones del barrido con una sola configuración, sin regla de elección;
+  - la pareada contra la referencia, la tabla de todos los modelos, el tiempo estimado contra el real, las horas de GPU, los adaptadores, los datos para la Fase 4 y la figura;
+  - `src/*_kaggle.py` y `notebooks/` no cambian;
+  - los resultados de 06b-inicial y del barrido, regenerados con la fecha y el commit de sus JSON, dan los mismos bytes, y la figura del barrido también.
+- Pruebas: 16 nuevas (15 del evaluador, con datos inventados, y el 4B en la prueba de kernels lanzados); pasan las 778 del repo.
+- Commits:
+  - `b45dfd4`: código y pruebas;
+  - `91d9fe7`: resultado y figura;
+  - el de esta bitácora, el registro y la captura.
+- PARADA: la Fase 2 queda cerrada. Falta el push de Samuel desde PowerShell.

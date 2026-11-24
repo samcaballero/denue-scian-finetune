@@ -595,3 +595,52 @@ Se corrigió antes del commit.
   - `argumentos_esperados` armaba `output_dir` con `/tmp/denue_trabajo/trainer_<nombre>`. El orquestador le da a cada proceso `/tmp/denue_trabajo/<nombre>/`.
   - Las pruebas de la Parte A no lo detectaron porque su barrido inventado no traía argumentos.
   - Ahora `resumen_etapas` recibe la carpeta de trabajo de cada proceso, y la prueba del flujo lleva los argumentos como los arma Kaggle.
+
+## 2026-11-24 — Fase 2, paso 13: evaluación del 4B y cierre de la Fase 2
+
+**Qué se hizo:**
+- En Kaggle, solo lectura:
+  - `status` (COMPLETE) y `list --mine`;
+  - `pull -m` del 4B a una carpeta nueva del scratchpad;
+  - `kaggle kernels output` a `kaggle-output/4b/`, una carpeta nueva y vacía.
+- Código:
+  - modo `--barrido 4b` del evaluador: las revisiones del barrido con una sola configuración, sin regla de elección;
+  - pareada contra la ganadora del 0.6B, tabla de todos los modelos, tiempo estimado contra real, horas de GPU, adaptadores, datos para la Fase 4 y figura;
+  - 16 pruebas.
+- Resultado y figura del 4B.
+- Una captura revisada y copiada.
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan, incluida la regla de las horas de GPU con cola. Samuel lo aprobó con tres ajustes: la decisión sobre el modelo base en la Fase 4 (la propuso el chat), la nota sobre TF-IDF y los datos de inferencia y carga para la Fase 4.
+- Los commits están sin push.
+
+### Proceso
+
+- **El código que corrió es el del repo.** `pull -m` bajó el kernel y su metadata sin ejecutar nada. El código es `notebooks/kaggle-4b/clasificador_4b.py` salvo los CRLF, y la imagen es la de 06b-inicial. Los SHA-256 del kernel y de la metadata pasaron a la prueba de kernels lanzados.
+- **Primero hashes y nombres.** Antes de correr el evaluador solo se listaron rutas y tamaños de la descarga. Para las claves de los tiempos, Claude Code miró el `mediciones.json` ya revisado de una configuración del barrido, no el del 4B.
+- **Sin cambios de salida.** Antes y después de tocar el evaluador, Claude Code regeneró en memoria los resultados de 06b-inicial y del barrido, con la fecha y el commit de sus JSON, y la figura del barrido. Al final quedaron con los mismos bytes que los versionados.
+- **Corrida en seco antes del commit.** El evaluador del 4B corrió sin `--escribir` antes del commit del código, para encontrar errores del evaluador antes de fijarlo. Salió sin PARADA.
+- **Figura.** Claude Code cargó la skill de visualización y validó con su script el par de colores: la magenta de la ganadora (su color del barrido) y la violeta del 4B. Pasa la separación para daltonismo y la de visión normal; la magenta queda bajo 3:1 de contraste, así que la leyenda escribe el valor final. Claude Code miró el borrador antes de escribirla.
+- **Resultado reproducible.** Se escribió dos veces desde `b45dfd4`, con bytes idénticos en el JSON y en la figura.
+- **Ids.** Claude Code buscó los 188,350 ids del paquete como números en el JSON nuevo, imprimiendo solo conteos y el tipo de token. De las 6 coincidencias, 5 son cifras decimales y 1 va dentro de un SHA-256.
+- **Captura.** Claude Code revisó los bloques del PNG (ninguno de texto ni EXIF) y miró la imagen antes de copiarla con el mismo SHA-256.
+
+### Hallazgos
+
+- **La cola no cuenta en el `lastRunTime`.** El contenedor arrancó 2.3 s después de esa marca, aunque Samuel lanzó unos 78 min antes. Las horas medidas (7.209 h) coinciden con lo que descontó Kaggle (432 min) con 0.5 min de diferencia.
+- **La razón de s/paso entre el 4B y el 0.6B fue 6.46, no 5.98.** Los pasos tardaron un 3 % más de lo estimado.
+- **La inferencia del 4B tardó 1.92 veces la del 0.6B, no 5.98:** con lote 1 manda la latencia. Las dos desviaciones casi se compensaron: el total real fue un 1 % menor que el estimado.
+- **El modelo TF-IDF con C = 10 no se guardó** (`src/baselines.py` no guarda modelos). Para la Fase 4 hay que reentrenarlo, unos 56 min de CPU.
+
+### Bug que Claude Code introdujo y encontró
+
+- **Variable pisada en el ayudante de la figura.**
+  - Al extraer de `figura_barrido` un ayudante de dos paneles, el bucle `for ax, titulo in ...` de los títulos de los paneles pisó el parámetro `titulo`, el título de la figura.
+  - La figura del barrido regenerada ya no coincidía con la versionada, aunque los 6 JSON sí. La diferencia de píxeles estaba solo en la franja del título.
+  - Se corrigió renombrando la variable del bucle, antes del commit. La regeneración volvió a dar los mismos bytes.
+
+### Errores de Claude Code
+
+Se corrigió antes del commit.
+
+- **La tasa salía como "0.0002"** en una advertencia y en el subtítulo de la figura, en lugar de "2e-4" como en los nombres. Se agregó `_tasa`, con una prueba.
