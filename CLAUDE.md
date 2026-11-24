@@ -7,6 +7,7 @@ Guía para Claude Code en este repositorio. El repo será público.
 - Fine-tuning con QLoRA de `Qwen/Qwen3-0.6B` y `Qwen/Qwen3-4B` (versiones instruct, no `-Base`; **siempre con `enable_thinking=False`**) sobre el DENUE del INEGI (CDMX, edición 2026/05).
 - Dos tareas: (1) nombre de negocio → clase SCIAN de 6 dígitos; (2) dirección sucia → JSON estructurado. Baselines obligatorios: TF-IDF de n-gramas de caracteres + regresión logística, y baseline de diccionario (la clase más frecuente de cada nombre normalizado visto en train; si el nombre no se vio en train, la clase más frecuente global). (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-18; registrado el 2026-11-20)
 - Clasificador (tarea 1): el modelo responde solo con el código SCIAN de 6 dígitos, sin texto adicional. La descripción de la clase se obtiene del catálogo oficial del SCIAN (de la versión que use `codigo_act`), nunca del modelo.
+- Modelo base sin afinar: en la Fase 4 se mide también `Qwen/Qwen3-0.6B` y `Qwen/Qwen3-4B` sin fine-tuning, 0-shot y few-shot, sobre test y hard set. El número de ejemplos del few-shot y cómo se eligen se fijan en el plan de la Fase 4, antes de abrir test. (Decisión de Samuel del 2026-11-24, propuesta por el chat de Claude del proyecto)
 - Proyecto para una charla técnica el 2026-11-26. El entrenamiento corre en Kaggle (GPU T4) con Unsloth y se lanza con la CLI de Kaggle desde la laptop.
 
 Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en Kaggle (T4; 30 h de GPU por semana).
