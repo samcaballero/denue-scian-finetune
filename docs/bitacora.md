@@ -620,3 +620,92 @@
   - `adaad20`: código y pruebas;
   - el de esta bitácora, el registro, el resultado, la figura y las capturas.
 - PARADA 1: falta el visto bueno de Samuel para la Parte B (barrido).
+
+## 2026-11-23 - Fase 2, paso 11 (Parte B): kernel del barrido del 0.6B
+
+- Autoría:
+  - Samuel dio el visto bueno a la Parte A y agregó cuatro puntos que redactó el chat de Claude del proyecto:
+    - copiar las dos capturas pendientes;
+    - fijar xformers;
+    - recuperar del log la pérdida de validación del paso 0;
+    - confirmar la máscara y el promedio de las dos pérdidas.
+  - Claude Code diseñó y escribió el kernel con los ocho ajustes del plan y esos cuatro puntos.
+- Capturas, por decisión de Samuel:
+  - se copiaron `2026-11-22_fase2_corrida-06b-inicial.png` (la cuenta samcaballero ya es pública en el repo) y `2026-11-23_fase1_baselines-fuga.png` (la ruta solo muestra el usuario Invitado);
+  - Claude Code las volvió a revisar: la primera muestra el nombre y el avatar de la cuenta, el docstring del kernel y la duración; la segunda, rutas, memoria libre y conteos. No muestran nada más y no traen metadatos;
+  - se copiaron con el mismo SHA-256 (`7abdd6d9…` y `2ea04c02…`).
+- Configuraciones del barrido, con alpha = rank (escala alpha/rank = 1, como en la inicial):
+
+  | Configuración | Tasa | Rank | Alpha | Diferencias con 06b-inicial |
+  |---|---:|---:|---:|---|
+  | `06b-lr1e-4-r8` | 1e-4 | 8 | 8 | tasa, rank y alpha |
+  | `06b-lr1e-4-r32` | 1e-4 | 32 | 32 | tasa, rank y alpha |
+  | `06b-lr2e-4-r8` | 2e-4 | 8 | 8 | rank y alpha |
+  | `06b-lr2e-4-r32` | 2e-4 | 32 | 32 | rank y alpha |
+
+  - Lo demás es idéntico a 06b-inicial, y una prueba lo comprueba clave por clave:
+    - datos: el dataset y sus SHA-256;
+    - modelo: la revisión fijada y NF4;
+    - LoRA: los 7 módulos objetivo y dropout 0;
+    - entrenamiento: fp16, lote 32, AdamW de 8 bits, warmup de 3 %, decaimiento lineal, 1 época, semilla 42 y `data_seed` 42 (el mismo barajado);
+    - largo máximo de 256, con el mismo prompt y la misma inferencia greedy.
+  - El orden del train de cada configuración se compara con el de 06b-inicial (`b6b53a85…`).
+- Versiones:
+  - **Fijadas con pip** (20):
+    - las 8 de 06b-inicial;
+    - lo que pip agregó o cambió en 06b-inicial: xformers 0.0.36, torchao 0.18.0, cut-cross-entropy 25.1.1, hf-transfer 0.1.9, msgspec 0.22.0, mslk 0.0.0, structlog 26.1.0 y tyro 1.0.17;
+    - las de la imagen: huggingface_hub 1.33.0, tokenizers 0.23.3, safetensors 0.8.0 y numpy 2.1.3.
+
+    Las 12 extra están en PyPI con un wheel para Linux x86_64 y Python 3.13, y ninguna está retirada. Si una fijada con pip no queda instalada, el kernel aborta antes de entrenar.
+  - **No se pueden fijar con pip:** torch 2.11.0+cu130, torchvision 0.26.0+cu130, triton 3.6.0 y el controlador de la GPU (580.178.04). Son compilaciones CUDA de la imagen.
+    - Se fija la imagen de Docker de 06b-inicial: `gcr.io/kaggle-private-byod/python@sha256:fc720c15…`, leída con `kaggle kernels pull … -m`.
+    - Si alguna difiere, queda como advertencia en `barrido.json` y la corrida sigue (ajuste del chat).
+  - El código que bajó `pull` es idéntico al kernel de 06b-inicial que generó el repo, salvo los finales de línea CRLF.
+- Ejecución:
+  - cada configuración corre en su propio proceso, que llama a `src/clasificador_kaggle.py` sin cambios; al salir el proceso, se registra la memoria usada de la GPU 0;
+  - salidas: la de cada configuración en `/kaggle/working/<nombre>/` y su log completo en `/kaggle/working/logs/<nombre>.log`;
+  - **cuelgues** (ajuste del chat): cada proceso tiene un tiempo máximo de 2 veces su estimación, sin pasar del presupuesto. Si se pasa, se mata, se registra como falla y sigue la siguiente;
+  - un candado omite una configuración si no cabe;
+  - el orquestador sale con 0 aunque una configuración falle, para que Kaggle guarde la salida.
+- **Pérdida de validación del paso 0** (decisión de Samuel): `src/clasificador_kaggle.py` no se toca. En la evaluación del barrido se recupera del log de cada configuración con el mismo método de la Parte A (`validacion_del_log`), y se comprueba que los otros 12 puntos coinciden con su `mediciones.json`.
+- **Máscara y promedio de las dos pérdidas:** coinciden. Claude Code lo confirmó leyendo el código de transformers 5.17.0, unsloth 2026.11.9 y unsloth_zoo 2026.11.8, sin GPU:
+  - train y validación pasan por el mismo colador (relleno con -100) y por la misma pérdida de Unsloth;
+  - las dos dividen la suma de la entropía cruzada de las fichas con etiqueta desplazada distinta de -100 entre el número de esas fichas del lote (`num_items_in_batch`, que transformers 5.17 también cuenta en `prediction_step`);
+  - la validación promedia los lotes ponderando por filas; como cada fila tiene 7 fichas etiquetadas, eso equivale al promedio por ficha.
+- **Sesiones de GPU paralelas:** sin fuente oficial clara, así que va un solo kernel secuencial.
+  - La página de Notebooks de Kaggle solo confirma el límite de 12 h por sesión.
+  - La guía de uso eficiente de GPU dice que un notebook "can have multiple concurrent batch sessions", pero no dice si dos sesiones de GPU corren a la vez ni cuál es el límite.
+  - Claude Code leyó las dos páginas renderizadas con la extensión de Chrome, porque sin JavaScript solo traen el título.
+- Estimación, con los tiempos reales de 06b-inicial (rank 8 igual que rank 16; rank 32 con un 5 % más de entrenamiento):
+
+  | Configuración | Estimado | Empieza hacia | Tiempo máximo |
+  |---|---:|---:|---:|
+  | `06b-lr1e-4-r8` | 72.5 min | 0.04 h | 2.42 h |
+  | `06b-lr1e-4-r32` | 75.7 min | 1.25 h | 2.52 h |
+  | `06b-lr2e-4-r8` | 72.5 min | 2.51 h | 2.42 h |
+  | `06b-lr2e-4-r32` | 75.7 min | 3.72 h | 2.52 h |
+  | **Total** (con 150 s del orquestador) | **4.98 h** | | |
+
+  - `-t 27000` (7.5 h, 1.51 veces el total), con 4.5 h de margen contra el límite de 12 h. El presupuesto interno es de 26,100 s.
+  - Cuota: quedan 28 h 35 min. Después del barrido quedarían unas 23 h 36 min, o 21 h 5 min en el peor caso (las 7.5 h completas).
+- **Regla de elección, escrita antes de lanzar:**
+  - Gana la mayor accuracy de clase en validación entre las 5 configuraciones: 06b-inicial y las 4 del barrido.
+  - En empate exacto con la inicial (los mismos aciertos), gana la inicial.
+  - Se reportan el IC 95 % de cada una y la diferencia pareada contra la inicial (configuración − 06b-inicial).
+  - Advertencia: como se elige en la misma validación, la accuracy de la elegida es algo optimista.
+  - La regla la redactó el chat de Claude del proyecto en la instrucción y Samuel la aprobó.
+  - Casos no cubiertos, que señaló Claude Code y decide Samuel:
+    - si dos configuraciones del barrido empatan arriba de la inicial;
+    - si una configuración no termina completa (Claude Code propone que no cuente).
+- Código:
+  - `src/barrido_kaggle.py`, nuevo;
+  - `src/construir_kernel.py`, con dos campos opcionales: `corridas` y `docker_image`;
+  - `notebooks/kaggle-06b-barrido/`: el kernel (168,603 bytes) y su metadata.
+- Pruebas:
+  - 39 nuevas; pasan las 706 del repo;
+  - los kernels de humo-6b y 06b-inicial siguen idénticos byte a byte a los lanzados;
+  - la prueba en seco de la orquestación corre procesos reales en CPU con un proceso falso: camino normal, configuración que falla, cuelgue que se mata a los 2 s, candado de tiempo, memoria no liberada, versión fijada distinta (aborta) y versión no fijable distinta (solo advierte).
+- Commits:
+  - `41e324a`: código, pruebas y kernel;
+  - el de esta bitácora, el registro y las dos capturas.
+- PARADA 2: el kernel está listo y sin lanzar. Falta que Samuel corra `--verificar`, el push de git y `kaggle kernels push` desde PowerShell.

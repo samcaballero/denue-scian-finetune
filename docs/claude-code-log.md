@@ -468,3 +468,60 @@ Todos se corrigieron antes de su commit.
   - Una prueba esperaba como nombre crudo un texto que solo aparecía como llave.
   - Una tolerancia era menor que el redondeo a 6 decimales.
 - **Dos comprobaciones de etapa que fallaban por el kernel, no por la corrida:** los argumentos (por los valores tapados) y los pasos de validación (por el paso 0). Se ajustaron antes de escribir el resultado.
+
+## 2026-11-23 — Fase 2, paso 11 (Parte B): kernel del barrido del 0.6B
+
+**Qué se hizo:**
+- Código:
+  - orquestador del barrido (`src/barrido_kaggle.py`): cada configuración en su propio proceso;
+  - generador extendido (`src/construir_kernel.py`, con los campos opcionales `corridas` y `docker_image`);
+  - 39 pruebas.
+- Kernel `notebooks/kaggle-06b-barrido/`, sin lanzar: 4 configuraciones, lr {1e-4, 2e-4} × rank {8, 32} con alpha = rank.
+- Copia de las dos capturas que autorizó Samuel.
+- Autoría:
+  - Samuel dio el visto bueno a la Parte A y agregó cuatro puntos que redactó el chat de Claude del proyecto.
+  - Claude Code diseñó el kernel.
+- Los commits están sin push.
+
+### Proceso
+
+- **Uso del permiso nuevo.**
+  - `kaggle kernels pull samcaballero/denue-scian-06b-inicial -m` bajó el código y la metadata a una carpeta del scratchpad, fuera del repo. No se ejecutó nada de lo bajado.
+  - La metadata da la imagen de Docker `gcr.io/kaggle-private-byod/python@sha256:fc720c15…`.
+  - Claude Code comparó el código bajado con el kernel del repo: es idéntico salvo los CRLF de sus 2,434 líneas. Lo que corrió en Kaggle es lo que generó el repo.
+- **Máscara y promedio de las pérdidas** (punto 4 de Samuel).
+  - Claude Code leyó, dentro de los wheels que bajó en el paso 9 y sin instalarlos, el Trainer de transformers 5.17.0, el forward de Unsloth y las pérdidas fusionadas de unsloth_zoo.
+  - Train y validación usan las mismas etiquetas desplazadas distintas de -100. Las dos dividen entre el número de esas fichas del lote, con `num_items_in_batch` o, sin él, contándolas.
+  - Evidencia en los datos: la pérdida de train del primer paso (3.20) es parecida a la de validación del paso 0 (3.32).
+- **Sesiones paralelas.**
+  - WebFetch y curl solo traían el título de las páginas de documentación de Kaggle, así que Claude Code las leyó con la extensión de Chrome, en una pestaña nueva y solo texto, y la cerró al terminar.
+  - Ninguna página oficial dice si dos sesiones de GPU corren a la vez. Por eso va un solo kernel secuencial.
+- **Versiones en PyPI.** Antes de fijar las 12 versiones extra, Claude Code consultó la API JSON de PyPI, de solo lectura: todas tienen un wheel para Linux x86_64 y Python 3.13 y ninguna está retirada.
+- **El orquestador no toca `src/clasificador_kaggle.py`.**
+  - Cada proceso cambia `hk.DIR_SALIDA` y `hk.DIR_TRABAJO` y llama al `main()` de siempre.
+  - Las pruebas fijan los SHA-256 del kernel y de la metadata de humo-6b y de 06b-inicial tal como se lanzaron.
+- **Prueba en seco con procesos reales:** el orquestador lanza un proceso falso con `sys.executable` en CPU. Una prueba más extrae los módulos del kernel generado a una carpeta aislada y comprueba que el orquestador y la entrada `--una` se importan solo con ellos.
+- **Commits, con los archivos agregados por nombre:**
+  - `41e324a`: código, pruebas y kernel;
+  - el de la bitácora, este registro y las capturas.
+
+### Hallazgos
+
+- **La imagen de 06b-inicial está en un registro `kaggle-private-byod`**, no en `gcr.io/kaggle-images` como el ejemplo de la documentación de la CLI. No se sabe si Kaggle la acepta para un kernel nuevo.
+  - Si `kaggle kernels push` la rechaza, se regenera el kernel sin `docker_image`; queda el pin `original` y la advertencia de versiones dentro del kernel.
+  - Un rechazo al hacer push no gasta GPU.
+- **xformers lo instala pip** (0.0.36), así que se fija con pip, como pidió Samuel. torch, torchvision y triton vienen de la imagen.
+- **transformers 5.17 también cuenta `num_items_in_batch` al evaluar** (`prediction_step`), así que la validación divide igual que el train.
+- **La documentación oficial no dice nada sobre sesiones de GPU simultáneas.** Solo dice que un mismo notebook puede tener varias sesiones por lotes al mismo tiempo, sin hablar de GPU ni de límites.
+
+### Errores de Claude Code
+
+Todos se corrigieron antes de su commit.
+
+- **Otra vez un heredoc perdió una barra invertida** (cuarta vez: 6b, paso 7, paso 9 y este).
+  - Claude Code intentó editar `src/construir_kernel.py` con Python por un heredoc de Bash, y `"\\n"` llegó como `"\n"`.
+  - La comprobación del script falló antes de escribir y no cambió nada. Los cambios se hicieron con la herramienta de edición.
+- **Una prueba buscaba "nom_estab" como texto** en el código del orquestador y lo encontró en los docstrings. Se cambió por una revisión del árbol de sintaxis (AST): ninguna constante "nom_estab" y ninguna llamada a `leer_jsonl_verificado`.
+- **Dos detalles de robustez agregados después de la primera versión:**
+  - `PYTHONIOENCODING=utf-8` en el entorno de cada proceso, para que su log no dependa del locale;
+  - el hilo que copia el log ya no lanza un error si el archivo se cierra tras matar un proceso.
