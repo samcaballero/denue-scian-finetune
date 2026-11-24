@@ -443,6 +443,7 @@ import dataclasses  # noqa: E402
 
 from src import barrido_kaggle as bk  # noqa: E402
 from src import construir_kernel as ck  # noqa: E402
+from src.clasificador_kaggle import argumentos_entrenamiento  # noqa: E402
 from src.humo_kaggle import MODELO_06B, VERSIONES_A_REGISTRAR  # noqa: E402
 
 VERSIONES_INI = dict(bk.VERSIONES_06B_INICIAL)
@@ -494,8 +495,7 @@ def _barrido_inventado(tmp_path, monkeypatch, *, log_extra="", orden=None, incom
 
     corridas = _corridas_inventadas()
     monkeypatch.setitem(ck.KERNELS, "barrido-prueba", dataclasses.replace(ck.BARRIDO_06B, clave="barrido-prueba", corridas=corridas))
-    obs = {**ec.BARRIDOS["06b-barrido"]["observaciones"], "estado_cli": "COMPLETE", "duracion_pagina_kaggle": "5h",
-           "duracion_pagina_kaggle_s": 18000, "cuota_despues": "23 h de 30 h", "cuota_descontada_min": 300}
+    obs = {**ec.BARRIDOS["06b-barrido"]["observaciones"], "last_run_time_cli": "2026-01-01 00:00:00.000000"}
     monkeypatch.setitem(ec.BARRIDOS, "prueba", {
         **ec.BARRIDOS["06b-barrido"], "kernel": "barrido-prueba", "inicial": "inicial-prueba",
         "carpeta": "kaggle-output/barrido", "log": "barrido.log", "observaciones": obs,
@@ -511,7 +511,9 @@ def _barrido_inventado(tmp_path, monkeypatch, *, log_extra="", orden=None, incom
         med = {"estado": "completo" if completa else "en_curso", "fallas": [], "configuracion": {"corrida": dict(c)},
                "entorno": {"versiones": VERSIONES_INI},
                "entrenamiento": {"pasos_hechos": 1 if completa else None,
-                                 "orden_train": {"sha256_orden": orden or bk.SHA256_ORDEN_06B_INICIAL}},
+                                 "orden_train": {"sha256_orden": orden or bk.SHA256_ORDEN_06B_INICIAL},
+                                 # Como en Kaggle: cada proceso del barrido trabaja en /tmp/denue_trabajo/<nombre>.
+                                 "argumentos": argumentos_entrenamiento(c, 1, False, f"/tmp/denue_trabajo/{n}/trainer_{n}")},
                "segundos_desde_arranque": 100.0, "inicio_utc": "2026-01-01T00:00:00+00:00"}
         if completa:
             pred = _pred_bytes(val_regs, 3 + k, desordenar)
@@ -539,6 +541,7 @@ def _barrido_inventado(tmp_path, monkeypatch, *, log_extra="", orden=None, incom
         "datos": {"sha256_verificados": esperados},
         "datos_sha256_esperados": esperados,
         "fuentes_incrustadas_sha256": {},
+        "inicio_utc": "2026-01-01T00:00:10+00:00",
         "segundos_desde_arranque": 9000.0,
         "archivos_salida": _inv_de(carpeta),
     }
@@ -582,7 +585,12 @@ def test_barrido_flujo_completo_sin_test_ni_hard_y_sin_ids(tmp_path, monkeypatch
     assert resumen["orquestador"]["estado"] == "ok"
     assert all(r["etapas"]["etapas"]["barrido"]["estado"] == "ok" for r in resultados.values())
     assert resumen["resultados_por_configuracion"][NOMBRES_BARRIDO[0]]["ruta"] == f"results/2026-01-01_fase2_{NOMBRES_BARRIDO[0]}.json"
-    assert resumen["horas_gpu"]["valor"] == 5.0
+    # Del lastRunTime (00:00:00) al fin del orquestador (00:00:10 + 9,000 s).
+    assert resumen["horas_gpu"]["valor"] == round(9010 / 3600, 3) and resumen["horas_gpu"]["script"] == 2.5
+    assert resumen["corrida_kaggle"]["tiempo"]["arranque_del_contenedor_s"] == 10.0
+    # Los argumentos del Trainer se comparan con la carpeta de trabajo de cada proceso del barrido.
+    for r in resultados.values():
+        assert r["etapas"]["etapas"]["entrenamiento"]["argumentos"]["distintos"] == []
 
 
 def test_barrido_pareada_contra_la_inicial_signo_y_alineacion(tmp_path, monkeypatch):

@@ -445,9 +445,13 @@ def curva_de_validacion(val: Sequence[Mapping], del_log: Mapping[int, float | No
     return [puntos[p] for p in sorted(puntos)]
 
 
-def argumentos_esperados(corrida: Mapping, pasos: int) -> dict:
-    """Los argumentos del Trainer que arma el kernel para la corrida (mismo código, en fp16)."""
-    return argumentos_entrenamiento(corrida, pasos, False, f"{DIR_TRABAJO.as_posix()}/trainer_{corrida['nombre']}")
+def argumentos_esperados(corrida: Mapping, pasos: int, dir_trabajo: str = DIR_TRABAJO.as_posix()) -> dict:
+    """Los argumentos del Trainer que arma el kernel para la corrida (mismo código, en fp16).
+
+    `dir_trabajo` es la carpeta de trabajo del proceso: /tmp/denue_trabajo en una corrida sola y
+    /tmp/denue_trabajo/<nombre> en cada configuración del barrido (`barrido_kaggle.correr_configuracion`).
+    """
+    return argumentos_entrenamiento(corrida, pasos, False, f"{dir_trabajo}/trainer_{corrida['nombre']}")
 
 
 def revisar_argumentos(args: Mapping, esperados_args: Mapping, tapados: Sequence[str], llaves: set[str]) -> dict:
@@ -472,11 +476,13 @@ def revisar_argumentos(args: Mapping, esperados_args: Mapping, tapados: Sequence
 
 def resumen_etapas(m: Mapping, *, corrida: Mapping, esperados: Mapping[str, str], fuentes_actuales: Mapping[str, str],
                    kernel_igual_al_generado: bool, filas_train: int, filas_val: int, adapter_config: Mapping,
-                   archivos_bajados: set[str], llaves: set[str], texto_del_log: str) -> dict:
+                   archivos_bajados: set[str], llaves: set[str], texto_del_log: str,
+                   dir_trabajo: str = DIR_TRABAJO.as_posix()) -> dict:
     """Terminó bien o falló, etapa por etapa, con su dato clave (sin nombres).
 
     `corrida` es la configuración que generó el kernel (la de 06b-inicial o una del barrido);
-    `archivos_bajados` son rutas relativas a la carpeta de la corrida.
+    `archivos_bajados` son rutas relativas a la carpeta de la corrida; `dir_trabajo`, la carpeta de
+    trabajo del proceso (ver `argumentos_esperados`).
     """
     corrida = dict(corrida)
     e: dict[str, dict] = {}
@@ -587,7 +593,7 @@ def resumen_etapas(m: Mapping, *, corrida: Mapping, esperados: Mapping[str, str]
     perd = resumen_perdida([{"loss": h.get("loss"), "learning_rate": h.get("learning_rate")} for h in train])
     orden = ent.get("orden_train", {})
     args = ent.get("argumentos", {})
-    rev_args = revisar_argumentos(args, argumentos_esperados(corrida, pasos), m.get("tapados", []), llaves)
+    rev_args = revisar_argumentos(args, argumentos_esperados(corrida, pasos, dir_trabajo), m.get("tapados", []), llaves)
     curva_val = curva_de_validacion(val, del_log)
     eval_loss = [v["eval_loss"] for v in curva_val]
     e["entrenamiento"] = _etapa(
@@ -1065,9 +1071,9 @@ def figura_curvas(resultado: Mapping, ruta: Path) -> None:
 
 # --- Barrido (Fase 2, paso 12) ---
 
-# Observaciones de cada barrido que no están en su salida. Las que faltan (None) se llenan en la Parte B
-# con `kaggle kernels status` y lo que vea Samuel en la página del kernel; `--escribir` se niega mientras
-# falte alguna.
+# Observaciones de cada barrido que no están en su salida; `--escribir` se niega mientras falte alguna
+# (None). Samuel no abrió la página del kernel: la duración sale de barrido.json (inicio y fin del
+# orquestador) y del lastRunTime de la CLI, y la cuota la observó Samuel.
 BARRIDOS = {
     "06b-barrido": {
         "kernel": "06b-barrido",
@@ -1083,15 +1089,37 @@ BARRIDOS = {
             "last_run_time_cli": "2026-11-24 00:56:39.433000",  # kaggle kernels list --mine (UTC, sin zona)
             "tiempo_kaggle_s": 27000,  # -t de kaggle kernels push
             "imagen_docker": ck.DOCKER_06B_INICIAL,  # aceptada: es la de la metadata de kaggle kernels pull -m
-            "estado_cli": None,
-            "duracion_pagina_kaggle": None,
-            "duracion_pagina_kaggle_s": None,
+            "estado_cli": "COMPLETE",  # kaggle kernels status, 2026-11-23 23:55 (hora de la Ciudad de México)
+            "pagina_del_kernel": "Version #1 Successful y 0 Active Events, vistos por Samuel; no abrió la página del kernel",
             "cuota_antes": "28 h 35 min de 30 h",  # bitácora, paso 11
-            "cuota_despues": None,
-            "cuota_descontada_min": None,
+            "cuota_despues": "23 h 49 min de 30 h",  # observada por Samuel hacia las 11:45 pm del 2026-11-23
+            "cuota_descontada_min": 286,  # 4 h 46 min
+            "sesion_interactiva": (
+                "Hacia las 7:50 pm, Gemini abrió sin querer una sesión interactiva de GPU desde la vista /edit al "
+                "revisar el log, y quedó cancelada. La cuota a las 9:21 pm (26 h 12 min) coincide con el tiempo del "
+                "barrido, así que no gastó cuota apreciable."
+            ),
         },
     },
 }
+
+
+def duracion_barrido(b: Mapping, last_run_time_cli: str) -> dict:
+    """Duración del barrido: del lastRunTime de la CLI (UTC, sin zona) al fin del orquestador en barrido.json."""
+    inicio = datetime.datetime.fromisoformat(b["inicio_utc"])
+    script_s = b["segundos_desde_arranque"]
+    fin = inicio + datetime.timedelta(seconds=script_s)
+    cli = datetime.datetime.fromisoformat(last_run_time_cli).replace(tzinfo=datetime.timezone.utc)
+    total_s = (fin - cli).total_seconds()
+    return {
+        "last_run_time_cli_utc": cli.isoformat(),
+        "inicio_orquestador_utc": inicio.isoformat(),
+        "fin_orquestador_utc": fin.isoformat(),
+        "arranque_del_contenedor_s": round((inicio - cli).total_seconds(), 1),
+        "script_s": script_s,
+        "desde_last_run_time_s": round(total_s, 1),
+        "horas": {"script": round(script_s / 3600, 3), "desde_last_run_time": round(total_s / 3600, 3)},
+    }
 SIGNO_CONTRA_INICIAL = "configuración − 06b-inicial (positivo: la configuración acierta más)"
 
 
@@ -1536,6 +1564,7 @@ def evaluar_barrido(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping,
             filas_val=len(ent.val_paquete), adapter_config=ent.adapter_configs[n],
             archivos_bajados={a["ruta"][len(prefijo):] for a in ent.inventario if a["ruta"].startswith(prefijo)},
             llaves=llaves, texto_del_log=log,
+            dir_trabajo=(DIR_TRABAJO / n).as_posix(),  # cada proceso del barrido trabaja en su propia carpeta
         )
         etapas["etapas"]["barrido"] = revisar_configuracion_del_barrido(m, versiones_ini)
         etapas["todas_ok"] = all(x["estado"] == "ok" for x in etapas["etapas"].values())
@@ -1609,8 +1638,7 @@ def armar_resumen_barrido(*, manifest, contexto, ent, corridas, procesos, descar
     corrida_ini = res_ini["configuracion"]["corrida"]
     archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
     sp = manifest["splits"]
-    pagina_s = obs["duracion_pagina_kaggle_s"]
-    script_s = b.get("segundos_desde_arranque")
+    tiempo = duracion_barrido(b, obs["last_run_time_cli"])
     tabla = [fila_de_la_tabla(clave_inicial, corrida_ini, res_ini["metricas"], None, None,
                               res_ini["corrida_kaggle"]["tiempo"]["script_s"], ruta_inicial)]
     for c in corridas:
@@ -1667,19 +1695,23 @@ def armar_resumen_barrido(*, manifest, contexto, ent, corridas, procesos, descar
         "hash_split_origen": f"data/manifest.json: splits.{ENTRADA_VAL}, splits.{ENTRADA_TRAIN_FINAL} y {SECCION}.{ENTRADA_PAQUETE}",
         "tamano_muestra": {"train": len(ent.train), "validacion": len(ent.val_paquete)},
         "horas_gpu": {
-            "valor": round(pagina_s / 3600, 3) if pagina_s else None,
+            "valor": tiempo["horas"]["desde_last_run_time"],
             "metodo": (
-                f"Duración de la página del kernel en Kaggle ({obs['duracion_pagina_kaggle']}, GPU T4 x2 con una sola T4 en uso), "
-                "para las 4 configuraciones del barrido."
+                "Del lastRunTime de `kaggle kernels list --mine` (UTC) al fin del orquestador (inicio_utc de barrido.json "
+                "más segundos_desde_arranque), con el arranque del contenedor; las 4 configuraciones del barrido en una "
+                "sesión GPU T4 x2 con una sola T4 en uso. Samuel no abrió la página del kernel."
             ),
-            "script": round(script_s / 3600, 3) if script_s else None,
+            "script": tiempo["horas"]["script"],
             "por_configuracion": {n: round(procesos[n]["segundos"] / 3600, 3) for n in resultados if procesos[n].get("segundos")},
             "cuota_kaggle": {"antes": obs["cuota_antes"], "despues": obs["cuota_despues"], "descontado_min": obs["cuota_descontada_min"]},
         },
         "corrida_kaggle": {
             "estado_cli": obs["estado_cli"],
+            "pagina_del_kernel": obs["pagina_del_kernel"],
             "lanzamiento": obs["lanzamiento"],
             "last_run_time_cli": obs["last_run_time_cli"],
+            "tiempo": tiempo,
+            "sesion_interactiva": obs["sesion_interactiva"],
             "estado_kernel": b.get("estado"),
             "fallas": len(b.get("fallas", [])),
             "archivos_bajados": [dict(a) for a in ent.inventario],
