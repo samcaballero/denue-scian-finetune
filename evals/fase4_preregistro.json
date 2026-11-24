@@ -1,0 +1,547 @@
+{
+  "version": 1,
+  "descripcion": "Pre-registro de la evaluación final del clasificador (Fase 4, paso 14): las reglas se fijan aquí antes de abrir test y hard set. Los scripts de la Fase 4 las leen de este archivo y registran su SHA-256.",
+  "registro": {
+    "fecha": "2026-11-24",
+    "hora": "15:27 (Ciudad de México)",
+    "autoria": "El chat de Claude del proyecto propuso las reglas; Claude Code redactó este archivo y calculó la selección few-shot y el límite de largo; Samuel lo aprobó.",
+    "decision_de_origen": "Decisión de Samuel del 2026-11-24 (CLAUDE.md, commit 15bdd96): medir Qwen3-0.6B y Qwen3-4B sin afinar, 0-shot y few-shot, en test y hard set; el número de ejemplos del few-shot y cómo se eligen se fijan aquí.",
+    "cambios_de_diseno": [
+      {
+        "etiqueta": "CAMBIO DE DISEÑO",
+        "fecha": "2026-11-24",
+        "aprobado_por": "Samuel",
+        "que": "Largo máximo: 256 fichas para todo, salvo el prompt few-shot, que lleva el límite de largo_maximo.few_shot, calculado para que ninguna fila de test ni de hard se trunque."
+      },
+      {
+        "etiqueta": "CAMBIO DE DISEÑO",
+        "fecha": "2026-11-24",
+        "aprobado_por": "Samuel",
+        "que": "Métrica tolerante, solo secundaria: la primera secuencia de exactamente 6 dígitos de la salida completa (ver metricas.tolerante), para los 6 LLM y reportada aparte."
+      }
+    ],
+    "precisiones_aprobadas": [
+      "Este archivo va en evals/ (la carpeta de código y casos de evaluación), no en una carpeta nueva.",
+      "Dentro de cada grupo del kernel, el 0.6B va antes que el 4B.",
+      "Los modelos base usan los mismos tokens de fin y el mismo corte de respuesta que los afinados.",
+      "Los baselines predicen test y hard desde las copias sin codigo_act (las mismas que suben a Kaggle).",
+      "El diccionario también reproduce fila por fila sus aciertos de validación antes de predecir test y hard.",
+      "Cada script de la Fase 4 registra en su salida el SHA-256 de este archivo."
+    ],
+    "script": "src/preregistro_fase4.py",
+    "comprobacion": ".venv/Scripts/python -m src.preregistro_fase4 --comprobar",
+    "commit_codigo": "47c008079b3724cb8c471fc65893a6200161e72b"
+  },
+  "conjuntos": {
+    "test": {
+      "entrada_manifest": "clasificador_test",
+      "sha256": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c",
+      "filas": 2000,
+      "papel": "Métrica principal, con la distribución natural: las 2,000 filas sacadas al azar, sin filtrar ni balancear."
+    },
+    "hard": {
+      "entrada_manifest": "clasificador_hard",
+      "sha256": "13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa",
+      "filas": 105,
+      "por_tipo": {
+        "ambiguo": 74,
+        "indirecto": 31
+      },
+      "papel": "Exploratorio. Se trata como el test (regla 3): no elige modelos ni hiperparámetros y se evalúa una sola vez, junto con el test."
+    },
+    "train_final": {
+      "entrada_manifest": "clasificador_train_final",
+      "sha256": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e",
+      "filas": 187350,
+      "papel": "Entrena los dos baselines (los afinados ya se entrenaron con él) y de él salen los ejemplos del few-shot."
+    },
+    "validacion": {
+      "entrada_manifest": "clasificador_validacion",
+      "sha256": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+      "filas": 1000,
+      "papel": "Solo para comprobar que los modelos reproducen su validación antes de test y para la concordancia del GGUF."
+    }
+  },
+  "subida_a_kaggle": "Test y hard suben al dataset privado samcaballero/denue-scian-evaluacion solo con id y nom_estab, sin codigo_act ni tipo (Tema B del paso 14). El kernel nunca ve las etiquetas.",
+  "modelos": [
+    {
+      "id": "diccionario",
+      "tipo": "baseline",
+      "corre_en": "laptop (CPU)",
+      "implementacion": "src/baselines.py sin cambios: la llave normalizada (normalizar_nombre) da la clase más frecuente de esa llave en train final; si la llave no se vio, la clase más frecuente global. Desempates como en validación: el conteo en el train candidato sin hard y, si persiste, el código menor.",
+      "entrena_con": [
+        "clasificador_train_final",
+        "clasificador_train_candidatos_sin_hard (solo para los desempates)"
+      ],
+      "predice_desde": "Las copias de test y hard sin codigo_act (dataset denue-scian-evaluacion).",
+      "registro_validacion": {
+        "ruta": "data/baselines/d5e7a84b2cc4/diccionario_nombre.json",
+        "sha256": "f991c82ae2fbe418e6ba2827c8a39bb7d57f51e4150d5f7b4547359e89cfd587",
+        "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d"
+      },
+      "reproduccion_validacion": "Antes de predecir test y hard, sus aciertos de clase en validación (en orden de int(id)) deben ser idénticos, fila por fila, a aciertos.clase del registro. Si no, se detiene y decide Samuel.",
+      "resultado_validacion": "results/2026-11-23_fase1_baseline-diccionario_split-nombre.json",
+      "accuracy_validacion": 0.083,
+      "nota": "Por construcción, ninguna llave de test ni de hard está en train final (comprobado al calcular este archivo: 0 y 0). Por eso responde la clase global en todas sus filas, igual que en validación."
+    },
+    {
+      "id": "tfidf-lr-C10",
+      "tipo": "baseline",
+      "corre_en": "laptop (CPU)",
+      "implementacion": "src/baselines.py sin cambios, con C = 10, el elegido en validación. Se reentrena porque el modelo no se guardó (unos 56 min de CPU).",
+      "entrada": "nom_estab original",
+      "configuracion": {
+        "tfidf": {
+          "analyzer": "char_wb",
+          "ngram_range": [
+            2,
+            5
+          ],
+          "min_df": 2,
+          "max_features": 100000,
+          "sublinear_tf": true,
+          "norm": "l2",
+          "lowercase": true,
+          "strip_accents": null
+        },
+        "regresion_logistica": {
+          "solver": "saga",
+          "tol": 0.001,
+          "max_iter": 100,
+          "random_state": 42,
+          "C": 10.0
+        },
+        "huella_config": "19c4350a90f8e30cec2ee93d317c560df940b6a3a6f20e114c86cd51fc8b2f9d"
+      },
+      "entrena_con": [
+        "clasificador_train_final"
+      ],
+      "predice_desde": "Las copias de test y hard sin codigo_act (dataset denue-scian-evaluacion).",
+      "registro_validacion": {
+        "ruta": "data/baselines/d5e7a84b2cc4/tfidf_nombre_C10.json",
+        "sha256": "0c4d1deb511c03e47a1178fc458537cab99354bc3b6dbf6111706ccbddefe6a6",
+        "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d"
+      },
+      "reproduccion_validacion": "Al reentrenarlo, sus aciertos de clase en validación (en orden de int(id)) deben ser idénticos, fila por fila, a aciertos.clase del registro. Si no, se detiene y decide Samuel.",
+      "guarda": "Sus predicciones (id y código) de validación, test y hard, en data/fase4/ (ignorado por git), para comprobar fila por fila las pareadas contra TF-IDF.",
+      "resultado_validacion": "results/2026-11-23_fase1_baseline-tfidf-lr_split-nombre.json",
+      "accuracy_validacion": 0.682
+    },
+    {
+      "id": "06b-lr2e-4-r32",
+      "tipo": "afinado",
+      "tamano": "0.6B",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-0.6B",
+        "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, max_seq_length 256, con su adaptador LoRA, como en su validación.",
+      "adaptador": {
+        "ruta": "kaggle-output/06b-barrido/06b-lr2e-4-r32/adaptador/adapter_model.safetensors",
+        "sha256": "19d9f15ecb1ef403ed1bb341dcbac27a6c56967f2f23a9907e1ab082164967b0"
+      },
+      "adaptador_config": {
+        "ruta": "kaggle-output/06b-barrido/06b-lr2e-4-r32/adaptador/adapter_config.json",
+        "sha256": "d3f6f71c7dac7e35d46d59a62f0aa658486414903ace93d671805f400bbf7419"
+      },
+      "origen_kaggle": {
+        "kernel": "samcaballero/denue-scian-06b-barrido",
+        "version": 1,
+        "carpeta_en_la_salida": "06b-lr2e-4-r32/adaptador"
+      },
+      "predicciones_validacion": {
+        "ruta": "kaggle-output/06b-barrido/06b-lr2e-4-r32/predicciones.jsonl",
+        "sha256": "9e6b429cfd97ff5db451ef9a9ac16ec4af995ab620203803a8473b91ec0a8ed1"
+      },
+      "resultado_validacion": "results/2026-11-24_fase2_06b-lr2e-4-r32.json",
+      "accuracy_validacion": 0.687,
+      "nota": "Ganadora del barrido del 0.6B; su accuracy de validación es algo optimista, porque se eligió con la misma validación."
+    },
+    {
+      "id": "4b-lr2e-4-r32",
+      "tipo": "afinado",
+      "tamano": "4B",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-4B",
+        "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, max_seq_length 256, con su adaptador LoRA, como en su validación.",
+      "adaptador": {
+        "ruta": "kaggle-output/4b/4b-lr2e-4-r32/adaptador/adapter_model.safetensors",
+        "sha256": "68898fd86fec5a4340c45268eb482ed3de76cdc2cf2e2812109343a38fbd943c"
+      },
+      "adaptador_config": {
+        "ruta": "kaggle-output/4b/4b-lr2e-4-r32/adaptador/adapter_config.json",
+        "sha256": "9d4a33173c8709be8fcf3e13dec3b91db8595b2f9ee8517bb59b271a69e50336"
+      },
+      "origen_kaggle": {
+        "kernel": "samcaballero/denue-scian-4b",
+        "version": 1,
+        "carpeta_en_la_salida": "4b-lr2e-4-r32/adaptador"
+      },
+      "predicciones_validacion": {
+        "ruta": "kaggle-output/4b/4b-lr2e-4-r32/predicciones.jsonl",
+        "sha256": "845b4f419998b9a86c246e0b26d4efebe8cc7af99ef813f0fe93bd4e295d9df9"
+      },
+      "resultado_validacion": "results/2026-11-24_fase2_4b-lr2e-4-r32.json",
+      "accuracy_validacion": 0.707,
+      "nota": "La configuración ganadora del 0.6B, transferida al 4B sin barrido propio. Es el modelo elegido en validación para el análisis de errores."
+    },
+    {
+      "id": "06b-base-0shot",
+      "tipo": "base",
+      "tamano": "0.6B",
+      "modo": "0-shot",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-0.6B",
+        "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, la misma revisión, sin adaptador, max_seq_length 256."
+    },
+    {
+      "id": "4b-base-0shot",
+      "tipo": "base",
+      "tamano": "4B",
+      "modo": "0-shot",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-4B",
+        "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, la misma revisión, sin adaptador, max_seq_length 256."
+    },
+    {
+      "id": "06b-base-fewshot",
+      "tipo": "base",
+      "tamano": "0.6B",
+      "modo": "few-shot",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-0.6B",
+        "revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, la misma revisión, sin adaptador, max_seq_length de largo_maximo.few_shot."
+    },
+    {
+      "id": "4b-base-fewshot",
+      "tipo": "base",
+      "tamano": "4B",
+      "modo": "few-shot",
+      "corre_en": "Kaggle (GPU T4)",
+      "base": {
+        "repo": "Qwen/Qwen3-4B",
+        "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+      },
+      "carga": "NF4 de bitsandbytes con Unsloth, la misma revisión, sin adaptador, max_seq_length de largo_maximo.few_shot."
+    }
+  ],
+  "no_van_a_test": [
+    {
+      "modelo": "06b-inicial",
+      "motivo": "Primera corrida real del 0.6B (Fase 2, pasos 9 y 11); la superó el barrido."
+    },
+    {
+      "modelo": "06b-lr1e-4-r8",
+      "motivo": "Configuración del barrido del 0.6B que no ganó en validación."
+    },
+    {
+      "modelo": "06b-lr1e-4-r32",
+      "motivo": "Configuración del barrido del 0.6B que no ganó en validación."
+    },
+    {
+      "modelo": "06b-lr2e-4-r8",
+      "motivo": "Configuración del barrido del 0.6B que no ganó en validación."
+    },
+    {
+      "modelo": "tfidf-lr-C1",
+      "motivo": "TF-IDF + LR con C = 1: perdió contra C = 10 en validación."
+    },
+    {
+      "modelo": "diccionario-split-aleatorio",
+      "motivo": "Solo para el experimento de fuga del paso 10, nunca para elegir ni para la evaluación final."
+    },
+    {
+      "modelo": "tfidf-lr-C10-split-aleatorio",
+      "motivo": "Solo para el experimento de fuga del paso 10, nunca para elegir ni para la evaluación final."
+    }
+  ],
+  "orden_en_el_kernel": [
+    "06b-lr2e-4-r32",
+    "4b-lr2e-4-r32",
+    "06b-base-0shot",
+    "4b-base-0shot",
+    "06b-base-fewshot",
+    "4b-base-fewshot"
+  ],
+  "prompt": {
+    "implementacion": "src/prompt_clasificador.py (prompt_generacion), sin cambios.",
+    "formato": "ChatML de Qwen3, un solo mensaje de usuario y el bloque <think> vacío: <|im_start|>user\\n{instrucción}\\nNombre: {nom_estab}<|im_end|>\\n<|im_start|>assistant\\n<think>\\n\\n</think>\\n\\n",
+    "entrada": "nom_estab original, sin cambios.",
+    "enable_thinking": false,
+    "uso": "Los 6 LLM usan este prompt. En el few-shot se le anteponen los turnos de los ejemplos (ver few_shot.formato_prompt)."
+  },
+  "decodificacion": {
+    "afinados": {
+      "regla": "Exactamente la decodificación de su validación.",
+      "do_sample": false,
+      "num_beams": 1,
+      "lote": 1,
+      "max_new_tokens": 16,
+      "tokens_de_fin": [
+        "<|im_end|>",
+        "<|endoftext|>"
+      ],
+      "max_seq_length": 256
+    },
+    "base": {
+      "regla": "Greedy, con el mismo prompt, la misma carga NF4 y la misma revisión que los afinados, sin adaptador.",
+      "do_sample": false,
+      "num_beams": 1,
+      "lote": 1,
+      "max_new_tokens": 32,
+      "tokens_de_fin": [
+        "<|im_end|>",
+        "<|endoftext|>"
+      ],
+      "max_seq_length": {
+        "0-shot": 256,
+        "few-shot": 1600
+      },
+      "reporte_del_tope": "% de salidas que llegan al tope de 32 fichas sin token de fin, por modelo y conjunto."
+    },
+    "parametros_de_muestreo": "temperature, top_p, top_k y min_p en None, como en validación (greedy).",
+    "respuesta": "Las fichas generadas antes del primer token de fin (todas, si no llega ninguno), decodificadas con skip_special_tokens=False. Se guardan crudas en las predicciones (id y respuesta), igual que en validación (cortar_respuesta de src/humo_kaggle.py)."
+  },
+  "largo_maximo": {
+    "general": 256,
+    "few_shot": 1600,
+    "cota_maxima_few_shot": 1526,
+    "cota_maxima_por_conjunto": {
+      "test": 1526,
+      "hard": 1448
+    },
+    "nuevas_base": 32,
+    "nuevas_afinados": 16,
+    "multiplo": 64,
+    "metodo_few_shot": "Cota superior por bytes: cada ficha del BPE por bytes de Qwen, especial o no, cubre al menos un byte, así que las fichas de un prompt no pasan de sus bytes UTF-8 (el máximo entre el texto y su forma NFC). El límite es el menor múltiplo de 64 mayor o igual a la cota máxima del prompt few-shot en test y hard más las 32 fichas nuevas: 1526 + 32 = 1558, que sube a 1600. Se calculó en la laptop sin tokenizador; las fichas reales serán menos.",
+    "comprobacion_en_el_kernel": "Antes de generar la primera respuesta de cada modelo, el kernel cuenta con su tokenizador las fichas reales del prompt de TODAS las filas que ese modelo va a responder, y comprueba que fichas del prompt + max_new_tokens no pasen de su largo máximo (256, o 1600 en el few-shot). Si alguna fila pasa, se detiene antes de empezar ese modelo, nunca a la mitad.",
+    "nunca_trunca": "Ningún prompt se trunca: la tokenización no usa truncation. Una fila que no cabe detiene el kernel."
+  },
+  "few_shot": {
+    "k": 5,
+    "semilla": 42,
+    "fuente": {
+      "dataset_kaggle": "samcaballero/denue-scian-clasificador",
+      "archivo": "train_final.jsonl",
+      "sha256": "6f3d0b1ce5472ad96581d27605b1a19e868431e537686da72825da0ef136b917",
+      "filas": 187350,
+      "manda": "Manda la copia de Kaggle, porque es la que verá el kernel. data/splits/train_final.jsonl da la misma selección (mismo hash, mismos códigos y mismos sectores, comprobado)."
+    },
+    "regla": "perm = numpy.random.default_rng(42).permutation(n) sobre las filas en el orden del archivo. Se recorre perm y se toma la primera fila de cada sector oficial aún no visto, hasta tener 5. El sector sale de los 2 primeros dígitos de codigo_act con sectores_oficiales (31-33 y 48-49 agrupados; 43 y 46 separados).",
+    "sectores_oficiales": [
+      "11",
+      "21",
+      "22",
+      "23",
+      "31-33",
+      "43",
+      "46",
+      "48-49",
+      "51",
+      "52",
+      "53",
+      "54",
+      "55",
+      "56",
+      "61",
+      "62",
+      "71",
+      "72",
+      "81",
+      "93"
+    ],
+    "orden_en_el_prompt": "El orden de elección.",
+    "mismo_bloque": "El mismo bloque de 5 ejemplos para todas las filas de test y de hard y para los dos tamaños.",
+    "formato_prompt": "Multi-turno. Por cada ejemplo, un turno de usuario con el prompt único y un turno de asistente con su código, sin bloque <think>: <|im_start|>user\\n{contenido_usuario(nombre del ejemplo)}<|im_end|>\\n<|im_start|>assistant\\n{código}<|im_end|>\\n. Al final, prompt_generacion(nom_estab de la fila). Implementado en prompt_fewshot de src/preregistro_fase4.py.",
+    "prueba_de_plantilla": "Debe ser idéntico, byte a byte, a tok.apply_chat_template(mensajes, tokenize=False, add_generation_prompt=True, enable_thinking=False) con los 5 pares usuario/asistente y el mensaje de la fila. La prueba va en el kernel (paso 15).",
+    "formato_hash": "SHA-256 de los 5 ids en el orden de elección, unidos con \\n y con \\n al final, en ASCII (sha256_ids de src/preregistro_fase4.py).",
+    "sha256_ids": "0f14aa91accbcbe286b8b836ca1045343e63966cd0e43815516a3f3d6fcbe4d2",
+    "codigos": [
+      "461122",
+      "812210",
+      "722513",
+      "712112",
+      "541110"
+    ],
+    "sectores": [
+      "46",
+      "81",
+      "72",
+      "71",
+      "54"
+    ],
+    "llaves_fuera_de_val_test_hard": true,
+    "nombres": "Los nombres de los ejemplos nunca entran al repo. El kernel los vuelve a elegir con esta regla en la copia de Kaggle y comprueba sha256_ids, codigos y sectores; si no coinciden, se detiene."
+  },
+  "metricas": {
+    "principal": "Accuracy de clase (regla 5) en test, con la distribución natural: las 2,000 filas, sin filtrar ni balancear.",
+    "evaluador": "Uno solo para los 8 modelos en la tabla principal: src/evaluador_clasificador.py (evaluar_validacion sobre las filas de referencia de test o de hard) y src/metricas_clasificador.py (regla 5).",
+    "reportadas": [
+      "Conteos y % de las tres categorías de la regla 5: formato inválido, código inexistente y código existente, sobre el total.",
+      "Accuracy por nivel: sector oficial, subsector, rama, subrama y clase.",
+      "Macro-F1 de sector.",
+      "Subgrupos de la regla 8: con y sin la frase SIN NOMBRE, genéricas y no genéricas.",
+      "Concentración de las respuestas.",
+      "% de salidas que llegan al tope de fichas nuevas, por LLM."
+    ],
+    "ic95": "Bootstrap de percentiles: 1,000 remuestreos con numpy.random.default_rng(42), con intervalo_bootstrap del evaluador.",
+    "tolerante": {
+      "solo_secundaria": true,
+      "modelos": [
+        "06b-lr2e-4-r32",
+        "4b-lr2e-4-r32",
+        "06b-base-0shot",
+        "4b-base-0shot",
+        "06b-base-fewshot",
+        "4b-base-fewshot"
+      ],
+      "conjuntos": [
+        "test",
+        "hard"
+      ],
+      "definicion": "Sobre la respuesta cruda guardada, que es la salida completa antes del primer token de fin, se busca la primera secuencia de exactamente 6 dígitos rodeada de no-dígitos o de las orillas: re.search(r\"(?<![0-9])[0-9]{6}(?![0-9])\", respuesta). Si no hay ninguna, es formato inválido. Si la hay, es código existente o inexistente según el catálogo, y es acierto si es igual a codigo_act.",
+      "digitos": "Solo dígitos ASCII [0-9], como en la regla 5; un dígito Unicode al lado cuenta como no-dígito.",
+      "reporte": "Aparte de la tabla principal, con los conteos de sus tres categorías, su accuracy y su IC."
+    },
+    "hard": "Total y por tipo (ambiguo e indirecto), exploratorio, con las dos advertencias de comparaciones.hard: la de la curación de las 105 filas y la del tipo indirecto (31 filas, menos de 50), que se reporta con su intervalo."
+  },
+  "comparaciones": {
+    "definicion": "Diferencia pareada b − a sobre las mismas filas, en orden de int(id), con IC 95 % por bootstrap pareado: diferencia_pareada_bootstrap del evaluador, 1,000 remuestreos, numpy.random.default_rng(42).",
+    "principales": {
+      "metrica": "accuracy de clase",
+      "conjunto": "test",
+      "pares": [
+        {
+          "a": "tfidf-lr-C10",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "tfidf-lr-C10",
+          "b": "4b-lr2e-4-r32"
+        }
+      ]
+    },
+    "secundarias": {
+      "metrica": "accuracy de clase",
+      "conjunto": "test",
+      "pares": [
+        {
+          "a": "06b-lr2e-4-r32",
+          "b": "4b-lr2e-4-r32"
+        },
+        {
+          "a": "06b-base-0shot",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "06b-base-fewshot",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "4b-base-0shot",
+          "b": "4b-lr2e-4-r32"
+        },
+        {
+          "a": "4b-base-fewshot",
+          "b": "4b-lr2e-4-r32"
+        }
+      ]
+    },
+    "secundarias_sector": {
+      "metrica": "accuracy de sector oficial",
+      "conjunto": "test",
+      "pares": [
+        {
+          "a": "tfidf-lr-C10",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "tfidf-lr-C10",
+          "b": "4b-lr2e-4-r32"
+        },
+        {
+          "a": "06b-lr2e-4-r32",
+          "b": "4b-lr2e-4-r32"
+        },
+        {
+          "a": "06b-base-0shot",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "06b-base-fewshot",
+          "b": "06b-lr2e-4-r32"
+        },
+        {
+          "a": "4b-base-0shot",
+          "b": "4b-lr2e-4-r32"
+        },
+        {
+          "a": "4b-base-fewshot",
+          "b": "4b-lr2e-4-r32"
+        }
+      ],
+      "nota": "Las mismas 7 pareadas de principales y secundarias, en accuracy de sector oficial; son secundarias, como en validación."
+    },
+    "hard": {
+      "exploratorio": true,
+      "subconjuntos": [
+        "total",
+        "ambiguo",
+        "indirecto"
+      ],
+      "pares": [
+        "principales",
+        "secundarias",
+        "secundarias_sector"
+      ],
+      "regla_pares": "Se reutilizan los pares de esos grupos, cada uno con su métrica, en cada subconjunto del hard set.",
+      "advertencia_curacion": "Las 105 filas las pre-curó Gemini con criterios de Samuel y del chat; Samuel no las revisó fila por fila; el chat hizo 23 ajustes; sesgo reconocido (CAMBIO DE DISEÑO del 22 nov).",
+      "advertencia_indirecto": "El tipo indirecto tiene 31 filas, menos de 50: se reporta con su intervalo y una advertencia."
+    },
+    "comparaciones_multiples": "Sin corrección por comparaciones múltiples; el reporte lo dice."
+  },
+  "uso_unico": {
+    "abrir_test": "Abrir test es calcular cualquier métrica con codigo_act de test o de hard.",
+    "cuando": "Pasa una sola vez, en local, cuando ya estén guardadas las predicciones de los 8 modelos en test y en hard.",
+    "kernel_falla": "Si el kernel falla por causa técnica, se relanza sin cambios que dependan de resultados y sin calcular métricas de salidas parciales.",
+    "test_contra_validacion": "Si test contradice validación, se reporta tal cual.",
+    "reproduccion_validacion_en_el_kernel": {
+      "modelos": [
+        "06b-lr2e-4-r32",
+        "4b-lr2e-4-r32"
+      ],
+      "que": "Antes de test, el kernel repite la inferencia en validación con los dos afinados y la compara con sus predicciones de validación (predicciones_validacion de cada modelo).",
+      "criterio_de_paro": null,
+      "nota": "El criterio de paro se fija en el paso 15, antes de lanzar el kernel."
+    },
+    "baselines": "Antes de predecir test y hard, cada baseline reproduce fila por fila sus aciertos de validación (ver reproduccion_validacion de cada uno). Después predice desde las copias sin codigo_act y guarda sus predicciones en data/fase4/ (ignorado por git).",
+    "sha256_de_este_archivo": "Cada script de la Fase 4 (kernel, baselines y evaluación final) registra en su salida el SHA-256 de este archivo.",
+    "hard_set": "No se usa para elegir modelos ni hiperparámetros, y se evalúa una sola vez, junto con test."
+  },
+  "errores_para_analisis": {
+    "modelo": "4b-lr2e-4-r32",
+    "por_que": "Es el modelo elegido en validación.",
+    "conjunto": "test",
+    "errores": "Filas de test que el 4B afinado no acierta en clase (regla 5: formato inválido, código inexistente o código equivocado), en orden de int(id).",
+    "n": 50,
+    "sorteo": "posiciones = sort(numpy.random.default_rng(42).permutation(n_errores)[:50]) sobre esa lista, la convención de src/muestra_humo.py.",
+    "archivo": "En data/ (ignorado por git), porque lleva nombres.",
+    "quien_los_clasifica": "Se decide aparte."
+  },
+  "gguf": {
+    "concordancia": "Su concordancia con el modelo de Kaggle se mide en validación, nunca en test ni en hard."
+  }
+}

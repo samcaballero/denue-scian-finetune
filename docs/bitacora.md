@@ -1021,3 +1021,58 @@
   - `91d9fe7`: resultado y figura;
   - el de esta bitácora, el registro y la captura.
 - PARADA: la Fase 2 queda cerrada. Falta el push de Samuel desde PowerShell.
+
+## 2026-11-24 15:27 - Fase 4, paso 14 (Tema A): pre-registro de la evaluación final
+
+- **Qué es.** Antes de mirar test y hard set se escriben las reglas de la evaluación final: qué modelos se miden, con qué prompt, cómo se decodifica, qué métricas se reportan y qué comparaciones son las principales. Así ningún resultado de test puede cambiar las reglas después. A esto se le llama pre-registro.
+- **Dónde quedó.** En `evals/fase4_preregistro.json`. Los scripts de la Fase 4 leen las reglas de ese archivo en vez de repetirlas, y cada uno registra su SHA-256 (su huella digital).
+- **Quién.** El chat de Claude del proyecto propuso las reglas; Claude Code redactó el archivo y esta sección y calculó la selección few-shot y el límite de largo; Samuel lo aprobó.
+- **Los 8 modelos que van a test y al hard set:**
+  - los dos baselines: el diccionario y TF-IDF + regresión logística con C = 10. TF-IDF se reentrena (el modelo no se guardó) y debe reproducir fila por fila sus aciertos de validación del registro `d5e7a84`. El diccionario también. Si alguno no los reproduce, se detiene y decide Samuel;
+  - los dos afinados: 06b-lr2e-4-r32 (la ganadora del barrido del 0.6B) y el 4B afinado;
+  - Qwen3-0.6B y Qwen3-4B sin afinar (modelos base), cada uno 0-shot (sin ejemplos) y few-shot (con 5 ejemplos en el prompt).
+- **Lo que no va a test** queda escrito en el archivo: 06b-inicial, las otras 3 configuraciones del barrido, TF-IDF con C = 1 y los dos modelos del split aleatorio.
+- **Orden en el kernel de Kaggle:** primero los dos afinados, después los dos base 0-shot y al final los dos base few-shot; dentro de cada grupo, el 0.6B antes que el 4B.
+- **Prompt y decodificación (cómo el modelo elige sus fichas):**
+  - todos los LLM usan el mismo prompt de `src/prompt_clasificador.py`;
+  - todos generan en modo greedy (siempre la ficha más probable, sin azar);
+  - los afinados repiten exactamente la decodificación de su validación (hasta 16 fichas nuevas);
+  - los base pueden generar hasta 32 fichas nuevas, con los mismos tokens de fin y el mismo corte de respuesta. Se reporta qué % de salidas llega a ese tope.
+- **Few-shot (ejemplos en el prompt):**
+  - son 5 ejemplos de train final, uno por sector;
+  - se baraja train final con la semilla 42 y se toma la primera fila de cada sector que aún no tenga ejemplo, hasta juntar 5;
+  - salieron los códigos 461122 (sector 46), 812210 (81), 722513 (72), 712112 (71) y 541110 (54), en ese orden;
+  - manda la copia de train final que está en Kaggle, porque es la que verá el kernel. La copia local da exactamente la misma selección;
+  - las llaves de los 5 ejemplos no están en validación, test ni hard;
+  - los nombres no entran al repo: se guarda solo una huella de sus ids (`0f14aa91…`), y el kernel volverá a elegirlos con la misma regla y comprobará la huella.
+- **Largo máximo (CAMBIO DE DISEÑO aprobado por Samuel el 24 nov):**
+  - 256 fichas para todo, salvo el prompt few-shot;
+  - para el few-shot, la laptop no tiene el tokenizador de Qwen. Pero cada ficha ocupa al menos un byte, así que los bytes del prompt son un tope seguro de sus fichas;
+  - el prompt few-shot más largo de test y hard mide 1,526 bytes. Con 32 fichas nuevas y redondeado a múltiplo de 64, el límite queda en 1,600. Las fichas reales serán bastantes menos;
+  - antes de generar la primera respuesta de cada modelo, el kernel cuenta las fichas reales de todas sus filas. Si alguna no cabe, se detiene antes de empezar ese modelo, nunca a la mitad. Nunca recorta un prompt.
+- **Métricas:**
+  - la principal es la accuracy de clase (regla 5) en las 2,000 filas de test, con el mismo evaluador para los 8 modelos;
+  - además, la accuracy por nivel del SCIAN, el macro-F1 de sector y los subgrupos de la regla 8;
+  - los intervalos de confianza salen de un bootstrap (remuestreo) de 1,000 repeticiones con semilla 42;
+  - **métrica tolerante (CAMBIO DE DISEÑO aprobado por Samuel el 24 nov), solo secundaria:** toma el primer grupo de exactamente 6 dígitos de la salida completa, aunque venga con texto alrededor. Se calcula para los 6 LLM y se reporta aparte.
+- **Comparaciones (siempre sobre las mismas filas):**
+  - principales: 06b-lr2e-4-r32 contra TF-IDF y 4B afinado contra TF-IDF, en accuracy de clase en test;
+  - secundarias: 4B afinado contra 06b-lr2e-4-r32, y cada afinado contra su base 0-shot y contra su base few-shot;
+  - las mismas 7 pareadas en accuracy de sector, también secundarias;
+  - no hay corrección por comparaciones múltiples, y el reporte lo dirá;
+  - en el hard set se miden el total y cada tipo, con las mismas pareadas. Es exploratorio y lleva dos advertencias:
+    - la de la curación: las 105 filas las pre-curó Gemini con criterios de Samuel y del chat; Samuel no las revisó fila por fila; el chat hizo 23 ajustes; sesgo reconocido (CAMBIO DE DISEÑO del 22 nov);
+    - la del tamaño: el tipo indirecto tiene 31 filas, menos de 50, y se reporta con su intervalo.
+- **Uso único de test:**
+  - "abrir test" es calcular cualquier métrica con las etiquetas de test o de hard. Pasa una sola vez, en la laptop, cuando ya estén guardadas las predicciones de los 8 modelos;
+  - si el kernel falla por algo técnico, se relanza sin cambios que dependan de resultados;
+  - si test contradice validación, se reporta tal cual;
+  - antes de test, el kernel repite la validación con los dos afinados. Cuándo debe detenerse por no reproducirla se decide en el paso 15.
+- **50 errores para analizar:** del 4B afinado, sorteados con la semilla 42 entre sus errores de test. Quién los clasifica se decide aparte.
+- **GGUF:** su concordancia con el modelo de Kaggle se mide en validación, nunca en test.
+- **Observación al calcular:** ninguna llave de test ni de hard está en train final (0 y 0), así que el diccionario responderá la clase global (la más frecuente) en todas sus filas, igual que en validación.
+- **Código:**
+  - `src/preregistro_fase4.py`: elige los ejemplos, arma el prompt few-shot, calcula el límite y comprueba el config contra el manifest, los archivos locales y las revisiones;
+  - de test y hard solo lee el nombre y la llave: la etiqueta se descarta al leer el archivo y no se calcula ninguna métrica;
+  - `--comprobar` pasa, incluida la revisión de privacidad del config;
+  - `tests/test_preregistro_fase4.py`: 12 pruebas con datos inventados.
