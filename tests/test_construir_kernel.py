@@ -165,7 +165,7 @@ def espacio_06b(generados_por_kernel):
 
 
 def test_registro_de_kernels():
-    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial"]
+    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial", "06b-barrido"]
     assert ck.KERNELS["humo-6b"] is ck.HUMO and ck.HUMO.corrida is None
     assert (ck.CARPETA, ck.ARCHIVO_KERNEL, ck.ID_KERNEL, ck.FUENTES) == (
         ck.HUMO.carpeta, ck.HUMO.archivo_kernel, ck.HUMO.id_kernel, ck.HUMO.fuentes
@@ -270,3 +270,111 @@ def test_cli_verifica_todos_los_kernels(capsys):
         assert f"{espec.carpeta_relativa}: los archivos escritos son exactamente lo generado." in salida
     ck.main(["--verificar", "--kernel", "06b-inicial"])
     assert "humo-6b" not in capsys.readouterr().out
+
+
+# --- Barrido del 0.6B (paso 11) ---
+
+# SHA-256 de lo que se lanzó en Kaggle (kernel y metadata), de sus commits: 1b4e41f y 54374f9.
+LANZADOS = {
+    "humo-6b": {
+        "humo_6b.py": "582e004ce536925e4ad314a310f6ed6732c9a8098f6b26355f816cb6c1eaedaa",
+        "kernel-metadata.json": "c1b5e3aae412903b16d9b87cb4deedfe22a5958b57ece7a860265192087809ac",
+    },
+    "06b-inicial": {
+        "clasificador_06b_inicial.py": "570a3aa8e7c0f1ef180d4adfecedebfcc432bd616f47f31e3d240b34c7dd2975",
+        "kernel-metadata.json": "55bbfde5cff87cb5d853c8331fd3cd2019ebcba01942baae3333d707671373be",
+    },
+}
+ESPEC_BARRIDO = ck.KERNELS["06b-barrido"]
+PERMITIDAS = {"nombre", "descripcion", "learning_rate", "lora.r", "lora.lora_alpha"}
+
+
+def _diferencias(a, b, prefijo=""):
+    """Claves (con punto para lo anidado) en que difieren dos corridas."""
+    res = set()
+    for k in set(a) | set(b):
+        ruta = f"{prefijo}{k}"
+        if isinstance(a.get(k), dict) and isinstance(b.get(k), dict):
+            res |= _diferencias(a[k], b[k], ruta + ".")
+        elif a.get(k) != b.get(k) or type(a.get(k)) is not type(b.get(k)):
+            res.add(ruta)
+    return res
+
+
+@pytest.mark.parametrize("clave", list(LANZADOS))
+def test_kernels_lanzados_no_cambian_ni_un_byte(generados_por_kernel, clave):
+    for archivo, sha in LANZADOS[clave].items():
+        assert hashlib.sha256(generados_por_kernel[clave][archivo]).hexdigest() == sha, archivo
+
+
+@pytest.mark.parametrize("i", range(4))
+def test_cada_corrida_del_barrido_difiere_de_la_inicial_solo_en_tasa_rank_alpha_y_nombres(i):
+    inicial = dict(ESPEC_06B.corrida)
+    c = dict(ESPEC_BARRIDO.corridas[i])
+    difieren = _diferencias(inicial, c)
+    assert difieren <= PERMITIDAS, difieren - PERMITIDAS
+    assert c["lora"]["lora_alpha"] == c["lora"]["r"]
+    assert c["lora"]["target_modules"] == inicial["lora"]["target_modules"]
+    for clave in ("modelo", "max_seq_length", "lote", "gradient_accumulation_steps", "epocas", "optim",
+                  "lr_scheduler_type", "fraccion_warmup", "eval_cada_pasos", "lote_eval", "semilla"):
+        assert c[clave] == inicial[clave], clave
+
+
+def test_el_barrido_es_la_rejilla_completa():
+    corridas = ESPEC_BARRIDO.corridas
+    assert ESPEC_BARRIDO.corrida is None and len(corridas) == 4
+    assert {(c["learning_rate"], c["lora"]["r"]) for c in corridas} == {(1e-4, 8), (1e-4, 32), (2e-4, 8), (2e-4, 32)}
+    assert [c["nombre"] for c in corridas] == ["06b-lr1e-4-r8", "06b-lr1e-4-r32", "06b-lr2e-4-r8", "06b-lr2e-4-r32"]
+    assert all(c["learning_rate"] in (1e-4, 2e-4) and type(c["learning_rate"]) is float for c in corridas)
+    assert (ESPEC_06B.corrida["learning_rate"], ESPEC_06B.corrida["lora"]["r"]) not in {
+        (c["learning_rate"], c["lora"]["r"]) for c in corridas
+    }
+
+
+def test_kernel_del_barrido_lleva_las_corridas_y_sus_datos(generados_por_kernel, manifest):
+    texto = generados_por_kernel["06b-barrido"][ESPEC_BARRIDO.archivo_kernel].decode("utf-8")
+    ns = {"__name__": "kernel_en_prueba"}
+    exec(compile(texto, ESPEC_BARRIDO.archivo_kernel, "exec"), ns)
+    assert ns["CORRIDAS"] == [dict(c) for c in ESPEC_BARRIDO.corridas]
+    assert "CORRIDA" not in ns
+    archivos = manifest["kaggle_datasets"]["denue_scian_clasificador"]["archivos"]
+    assert ns["ESPERADOS"] == {a: archivos[a]["sha256"] for a in ("train_final.jsonl", "val.jsonl")}
+    assert "from src.barrido_kaggle import main" in texto
+    assert "main(ESPERADOS, T_ARRANQUE, SHA256_FUENTES, CORRIDAS)" in texto
+    assert ESPEC_BARRIDO.fuentes[-1] == "src/barrido_kaggle.py"
+    assert set(ESPEC_06B.fuentes) < set(ESPEC_BARRIDO.fuentes)
+
+
+def test_candado_del_kernel_del_barrido(generados_por_kernel, manifest):
+    kernel = generados_por_kernel["06b-barrido"][ESPEC_BARRIDO.archivo_kernel].decode("utf-8")
+    ck.candado(kernel, manifest, ESPEC_BARRIDO)
+    for texto in ("test.jsonl", "hard.jsonl"):
+        assert texto not in kernel
+    splits = manifest["splits"]
+    for e in ("clasificador_test", "clasificador_hard", "clasificador_validacion", "clasificador_train_final"):
+        with pytest.raises(ck.ErrorKernel):
+            ck.candado(kernel + f"\n# {splits[e]['sha256']}\n", manifest, ESPEC_BARRIDO)
+
+
+def test_metadata_del_barrido_fija_la_imagen_de_06b_inicial(generados_por_kernel, manifest):
+    meta = json.loads(generados_por_kernel["06b-barrido"][ck.ARCHIVO_METADATA].decode("ascii"))
+    assert meta["id"] == "samcaballero/denue-scian-06b-barrido" and ck.slug(meta["title"]) == "denue-scian-06b-barrido"
+    assert meta["code_file"] == "clasificador_06b_barrido.py"
+    assert meta["is_private"] is True and meta["enable_gpu"] is True and meta["machine_shape"] == "NvidiaTeslaT4"
+    assert meta["dataset_sources"] == [manifest["kaggle_datasets"]["denue_scian_clasificador"]["id_kaggle"]]
+    assert meta["docker_image_pinning_type"] == "original"
+    assert meta["docker_image"] == ck.DOCKER_06B_INICIAL
+    assert ck.DOCKER_06B_INICIAL.split("@sha256:")[1].isalnum() and len(ck.DOCKER_06B_INICIAL.split("@sha256:")[1]) == 64
+    for clave in ("humo-6b", "06b-inicial"):  # los kernels ya lanzados no llevan docker_image
+        assert "docker_image" not in json.loads(generados_por_kernel[clave][ck.ARCHIVO_METADATA])
+
+
+def test_barrido_con_nombres_repetidos_o_con_corrida_y_corridas_no_genera(manifest):
+    repetidas = (ESPEC_BARRIDO.corridas[0], ESPEC_BARRIDO.corridas[0])
+    with pytest.raises(ck.ErrorKernel, match="nombres distintos"):
+        ck.generar(manifest, espec=ck.EspecKernel(**{**ESPEC_BARRIDO.__dict__, "corridas": repetidas}))
+    with pytest.raises(ck.ErrorKernel, match="no los dos"):
+        ck.generar(manifest, espec=ck.EspecKernel(**{**ESPEC_BARRIDO.__dict__, "corrida": ESPEC_06B.corrida}))
+    mala = dict(ESPEC_BARRIDO.corridas[1], semilla=7)
+    with pytest.raises(ck.ErrorKernel):
+        ck.generar(manifest, espec=ck.EspecKernel(**{**ESPEC_BARRIDO.__dict__, "corridas": (mala,)}))

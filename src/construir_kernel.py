@@ -14,9 +14,12 @@ los módulos de `src/` que usa cada kernel van incrustados en ese archivo, sin c
 Cada kernel tiene una especificación (`EspecKernel`) en `KERNELS`:
 - `humo-6b`: la prueba de punta a punta (paso 6b), que ya corrió en Kaggle; se genera idéntica
   byte a byte, y sus módulos (`src/humo_kaggle.py` y los que incrusta) no se modifican;
-- `06b-inicial`: la primera corrida real del clasificador con Qwen3-0.6B (paso 9).
-Un kernel ya lanzado no se regenera con otro contenido. Las corridas siguientes (barrido, 4B)
-serán especificaciones nuevas, armadas con `corrida()` sobre `CORRIDA_POR_OMISION`.
+- `06b-inicial`: la primera corrida real del clasificador con Qwen3-0.6B (paso 9);
+- `06b-barrido`: el barrido del 0.6B (paso 11), 4 configuraciones en un solo kernel, cada una en
+  su propio proceso (`src/barrido_kaggle.py`), con la imagen de Docker de 06b-inicial fijada.
+Un kernel ya lanzado no se regenera con otro contenido: los campos que se agregaron para el
+barrido (`corridas` y `docker_image`) son opcionales y, sin ellos, el texto generado no cambia.
+Las corridas siguientes se arman con `corrida()` sobre `CORRIDA_POR_OMISION`.
 
 También genera `kernel-metadata.json` (privado, GPU T4, internet y el dataset como única
 fuente), en ASCII.
@@ -134,6 +137,8 @@ class EspecKernel:
     resumen: str  # primera línea del docstring del kernel
     comentario_esperados: str
     corrida: Mapping | None = field(default=None)
+    corridas: tuple | None = field(default=None)  # barrido: varias corridas en un kernel
+    docker_image: str | None = field(default=None)  # imagen fijada en kernel-metadata.json
 
     @property
     def carpeta(self) -> Path:
@@ -181,7 +186,57 @@ CLASIFICADOR_06B_INICIAL = EspecKernel(
     ),
 )
 
-KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL)}
+# Barrido del 0.6B (Fase 2, paso 11): tasa {1e-4, 2e-4} × rank {8, 32}, con alpha = rank (escala
+# alpha/rank = 1, como en la inicial; lo propuso el chat de Claude del proyecto y Samuel lo confirmó
+# el 2026-11-23). Todo lo demás es la configuración de 06b-inicial.
+TASAS_BARRIDO_06B = (("1e-4", 1e-4), ("2e-4", 2e-4))
+RANKS_BARRIDO_06B = (8, 32)
+
+
+def corrida_barrido_06b(etiqueta_tasa: str, tasa: float, rank: int) -> dict:
+    """Una configuración del barrido: la de 06b-inicial con otra tasa, otro rank y alpha = rank."""
+    return corrida(
+        f"06b-lr{etiqueta_tasa}-r{rank}",
+        f"Barrido del 0.6B (Fase 2, paso 11): tasa {etiqueta_tasa}, rank {rank} y alpha {rank}; lo demás como 06b-inicial.",
+        MODELO_06B,
+        lote=32,
+        learning_rate=tasa,
+        lora={**CORRIDA_POR_OMISION["lora"], "r": rank, "lora_alpha": rank},
+    )
+
+
+CORRIDAS_BARRIDO_06B = tuple(
+    corrida_barrido_06b(etiqueta, tasa, rank) for etiqueta, tasa in TASAS_BARRIDO_06B for rank in RANKS_BARRIDO_06B
+)
+
+# Imagen de Docker con la que corrió 06b-inicial: `kaggle kernels pull samcaballero/denue-scian-06b-inicial -m`
+# (solo lectura, 2026-11-23; permiso aprobado por Samuel).
+DOCKER_06B_INICIAL = "gcr.io/kaggle-private-byod/python@sha256:fc720c15545eb096a510e1f085b17fc118387a007599424d953a4f327b71cacf"
+
+BARRIDO_06B = EspecKernel(
+    clave="06b-barrido",
+    carpeta_relativa="notebooks/kaggle-06b-barrido",
+    archivo_kernel="clasificador_06b_barrido.py",
+    id_kernel="samcaballero/denue-scian-06b-barrido",
+    titulo="DENUE SCIAN 06b barrido",
+    entrada="denue_scian_clasificador",
+    archivos_datos=(ARCHIVO_TRAIN_FINAL, ARCHIVO_VAL_CLASIFICADOR),
+    fuentes=(
+        "src/__init__.py",
+        "src/normalizacion.py",
+        "src/prompt_clasificador.py",
+        "src/humo_kaggle.py",
+        "src/clasificador_kaggle.py",
+        "src/barrido_kaggle.py",
+    ),
+    modulo="src.barrido_kaggle",
+    resumen="Kernel de Kaggle: barrido del clasificador con Qwen3-0.6B, 4 configuraciones (Fase 2, paso 11).",
+    comentario_esperados="SHA-256 de los archivos del dataset privado",
+    corridas=CORRIDAS_BARRIDO_06B,
+    docker_image=DOCKER_06B_INICIAL,
+)
+
+KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B)}
 
 # Nombres de antes de la generalización; apuntan a la prueba (los usa src/evaluar_humo.py).
 CARPETA_RELATIVA = HUMO.carpeta_relativa
@@ -263,7 +318,16 @@ def generar_kernel(textos: Mapping[str, str], hashes_datos: Mapping[str, str], e
     sha_fuentes = {f: sha256_bytes(t.encode("utf-8")) for f, t in textos.items()}
     fuentes = "{\n" + "".join(f"    {f!r}: {_literal(t, '    ')},\n" for f, t in textos.items()) + "}"
     modulos = ", ".join(f"`{f}`" for f in textos)
-    if espec.corrida is None:
+    if espec.corrida is not None and espec.corridas is not None:
+        raise ErrorKernel("Un kernel lleva una corrida o un barrido, no los dos.")
+    if espec.corridas is not None:
+        nota = " con las\nconfiguraciones del barrido (CORRIDAS)"
+        bloque_corrida = (
+            f'\n# Configuraciones del barrido "{espec.clave}" (src/construir_kernel.py), en el orden en que corren.\n'
+            f"CORRIDAS = {_valor_literal([dict(c) for c in espec.corridas])}\n"
+        )
+        argumentos = "ESPERADOS, T_ARRANQUE, SHA256_FUENTES, CORRIDAS"
+    elif espec.corrida is None:
         nota, bloque_corrida, argumentos = "", "", "ESPERADOS, T_ARRANQUE, SHA256_FUENTES"
     else:
         nota = " con la\nconfiguración de la corrida (CORRIDA)"
@@ -352,6 +416,8 @@ def metadata_kernel(manifest: Mapping, espec: EspecKernel = HUMO) -> bytes:
         "model_sources": [],
         "docker_image_pinning_type": "original",
     }
+    if espec.docker_image is not None:
+        meta["docker_image"] = espec.docker_image
     return (json.dumps(meta, ensure_ascii=True, indent=2) + "\n").encode("ascii")
 
 
@@ -371,11 +437,13 @@ def candado(kernel: str, manifest: Mapping, espec: EspecKernel = HUMO) -> None:
 
 def generar(manifest: Mapping, raiz: Path = REPO_RAIZ, espec: EspecKernel = HUMO) -> dict[str, bytes]:
     """Bytes de los dos archivos de la carpeta del kernel."""
-    if espec.corrida is not None:
+    for c in ([espec.corrida] if espec.corrida is not None else []) + list(espec.corridas or ()):
         try:
-            validar_corrida(espec.corrida)
+            validar_corrida(c)
         except ValueError as e:
             raise ErrorKernel(str(e)) from e
+    if espec.corridas is not None and len({c["nombre"] for c in espec.corridas}) != len(espec.corridas):
+        raise ErrorKernel("Las corridas de un barrido deben tener nombres distintos.")
     kernel = generar_kernel(leer_fuentes(raiz, espec), esperados(manifest, espec), espec)
     candado(kernel, manifest, espec)
     compile(kernel, espec.archivo_kernel, "exec")
@@ -418,12 +486,14 @@ def main(argv=None) -> None:
         print("SHA-256 esperados de los datos (data/manifest.json):")
         for a, h in esperados(manifest, espec).items():
             print(f"  {a}: {h}")
-        if espec.corrida is not None:
-            c = espec.corrida
+        for c in ([espec.corrida] if espec.corrida is not None else []) + list(espec.corridas or ()):
             print(
-                f"Corrida: {c['modelo']['repo']}, lote {c['lote']}, tasa {c['learning_rate']}, "
-                f"{c['epocas']} época(s), largo máximo {c['max_seq_length']}, LoRA r={c['lora']['r']}"
+                f"Corrida {c['nombre']}: {c['modelo']['repo']}, lote {c['lote']}, tasa {c['learning_rate']}, "
+                f"{c['epocas']} época(s), largo máximo {c['max_seq_length']}, LoRA r={c['lora']['r']} "
+                f"alpha={c['lora']['lora_alpha']}"
             )
+        if espec.docker_image is not None:
+            print(f"Imagen de Docker fijada: {espec.docker_image}")
         for nombre, datos in generados.items():
             print(f"{espec.carpeta_relativa}/{nombre}: {len(datos):,} bytes, SHA-256 {sha256_bytes(datos)}")
         print("Candado: sin test.jsonl ni hard.jsonl y sin otros SHA-256 del manifest.")

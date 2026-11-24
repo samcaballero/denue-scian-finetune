@@ -1,0 +1,20 @@
+{
+  "id": "samcaballero/denue-scian-06b-barrido",
+  "title": "DENUE SCIAN 06b barrido",
+  "code_file": "clasificador_06b_barrido.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "samcaballero/denue-scian-clasificador"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "docker_image_pinning_type": "original",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:fc720c15545eb096a510e1f085b17fc118387a007599424d953a4f327b71cacf"
+}
