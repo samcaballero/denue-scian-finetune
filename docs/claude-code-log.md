@@ -559,3 +559,39 @@ Todos se corrigieron antes de su commit.
 Se corrigió antes del commit.
 
 - **Primera versión de la figura del barrido:** el subtítulo se salía del lienzo y, con el eje de validación desde 0, las diferencias finales entre configuraciones no se veían. Claude Code la revisó con curvas inventadas; el panel de validación ahora empieza en el paso 1,000.
+
+## 2026-11-24 — Fase 2, paso 12 (Parte B): resultados del barrido, ganadora y kernel del 4B
+
+**Qué se hizo:**
+- `status` (COMPLETE), `list --mine` y `kaggle kernels output` del barrido a una carpeta nueva y vacía.
+- Evaluación del barrido: descarga, nombres, orquestador, etapas, métricas, pareada contra 06b-inicial y regla de elección.
+- Resultados: un JSON por configuración, el resumen y la figura.
+- La regla eligió `06b-lr2e-4-r32`.
+- Kernel del 4B escrito con esa configuración (tasa 2e-4, rank 32, alpha 32), sin lanzar.
+- Cinco capturas revisadas y copiadas.
+- Autoría: el chat de Claude del proyecto redactó la instrucción de la Parte B y Samuel la aprobó.
+- Los commits están sin push.
+
+### Proceso
+
+- **Duración sin la página del kernel.** Samuel no la abrió. La instrucción pidió tomar la duración de `barrido.json` (inicio y fin del orquestador) y del `lastRunTime` de la CLI. Claude Code cambió las observaciones del evaluador: quitó los campos de la página y agregó una función que calcula la duración desde esos dos datos. Coincide con la cuota descontada (4 h 46 min).
+- **PARADA del evaluador.** La primera evaluación se detuvo: la comprobación de los argumentos del Trainer fallaba en las 4 configuraciones.
+  - Claude Code imprimió solo claves, tipos y rutas de trabajo. La única diferencia real era `output_dir`; los otros dos valores eran los tapados de siempre.
+  - Lo trató como en el paso 11, cuando dos comprobaciones fallaban por el evaluador y no por la corrida: corrigió lo esperado, agregó una prueba y siguió. Lo reporta en la PARADA B.
+- **Resultados reproducibles.** Se escribieron dos veces desde el commit `9584237`, con bytes idénticos.
+- **Ids en los JSON.** Claude Code buscó los 188,350 ids del paquete como números en los JSON nuevos, imprimiendo solo conteos. Las 28 coincidencias van tras un punto decimal: son cifras de valores con punto flotante.
+- **Capturas.** Claude Code revisó los bloques de cada PNG (ninguno de texto ni EXIF) y miró cada imagen. Las cinco se copiaron con el mismo SHA-256.
+
+### Hallazgos
+
+- **El orden del train es el mismo en las 4 configuraciones y en 06b-inicial:** el barajado no depende del rank ni de la tasa. Se espera lo mismo en el 4B.
+- **El rank pesa poco en el tiempo del 0.6B:** el 32 tardó un 2 % más que el 8 en el entrenamiento. La estimación del 4B (5 %) queda conservadora.
+- **La instalación dentro de cada proceso tardó 4 s, contra 48 s en 06b-inicial,** porque el orquestador ya había instalado todo. Los imports bajaron de 46 a 15 s desde la segunda configuración.
+- **La ventaja de la ganadora sobre la inicial no es clara:** pareada de +0.009, con un IC de −0.005 a +0.024.
+
+### Bug que Claude Code introdujo y encontró
+
+- **El evaluador del barrido esperaba la carpeta de trabajo de 06b-inicial** (Parte A).
+  - `argumentos_esperados` armaba `output_dir` con `/tmp/denue_trabajo/trainer_<nombre>`. El orquestador le da a cada proceso `/tmp/denue_trabajo/<nombre>/`.
+  - Las pruebas de la Parte A no lo detectaron porque su barrido inventado no traía argumentos.
+  - Ahora `resumen_etapas` recibe la carpeta de trabajo de cada proceso, y la prueba del flujo lleva los argumentos como los arma Kaggle.

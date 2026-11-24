@@ -779,3 +779,88 @@
 - Pruebas: 48 nuevas con datos inventados; pasan las 754 del repo.
 - Commit: el de esta entrada (código, pruebas, bitácora y registro).
 - PARADA A: falta que Samuel confirme que el barrido terminó (0 Active Events) y dé la duración de la página del kernel y la cuota que queda.
+
+## 2026-11-24 - Fase 2, paso 12 (Parte B): resultados del barrido del 0.6B, configuración ganadora y kernel del 4B
+
+- Autoría:
+  - El chat de Claude del proyecto redactó la instrucción de la Parte B y Samuel la aprobó.
+  - La regla de elección es la del paso 11, escrita antes de lanzar; Claude Code solo la aplicó.
+- **Fin del barrido:**
+  - Samuel vio en Kaggle "Version #1 Successful" y "0 Active Events"; no abrió la página del kernel.
+  - `kaggle kernels status` dio COMPLETE el 2026-11-23 a las 11:55 pm.
+- **Duración**, de `barrido.json` y del `lastRunTime` de la CLI:
+  - el orquestador corrió de 00:56:47 a 05:42:03 UTC (17,115.8 s, 4.754 h); el contenedor arrancó 7.6 s después del `lastRunTime`;
+  - del `lastRunTime` al fin del orquestador pasaron 17,123 s (4.756 h). Es el valor de `horas_gpu` del resumen;
+  - estaban estimadas 4.98 h: cada configuración terminó entre un 2 y un 6 % antes de lo estimado.
+- **Cuota:** 28 h 35 min antes del barrido y 23 h 49 min después (observada por Samuel hacia las 11:45 pm). Kaggle descontó 4 h 46 min, igual que la duración medida.
+- **Sesión interactiva:** hacia las 7:50 pm, Gemini abrió sin querer una sesión interactiva de GPU desde la vista /edit al revisar el log, y quedó cancelada. La cuota a las 9:21 pm (26 h 12 min) coincide con el tiempo del barrido, así que no gastó cuota apreciable.
+- **Capturas**, de `../evidencia/` a `docs/evidencia/`, copiadas sin cambios (mismo SHA-256):
+  - `2026-11-23_fase2_barrido-lanzado.png` (`b5f54be5…`): el kernel en Running a los 2 min, con 1 Active Event;
+  - `2026-11-23_fase2_configuraciones-barrido.png` (`a5505743…`): la tabla de las 4 configuraciones;
+  - `2026-11-23_fase2_tabla-06b-inicial.png` (`97591acd…`): la tabla de métricas de 06b-inicial y los baselines;
+  - `2026-11-23_fase2_barrido-successful.png` (`cab7d897…`): Version #1 Successful y 0 Active Events;
+  - `2026-11-23_fase2_cuota-despues-barrido.png` (`fcb86813…`): 23 h 49 min de GPU disponibles.
+
+  Claude Code las revisó: solo muestran títulos, estados, la cuota y tablas de números y configuraciones. No muestran cuentas, avatares, rutas, correos, llaves, tokens ni nombres de negocios, y no traen metadatos de texto ni EXIF.
+- **Descarga** a `kaggle-output/06b-barrido/`, ignorada por git:
+  - 36 archivos y 213.6 MB, casi todo de los cuatro adaptadores (202.1 MB);
+  - coinciden los 34 que lista `barrido.json` con su SHA-256 (no lo traen `barrido.json` ni el log de la CLI);
+  - cada configuración trae exactamente lo que lista su `mediciones.json`, y sus predicciones son las de su inferencia;
+  - ningún archivo tiene un SHA-256 del manifest.
+- **Revisión de nombres**, con la regla acotada del paso 11 y antes de mirar logs o mediciones:
+  - sin posible fuga en ningún archivo, y ninguna llave de varias palabras;
+  - los nombres crudos con letras son de 4 caracteres o menos y siempre van dentro de un token más largo (pip freeze y logs); los demás son solo dígitos;
+  - el kernel tapó en cada configuración los mismos dos valores de siempre (`save_strategy` y `train_sampling_strategy`).
+- **Etapas:** todas bien en las 4 configuraciones.
+  - Orquestador: dos T4 en la sesión y una en uso; las 20 versiones fijadas con pip quedaron instaladas; torch, torchvision, triton y el controlador son los de 06b-inicial, así que no hay advertencias.
+  - Cada proceso terminó con código 0 y dejó la GPU 0 en 0 MiB.
+  - El orden del train es el de 06b-inicial (`b6b53a85…`) en las 4: el barajado no depende del rank ni de la tasa.
+  - El punto 0 de validación sale del log de cada configuración (3.3235 en las cuatro, como en 06b-inicial).
+- Resultados en validación: 1,000 filas, IC 95 % por bootstrap de 1,000 remuestreos con semilla 42. La diferencia pareada es configuración − 06b-inicial, alineada fila por fila por `int(id)`.
+
+  | Configuración | Tasa | Rank | Accuracy (IC 95 %) | Sector (IC 95 %) | Macro-F1 de sector | Pareada de clase (IC 95 %) | Pareada de sector (IC 95 %) | Proceso |
+  |---|---:|---:|---|---|---:|---|---|---:|
+  | 06b-inicial | 2e-4 | 16 | 0.678 (0.646-0.707) | 0.847 (0.824-0.869) | 0.731 | — | — | 72.5 min |
+  | 06b-lr1e-4-r8 | 1e-4 | 8 | 0.643 (0.612-0.673) | 0.830 (0.805-0.853) | 0.709 | −0.035 (−0.050 a −0.020) | −0.017 (−0.033 a −0.002) | 71.0 min |
+  | 06b-lr1e-4-r32 | 1e-4 | 32 | 0.664 (0.632-0.694) | 0.839 (0.817-0.862) | 0.726 | −0.014 (−0.026 a −0.001) | −0.008 (−0.019 a +0.003) | 71.8 min |
+  | 06b-lr2e-4-r8 | 2e-4 | 8 | 0.665 (0.634-0.694) | 0.839 (0.817-0.862) | 0.712 | −0.013 (−0.028 a +0.001) | −0.008 (−0.021 a +0.004) | 70.3 min |
+  | **06b-lr2e-4-r32** | 2e-4 | 32 | **0.687 (0.656-0.715)** | 0.849 (0.826-0.870) | 0.727 | +0.009 (−0.005 a +0.024) | +0.002 (−0.010 a +0.015) | 71.5 min |
+
+  - Regla 5: en las 4, 0 respuestas con formato inválido, 0 con código inexistente y 1,000 con código existente.
+  - Sin colapso: cada una responde entre 195 y 199 clases distintas, y la más predicha (461110) sale en un 7 % de las respuestas.
+  - Pérdida final de validación: 0.251, 0.233, 0.236 y 0.217, en el orden de la tabla (0.226 en 06b-inicial). La ganadora también tiene la menor.
+  - Con tasa 1e-4, las dos configuraciones quedan por debajo de la inicial y el IC de la pareada de clase excluye el cero. Con rank 32, las dos tasas superan a su par de rank 8.
+- **Regla de elección: gana `06b-lr2e-4-r32`**, la única con la mayor accuracy de clase (687 aciertos, contra 678 de la inicial); no hubo empate ni configuraciones incompletas.
+  - Advertencia: se eligió con la misma validación con la que se mide, así que su 0.687 es algo optimista.
+  - Además, la ventaja sobre la inicial no es clara: el IC de la pareada de clase (−0.005 a +0.024) incluye el cero.
+- Archivos:
+  - un JSON de `results/` por configuración (`2026-11-24_fase2_06b-lr1e-4-r8.json` y los otros tres);
+  - el resumen `results/2026-11-24_fase2_06b-barrido.json` (149,566 bytes), con la tabla, la regla y su resultado;
+  - la figura `docs/figuras/2026-11-24_fase2_curvas-barrido-06b.png`.
+
+  Se generaron dos veces desde `9584237`, con bytes idénticos. Las 28 coincidencias con ids del DENUE en esos JSON son cifras decimales de valores con punto flotante, no ids.
+- **Bug del evaluador del barrido, introducido por Claude Code en la Parte A:**
+  - la comprobación de los argumentos del Trainer falló en las 4 configuraciones, porque esperaba la carpeta de trabajo de 06b-inicial (`/tmp/denue_trabajo/trainer_<nombre>`);
+  - el orquestador le da a cada proceso su propia carpeta (`/tmp/denue_trabajo/<nombre>/`). Era un error de la evaluación, no de la corrida: los demás argumentos coincidían;
+  - se corrigió en `9584237`, con una prueba, antes de escribir los resultados.
+- **Contraste de la estimación del 4B con el barrido:**
+  - en el 0.6B, el rank 32 tardó un 2 % más que el rank 8 en el entrenamiento; la estimación del 4B usa un 5 %;
+  - las validaciones (81-84 s) y la inferencia (224-229 s) duraron lo mismo que en 06b-inicial.
+
+  La estimación queda como cota conservadora y el `-t` no cambia.
+- **Kernel del 4B** (`notebooks/kaggle-4b/`), con la ganadora:
+  - Qwen/Qwen3-4B en la revisión `1cfa9a72…`, tasa 2e-4, rank 32 y alpha 32; lo demás, como el barrido;
+  - `clasificador_4b.py`: 177,054 bytes, SHA-256 `ae2313ce…`;
+  - `kernel-metadata.json`: id `samcaballero/denue-scian-4b`, privado, T4, el dataset del clasificador y la imagen de Docker de 06b-inicial; SHA-256 `4f0078f1…`;
+  - `--verificar` pasa en los 4 kernels, y una prueba ata el kernel a la ganadora que registra el resumen.
+- **GPU y cuota del 4B:**
+  - estimado: 7.27 h con rank 32 (probablemente algo menos, por lo que se vio en el barrido);
+  - `-t 39600` (11 h);
+  - quedarían unas 16 h 33 min de cuota, o 12 h 49 min en el peor caso.
+- Pruebas: pasan las 762 del repo.
+- Commits:
+  - `9584237`: observaciones del barrido y corrección del evaluador;
+  - `e92718d`: resultados y figura;
+  - `2c7198f`: kernel del 4B y pruebas;
+  - el de esta bitácora, el registro y las capturas.
+- PARADA B: el kernel del 4B está listo y sin lanzar. Falta que Samuel corra `--verificar`, el push de git y `kaggle kernels push` desde PowerShell.
