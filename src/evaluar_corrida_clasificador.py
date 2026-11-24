@@ -25,6 +25,14 @@ SHA-256 del orden del train igual al de 06b-inicial y la pareada contra 06b-inic
 06b-inicial, alineada fila por fila por int(id)). Arma un JSON de `results/` por configuración, el
 resumen del barrido con la regla de elección (`src/eleccion_barrido.py`) y la figura de las curvas.
 
+Corrida única (Fase 2, paso 13; `--barrido 4b`): el kernel del 4B usa el orquestador del barrido con
+una sola configuración, así que su salida tiene la misma forma y pasa por las mismas revisiones
+(descarga, nombres, orquestador, etapas, orden del train, punto 0 del log y versiones contra
+06b-inicial). No hay regla de elección: la pareada es contra la ganadora del barrido del 0.6B
+(4B − 06b-lr2e-4-r32, alineada fila por fila por int(id)) y contra TF-IDF + LR. Arma un solo JSON
+de `results/` con la tabla de validación de todos los modelos, los tiempos estimados contra los
+reales y las horas de GPU, y la figura de las curvas del 4B junto a las de la ganadora.
+
 Se detiene (PARADA) ante cualquier problema. Nunca abre `test.jsonl` ni `hard.jsonl`. Los
 archivos bajados solo se leen como datos (JSON y texto); el adaptador solo se hashea. En la
 terminal solo imprime conteos, códigos SCIAN, hashes y tiempos.
@@ -34,6 +42,7 @@ Uso:
   .venv/Scripts/python -m src.evaluar_corrida_clasificador --corrida 06b-inicial --escribir   # además escribe
   .venv/Scripts/python -m src.evaluar_corrida_clasificador --barrido 06b-barrido [--escribir]
       [--aceptar-incompletas NOMBRE ...]   # solo con la decisión de Samuel
+  .venv/Scripts/python -m src.evaluar_corrida_clasificador --barrido 4b [--escribir]
 """
 
 from __future__ import annotations
@@ -1101,6 +1110,34 @@ BARRIDOS = {
             ),
         },
     },
+    # Corrida única del 4B (paso 13): el orquestador del barrido con una sola configuración. No hay regla
+    # de elección; la referencia de la pareada es la ganadora del barrido del 0.6B.
+    "4b": {
+        "tipo": "corrida_unica",
+        "kernel": "4b",
+        "inicial": "06b-inicial",  # versiones del entorno y orden del train, como en el barrido
+        "barrido_referencia": "06b-barrido",  # clave en BARRIDOS del barrido del que sale la referencia
+        "resumen_barrido": "results/2026-11-24_fase2_06b-barrido.json",
+        "referencia": "06b-lr2e-4-r32",  # la ganadora de la regla de elección del barrido
+        "carpeta": "kaggle-output/4b",
+        "log": "denue-scian-4b.log",  # lo escribe la CLI de Kaggle 2.2.5 junto a la salida
+        "resultado": "results/{fecha}_fase2_4b-lr2e-4-r32.json",
+        "figura": "docs/figuras/{fecha}_fase2_curvas-4b-vs-06b.png",
+        "observaciones": {
+            "version_kaggle": 1,  # instrucción del paso 13; kaggle kernels pull -m: código y metadata son los del repo
+            "lanzamiento": (
+                "2026-11-24, hacia la 1:05 am (hora de la Ciudad de México), por Samuel; estuvo más de 30 min en Queued"
+            ),
+            "last_run_time_cli": "2026-11-24 08:23:28.667000",  # kaggle kernels list --mine (UTC, sin zona)
+            "tiempo_kaggle_s": 39600,  # -t de kaggle kernels push
+            "imagen_docker": ck.DOCKER_06B_INICIAL,  # aceptada: es la de la metadata de kaggle kernels pull -m
+            "estado_cli": "COMPLETE",  # kaggle kernels status, 2026-11-24 12:54 pm (hora de la Ciudad de México)
+            "fin": "antes de las 12:10 pm del 2026-11-24 (hora de la Ciudad de México), según Samuel",
+            "cuota_antes": "23 h 49 min de 30 h",  # bitácora, paso 12 (Parte B)
+            "cuota_despues": "16 h 37 min de 30 h",  # observada por Samuel (instrucción del paso 13)
+            "cuota_descontada_min": 432,  # 7 h 12 min
+        },
+    },
 }
 
 
@@ -1300,12 +1337,17 @@ def revisar_configuracion_del_barrido(m: Mapping, versiones_inicial: Mapping[str
 
 
 def aciertos_de_la_inicial(datos_pred: bytes, res_inicial: Mapping, val_splits: Sequence[Mapping],
-                           val_paquete: Sequence[Mapping], codigos) -> tuple[dict[str, list[bool]], dict]:
-    """Aciertos de 06b-inicial por nivel en orden de int(id), comprobados contra su JSON de results/."""
+                           val_paquete: Sequence[Mapping], codigos, ruta_pred: str = ARCHIVO_PREDICCIONES,
+                           etiqueta: str = "la inicial") -> tuple[dict[str, list[bool]], dict]:
+    """Aciertos de 06b-inicial por nivel en orden de int(id), comprobados contra su JSON de results/.
+
+    También sirve para una configuración del barrido (paso 13): `ruta_pred` es la ruta de sus
+    predicciones en `archivos_bajados` de su resultado (con el prefijo de su carpeta).
+    """
     sha = sha256_bytes(datos_pred)
-    esperado = next((a["sha256"] for a in res_inicial["corrida_kaggle"]["archivos_bajados"] if a["ruta"] == ARCHIVO_PREDICCIONES), None)
+    esperado = next((a["sha256"] for a in res_inicial["corrida_kaggle"]["archivos_bajados"] if a["ruta"] == ruta_pred), None)
     if sha != esperado:
-        raise ErrorCorrida("Las predicciones de la inicial no tienen el SHA-256 de las que evaluó su resultado.")
+        raise ErrorCorrida(f"Las predicciones de {etiqueta} no tienen el SHA-256 de las que evaluó su resultado.")
     pred = leer_predicciones(datos_pred)
     filas = alinear(pred, val_splits, val_paquete)
     ac = aciertos_alineados(pred, filas, codigos)
@@ -1318,7 +1360,7 @@ def aciertos_de_la_inicial(datos_pred: bytes, res_inicial: Mapping, val_splits: 
     }
     malas = sorted(k for k, v in c.items() if not v)
     if malas:
-        raise ErrorCorrida(f"Los aciertos de la inicial no reproducen su resultado: {malas}.")
+        raise ErrorCorrida(f"Los aciertos de {etiqueta} no reproducen su resultado: {malas}.")
     return ac, {"predicciones_sha256": sha, "filas": len(filas), "comprobaciones": c}
 
 
@@ -1794,20 +1836,39 @@ PASO_INICIAL_PANEL_VALIDACION = 1000
 
 def figura_barrido(resumen: Mapping, ruta: Path) -> None:
     """Curvas de pérdida de las 5 configuraciones (train por ventanas y validación), desde el resumen."""
-    from src.exploracion_clasificador import EJE, REJILLA, TINTA_2, _figura, _guardar, _pyplot, _titulos
-
     curvas = resumen["curvas"]
     if len(curvas) > len(SERIES_BARRIDO):
         raise ErrorCorrida("La figura del barrido admite hasta 5 series.")
     corrida = resumen["configuracion"]["inicial"]["corrida"]
+    series = [(nombre, c, SERIES_BARRIDO[i], MARCADORES_BARRIDO[i]) for i, (nombre, c) in enumerate(curvas.items())]
+    _figura_dos_paneles(
+        series,
+        corrida=corrida,
+        titulo="Curvas de pérdida del barrido del Qwen3-0.6B",
+        subtitulo=(
+            f"06b-inicial y {len(curvas) - 1} configuraciones del barrido (alpha = rank); lote {corrida['lote']}, "
+            f"{corrida['epocas']} época; validación cada {corrida['eval_cada_pasos']} pasos y al final."
+        ),
+        ruta=ruta,
+    )
+
+
+def _figura_dos_paneles(series: Sequence[tuple[str, Mapping, str, str]], *, corrida: Mapping, titulo: str, subtitulo: str,
+                        ruta: Path, columnas_leyenda: int = 3) -> None:
+    """Dos paneles: train por ventanas y validación desde PASO_INICIAL_PANEL_VALIDACION.
+
+    `series` son tuplas (nombre, curvas, color, marcador); `curvas` trae `train_por_ventana` y
+    `validacion` como en los JSON de results/.
+    """
+    from src.exploracion_clasificador import EJE, REJILLA, TINTA_2, _figura, _guardar, _pyplot, _titulos
+
     plt = _pyplot()
     fig = _figura(plt)
     ax_t = fig.add_axes([0.07, 0.13, 0.41, 0.56])
     ax_v = fig.add_axes([0.56, 0.13, 0.41, 0.56])
     manijas, etiquetas = [], []
     pasos_max = 0
-    for i, (nombre, c) in enumerate(curvas.items()):
-        color, marca = SERIES_BARRIDO[i], MARCADORES_BARRIDO[i]
+    for nombre, c, color, marca in series:
         xs = [(v["paso_inicial"] + v["paso_final"]) / 2 for v in c["train_por_ventana"]]
         ax_t.plot(xs, [v["media"] for v in c["train_por_ventana"]], color=color, linewidth=2.5)
         cola = [v for v in c["validacion"] if v["paso"] >= PASO_INICIAL_PANEL_VALIDACION]
@@ -1816,9 +1877,9 @@ def figura_barrido(resumen: Mapping, ruta: Path) -> None:
         manijas.append(linea)
         etiquetas.append(f"{nombre} (validación final {c['validacion'][-1]['eval_loss']:.3f})")
         pasos_max = max([pasos_max, *(v["paso"] for v in c["validacion"]), *xs])
-    for ax, titulo in ((ax_t, f"Train (media de cada {VENTANA_CURVA} pasos)"),
-                       (ax_v, f"Validación (1,000 filas), desde el paso {PASO_INICIAL_PANEL_VALIDACION:,}")):
-        ax.set_title(titulo, fontsize=26, color=TINTA_2, pad=14)
+    for ax, titulo_panel in ((ax_t, f"Train (media de cada {VENTANA_CURVA} pasos)"),
+                             (ax_v, f"Validación (1,000 filas), desde el paso {PASO_INICIAL_PANEL_VALIDACION:,}")):
+        ax.set_title(titulo_panel, fontsize=26, color=TINTA_2, pad=14)
         ax.set_xlabel(f"Paso de entrenamiento (lote de {corrida['lote']})")
         ax.grid(axis="y", color=REJILLA, linewidth=1.2)
         ax.tick_params(colors=TINTA_2)
@@ -1830,14 +1891,9 @@ def figura_barrido(resumen: Mapping, ruta: Path) -> None:
     ax_v.set_xlim(PASO_INICIAL_PANEL_VALIDACION * 0.9, pasos_max * 1.02)
     ax_v.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.3f}"))
     ax_t.set_ylabel("Pérdida (entropía cruzada por ficha)")
-    fig.legend(manijas, etiquetas, loc="upper left", bbox_to_anchor=(0.04, 0.84), ncol=3, fontsize=19,
+    fig.legend(manijas, etiquetas, loc="upper left", bbox_to_anchor=(0.04, 0.84), ncol=columnas_leyenda, fontsize=19,
                handlelength=2.2, columnspacing=1.6)
-    _titulos(
-        fig,
-        "Curvas de pérdida del barrido del Qwen3-0.6B",
-        f"06b-inicial y {len(curvas) - 1} configuraciones del barrido (alpha = rank); lote {corrida['lote']}, "
-        f"{corrida['epocas']} época; validación cada {corrida['eval_cada_pasos']} pasos y al final.",
-    )
+    _titulos(fig, titulo, subtitulo)
     _guardar(fig, ruta)
     plt.close(fig)
 
@@ -1859,6 +1915,596 @@ def escribir_barrido(resumen: Mapping, resultados: Mapping[str, Mapping], conf: 
     figura_barrido(json.loads((Path(raiz) / ruta_resumen).read_bytes()), Path(raiz) / ruta_fig)
     escritos.append(ruta_fig)
     return escritos
+
+
+# --- Corrida única: el 4B (Fase 2, paso 13) ---
+
+SIGNO_CONTRA_REFERENCIA = "{corrida} − {referencia} (positivo: {corrida} acierta más)"
+# Si el contenedor arrancó más de esto después del lastRunTime, esa marca incluye tiempo en cola y las horas
+# de GPU son las del orquestador (propuesta de Claude Code en el plan del paso 13, aprobada por Samuel).
+UMBRAL_COLA_S = 300
+# Etapas de mediciones.json de cada parte de la estimación (`desglose_s` de src/corrida_4b_kaggle.py).
+ETAPAS_ANTES_DE_ENTRENAR = ("gpu", "datos", "instalacion", "imports", "descarga", "carga", "tokens_y_plantilla", "lora")
+ETAPAS_DESPUES_DE_ENTRENAR = ("adaptador", "inferencia", "cierre")
+# Figura del 4B: la referencia conserva el color y el marcador que tiene en la figura del barrido; el 4B
+# toma la posición 7 de la paleta categórica de referencia (violeta). El par magenta y violeta pasa
+# validate_palette.js en modo claro (ΔE CVD 19.9 y normal 28.1); la magenta queda bajo 3:1 de contraste
+# con la superficie, así que la leyenda escribe en texto el valor final de validación.
+COLOR_4B = "#6250d6"
+MARCADOR_4B = "o"
+
+
+def _prefijo_modelo(repo: str) -> str:
+    """'Qwen/Qwen3-4B' -> 'qwen3_4b' (como 'qwen3_0.6b' en los resultados del 0.6B)."""
+    return repo.rsplit("/", 1)[-1].lower().replace("-", "_")
+
+
+def _tasa(x: float) -> str:
+    """2e-4 -> '2e-4', como en los nombres de las configuraciones."""
+    mantisa, exponente = f"{x:.0e}".split("e")
+    return f"{mantisa}e{int(exponente)}"
+
+
+def cargar_corrida_unica(clave: str, manifest: Mapping, raiz: Path = REPO_RAIZ) -> SimpleNamespace:
+    """Lo de `cargar_barrido` más la referencia (resultado, predicciones y adaptador) y los JSON de la tabla."""
+    conf = BARRIDOS[clave]
+    ent = cargar_barrido(clave, manifest, raiz)
+    datos_resumen = (Path(raiz) / conf["resumen_barrido"]).read_bytes()
+    resumen = json.loads(datos_resumen)
+    nombre_ref = conf["referencia"]
+    por_conf = resumen.get("resultados_por_configuracion", {})
+    if nombre_ref not in por_conf:
+        raise ErrorCorrida(f"El resumen del barrido no tiene el resultado de {nombre_ref}.")
+    rutas = {conf["inicial"]: CORRIDAS[conf["inicial"]]["resultado"], **{n: i["ruta"] for n, i in por_conf.items()}}
+    qwen = {}
+    for n, ruta in rutas.items():
+        datos = (Path(raiz) / ruta).read_bytes()
+        qwen[n] = {"ruta": ruta, "sha256": sha256_bytes(datos), "resultado": json.loads(datos)}
+    carpeta_ref = Path(raiz) / BARRIDOS[conf["barrido_referencia"]]["carpeta"] / nombre_ref
+    adaptador_ref = carpeta_ref / CARPETA_ADAPTADOR / "adapter_model.safetensors"
+    ent.referencia = nombre_ref
+    ent.resumen_barrido = resumen
+    ent.resumen_barrido_sha256 = sha256_bytes(datos_resumen)
+    ent.resultados_qwen = qwen
+    ent.sha256_baselines = {r: sha256_bytes((Path(raiz) / r).read_bytes()) for r in (RESULTADO_TFIDF, RESULTADO_DICCIONARIO)}
+    ent.predicciones_referencia = (carpeta_ref / ARCHIVO_PREDICCIONES).read_bytes()
+    ent.adaptador_referencia = {
+        "ruta": adaptador_ref.relative_to(raiz).as_posix(),
+        "bytes": adaptador_ref.stat().st_size,
+        "sha256": sha256_archivo(adaptador_ref),
+    }
+    return ent
+
+
+def revisar_referencia(corrida: Mapping, ref: Mapping, nombre_ref: str, resumen_barrido: Mapping,
+                       adaptador_ref: Mapping) -> dict:
+    """La referencia es la ganadora del barrido, con la misma receta salvo el modelo, y su salida está completa."""
+    res_ref = ref["resultado"]
+    corrida_ref = res_ref["configuracion"]["corrida"]
+    distintas = sorted(k for k in set(corrida) | set(corrida_ref) if corrida.get(k) != corrida_ref.get(k))
+    info = resumen_barrido.get("resultados_por_configuracion", {}).get(nombre_ref, {})
+    return _etapa(
+        {
+            "referencia_es_la_ganadora_del_barrido": resumen_barrido.get("eleccion", {}).get("ganadora") == nombre_ref,
+            "resultado_de_la_referencia_es_el_del_resumen": info.get("ruta") == ref["ruta"] and info.get("sha256") == ref["sha256"],
+            "misma_receta_salvo_nombre_descripcion_y_modelo": set(distintas) <= {"nombre", "descripcion", "modelo"},
+            "adaptador_de_la_referencia_igual_al_de_su_resultado": adaptador_ref["sha256"] == res_ref["modelo"]["adaptador_sha256"],
+        },
+        referencia=nombre_ref,
+        claves_distintas=distintas,
+        learning_rate=corrida["learning_rate"],
+        rank=corrida["lora"]["r"],
+        lora_alpha=corrida["lora"]["lora_alpha"],
+    )
+
+
+def contra_referencia(aciertos_ref: Mapping[str, list[bool]], aciertos: Mapping[str, list[bool]], res_ref: Mapping,
+                      info_ref: Mapping, ruta_ref: str, nombre_ref: str, nombre: str) -> dict:
+    """Diferencia pareada corrida − referencia, en clase y en sector, sobre las mismas filas."""
+    m = res_ref["metricas"]
+    return {
+        "referencia": nombre_ref,
+        "resultado_referencia": ruta_ref,
+        "accuracy_referencia": m["regla5"]["accuracy"],
+        "ic95_referencia": m["ic95_accuracy"],
+        "signo": SIGNO_CONTRA_REFERENCIA.format(corrida=nombre, referencia=nombre_ref),
+        "clase": diferencia_pareada_bootstrap(aciertos_ref["clase"], aciertos["clase"]),
+        "sector": diferencia_pareada_bootstrap(aciertos_ref["sector"], aciertos["sector"]),
+        "definicion": DEFINICION_PAREADA,
+        "alineacion": {
+            "filas": len(aciertos["clase"]),
+            "orden": "int(id) de data/splits/val.jsonl",
+            "comprobada_fila_por_fila": True,
+            "predicciones_referencia_sha256": info_ref["predicciones_sha256"],
+            "comprobaciones_referencia": dict(info_ref["comprobaciones"]),
+            "metodo": (
+                "Las dos listas de aciertos salen de alinear las predicciones de cada modelo con data/splits/val.jsonl "
+                "(mismos ids que el val.jsonl del paquete, mismas etiquetas) en orden de int(id); en cada posición, el "
+                f"acierto es el de la respuesta de esa fila contra su codigo_act. Las de {nombre_ref} salen de su "
+                "predicciones.jsonl con el SHA-256 de su resultado y reproducen sus conteos e IC."
+            ),
+        },
+    }
+
+
+def _contra(estimado, real) -> dict:
+    return {
+        "estimado_s": None if estimado is None else round(estimado, 1),
+        "real_s": None if real is None else round(real, 1),
+        "real_entre_estimado": round(real / estimado, 3) if estimado and real is not None else None,
+    }
+
+
+def tiempos_contra_estimacion(b: Mapping, m: Mapping, nombre: str) -> dict:
+    """Las partes de la estimación del kernel (`desglose_estimado_s` de barrido.json) contra los tiempos reales."""
+    conf = b.get("configuracion", {})
+    est = (conf.get("desglose_estimado_s") or {}).get(nombre)
+    proceso = next((c for c in b.get("configuraciones", []) if c.get("nombre") == nombre), None)
+    if not est or proceso is None:
+        raise ErrorCorrida(f"barrido.json no trae la estimación o el proceso de {nombre}.")
+    d = m.get("duraciones_s", {})
+    ent = m.get("entrenamiento", {})
+    validaciones = (ent.get("segundos_evaluacion_paso_0") or 0) + sum(e.get("s", 0) for e in ent.get("evaluaciones_s", []))
+    real = {
+        "antes_de_entrenar": sum(d.get(k, 0) for k in ETAPAS_ANTES_DE_ENTRENAR),
+        "pasos_de_entrenamiento": d.get("entrenamiento", 0) - validaciones,
+        "validaciones": validaciones,
+        "adaptador_inferencia_y_cierre": sum(d.get(k, 0) for k in ETAPAS_DESPUES_DE_ENTRENAR),
+    }
+    if set(est) != set(real):
+        raise ErrorCorrida(f"Las partes de la estimación de {nombre} no son las esperadas: {sorted(est)}.")
+    orquestador = sum(v for k, v in (b.get("duraciones_s") or {}).items() if not k.startswith("configuracion_"))
+    pasos = ent.get("pasos_hechos")
+    stats = ent.get("estadisticas") or {}
+    return {
+        "partes": {k: _contra(est[k], real[k]) for k in real},
+        "suma_de_las_partes": _contra(sum(est.values()), sum(real.values())),
+        "proceso": _contra(proceso.get("estimado_s"), proceso.get("segundos")),
+        "orquestador": _contra(bk.S_ORQUESTADOR, orquestador),
+        "total": _contra(bk.S_ORQUESTADOR + proceso["estimado_s"], b.get("segundos_desde_arranque")),
+        "s_por_paso": {
+            "estimado": round(est["pasos_de_entrenamiento"] / pasos, 4) if pasos else None,
+            "real": round(real["pasos_de_entrenamiento"] / pasos, 4) if pasos else None,
+            "real_media_medida": stats.get("s_por_paso_media"),
+            "real_mediana_medida": stats.get("s_por_paso_mediana"),
+        },
+        "razon_4b_06b_s_por_paso_usada": conf.get("razon_4b_06b_s_por_paso"),
+        "definicion": (
+            "Estimado: desglose_estimado_s de barrido.json (src/corrida_4b_kaggle.py: tiempos reales de 06b-inicial × la "
+            "razón de s/paso 4B/0.6B de la prueba de humo). Real, de mediciones.json: antes de entrenar = etapas "
+            f"{', '.join(ETAPAS_ANTES_DE_ENTRENAR)}; validaciones = la del paso 0 más las 12 de dentro del entrenamiento; "
+            "pasos de entrenamiento = la etapa entrenamiento menos esas validaciones; adaptador, inferencia y cierre = "
+            f"etapas {', '.join(ETAPAS_DESPUES_DE_ENTRENAR)}. Proceso: segundos del proceso en barrido.json. Orquestador: "
+            "etapas propias de barrido.json (sin el proceso). Total: segundos_desde_arranque del orquestador."
+        ),
+    }
+
+
+def horas_gpu_corrida_unica(tiempo: Mapping, obs: Mapping) -> dict:
+    """Horas de GPU de la corrida, cotejadas con la cuota que descontó Kaggle."""
+    con_cola = tiempo["arranque_del_contenedor_s"] > UMBRAL_COLA_S
+    valor_s = tiempo["script_s"] if con_cola else tiempo["desde_last_run_time_s"]
+    if con_cola:
+        metodo = (
+            "Duración del orquestador (inicio_utc de barrido.json más segundos_desde_arranque): el contenedor arrancó "
+            f"más de {UMBRAL_COLA_S} s después del lastRunTime, así que esa marca incluye tiempo en cola."
+        )
+    else:
+        metodo = (
+            "Del lastRunTime de `kaggle kernels list --mine` (UTC) al fin del orquestador (inicio_utc de barrido.json más "
+            "segundos_desde_arranque), con el arranque del contenedor."
+        )
+    return {
+        "valor": round(valor_s / 3600, 3),
+        "metodo": metodo + " Una sola configuración en una sesión GPU T4 x2 con una sola T4 en uso.",
+        "script": tiempo["horas"]["script"],
+        "desde_last_run_time": tiempo["horas"]["desde_last_run_time"],
+        "arranque_del_contenedor_s": tiempo["arranque_del_contenedor_s"],
+        "con_cola_en_el_last_run_time": con_cola,
+        "cuota_kaggle": {"antes": obs["cuota_antes"], "despues": obs["cuota_despues"], "descontado_min": obs["cuota_descontada_min"]},
+        "diferencia_con_la_cuota_min": {
+            "valor": round(valor_s / 60 - obs["cuota_descontada_min"], 1),
+            "script": round(tiempo["script_s"] / 60 - obs["cuota_descontada_min"], 1),
+            "desde_last_run_time": round(tiempo["desde_last_run_time_s"] / 60 - obs["cuota_descontada_min"], 1),
+            "nota": "La cuota la lee Samuel en minutos; la diferencia es medida − descontado.",
+        },
+    }
+
+
+def fila_de_validacion(modelo: str, metricas: Mapping, fuente: Mapping, corrida: Mapping | None = None) -> dict:
+    """Una fila de la tabla de validación de todos los modelos, con el JSON de results/ del que sale."""
+    r5, c = metricas["regla5"], metricas["concentracion"]
+    return {
+        "modelo": modelo,
+        "base": corrida["modelo"]["repo"] if corrida else None,
+        "learning_rate": corrida["learning_rate"] if corrida else None,
+        "rank": corrida["lora"]["r"] if corrida else None,
+        "lora_alpha": corrida["lora"]["lora_alpha"] if corrida else None,
+        "n": r5["total"],
+        "aciertos": r5["aciertos"],
+        "accuracy": r5["accuracy"],
+        "ic95": metricas["ic95_accuracy"],
+        "accuracy_sector": metricas["por_nivel"]["sector"]["accuracy"],
+        "ic95_sector": metricas["por_nivel"]["sector"]["ic95"],
+        "macro_f1_sector": metricas["macro_f1_sector"]["valor"],
+        "pct_formato_valido": r5["pct_formato_valido"],
+        "pct_codigos_inexistentes": r5["pct_codigos_inexistentes"],
+        "clases_existentes_distintas_predichas": c["clases_existentes_distintas_predichas"],
+        "codigo_valido_mas_predicho": c["codigo_valido_mas_predicho"],
+        "pct_filas_con_ese_codigo": c["pct_filas_con_ese_codigo"],
+        "fuente": dict(fuente),
+    }
+
+
+def tabla_de_validacion(ent: SimpleNamespace, corrida: Mapping, metricas: Mapping) -> list[dict]:
+    """06b-inicial, las configuraciones del barrido, la corrida, TF-IDF + LR y el diccionario."""
+    filas = [
+        fila_de_validacion(n, q["resultado"]["metricas"], {"ruta": q["ruta"], "sha256": q["sha256"]},
+                           q["resultado"]["configuracion"]["corrida"])
+        for n, q in ent.resultados_qwen.items()
+    ]
+    filas.append(fila_de_validacion(corrida["nombre"], metricas, {"ruta": "este resultado"}, corrida))
+    filas.append(fila_de_validacion(f"baseline_tfidf_lr (C = {ent.tfidf['detalle']['C']:g})", ent.tfidf["metricas"],
+                                    {"ruta": RESULTADO_TFIDF, "sha256": ent.sha256_baselines[RESULTADO_TFIDF]}))
+    filas.append(fila_de_validacion("baseline_diccionario", ent.diccionario["metricas"],
+                                    {"ruta": RESULTADO_DICCIONARIO, "sha256": ent.sha256_baselines[RESULTADO_DICCIONARIO]}))
+    return filas
+
+
+def para_la_fase_4(m: Mapping, res_ref: Mapping, nombre: str, nombre_ref: str) -> dict:
+    """Segundos por fila de la inferencia y descarga y carga del modelo, para estimar la GPU de la Fase 4."""
+    inf, d = m.get("inferencia", {}), m.get("duraciones_s", {})
+    inf_ref = res_ref["etapas"]["etapas"]["inferencia"]
+    d_ref = res_ref["corrida_kaggle"]["tiempo"]["duraciones_etapas_s"]
+    return {
+        nombre: {
+            "inferencia_s": inf.get("segundos"), "filas": inf.get("filas"), "s_por_fila": inf.get("s_por_fila"),
+            "vram_pico_inferencia_mib": inf.get("vram_pico_mib"), "descarga_s": d.get("descarga"), "carga_s": d.get("carga"),
+        },
+        nombre_ref: {
+            "inferencia_s": inf_ref.get("segundos"), "filas": res_ref["metricas"]["regla5"]["total"],
+            "s_por_fila": inf_ref.get("s_por_fila"), "vram_pico_inferencia_mib": inf_ref.get("vram_pico_mib"),
+            "descarga_s": d_ref.get("descarga"), "carga_s": d_ref.get("carga"),
+        },
+        "fuente": (
+            f"mediciones.json de cada corrida: el de {nombre} en esta descarga y el de {nombre_ref} a través de su JSON "
+            "de results/ (etapas.inferencia y corrida_kaggle.tiempo.duraciones_etapas_s)."
+        ),
+        "nota": (
+            "Inferencia greedy de una fila a la vez con el adaptador cargado, en una T4, con la plantilla del "
+            "clasificador (sin ejemplos en el prompt). La descarga depende de la red de Kaggle en esa sesión."
+        ),
+    }
+
+
+def evaluar_corrida_unica(ent: SimpleNamespace, manifest: Mapping, contexto: Mapping) -> tuple[dict, dict]:
+    """Verifica, revisa nombres, resume orquestador y etapas, mide, compara y arma el resultado.
+
+    Devuelve el resultado y la revisión de privacidad completa (con líneas, solo para la terminal).
+    PARADA ante cualquier problema que no sea una etapa con comprobaciones fallidas; esas las junta
+    `problemas_de_la_corrida_unica` y detienen `main`.
+    """
+    b = ent.barrido_json
+    corridas = [dict(c) for c in ent.espec.corridas]
+    if len(corridas) != 1:
+        raise ErrorCorrida(f"Una corrida única lleva una sola configuración; el kernel tiene {len(corridas)}.")
+    corrida = corridas[0]
+    n = corrida["nombre"]
+    procesos = {c.get("nombre"): c for c in b.get("configuraciones", [])}
+    completa = procesos.get(n, {}).get("estado") == "completa"
+
+    descarga = verificar_descarga_barrido(
+        ent.inventario, b, ent.mediciones, ck.hashes_del_manifest(manifest), ent.conf["log"], [n] if completa else []
+    )
+    filas_ref = ent.train + ent.val_paquete
+    ref = referencias_de_nombres(filas_ref)
+    idx = indice_de_nombres(ref)
+    jsons = {bk.ARCHIVO_BARRIDO: b, **{f"{k}/{ARCHIVO_MEDICIONES}": v for k, v in ent.mediciones.items() if v is not None}}
+    tapados = {k: len(v.get("tapados", [])) for k, v in ent.mediciones.items() if v is not None}
+    privacidad = revisar_privacidad_barrido(ent.textos, jsons, idx, len(filas_ref), contexto["texto_kernel"], tapados)
+    if privacidad["posible_fuga"]:
+        raise ErrorCorrida(f"Posible fuga de nombres en {privacidad['archivos_con_posible_fuga']}; decide Samuel.")
+    if not completa:
+        raise ErrorCorrida(f"{n} quedó incompleta (estado {procesos.get(n, {}).get('estado')}); decide Samuel.")
+
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    esperados = {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA}
+    orquestador = resumen_orquestador(
+        b, corridas=corridas, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
+        kernel_igual_al_generado=contexto["kernel_igual_al_generado"],
+    )
+    m = ent.mediciones[n]
+    log = ent.textos.get(f"{bk.CARPETA_LOGS}/{n}.log")
+    if log is None:
+        raise ErrorCorrida(f"Falta el log de {n}.")
+    prefijo = f"{n}/"
+    etapas = resumen_etapas(
+        m, corrida=corrida, esperados=esperados, fuentes_actuales=contexto["fuentes_actuales_sha256"],
+        kernel_igual_al_generado=contexto["kernel_igual_al_generado"], filas_train=len(ent.train),
+        filas_val=len(ent.val_paquete), adapter_config=ent.adapter_configs[n],
+        archivos_bajados={a["ruta"][len(prefijo):] for a in ent.inventario if a["ruta"].startswith(prefijo)},
+        llaves=set(ref["varias"] | ref["una"]), texto_del_log=log,
+        dir_trabajo=(DIR_TRABAJO / n).as_posix(),  # el orquestador le da a cada proceso su propia carpeta
+    )
+    res_ini = ent.resultado_inicial
+    etapas["etapas"]["barrido"] = revisar_configuracion_del_barrido(m, res_ini["para_el_barrido"]["versiones_entorno"])
+    nombre_ref = ent.referencia
+    q_ref = ent.resultados_qwen[nombre_ref]
+    res_ref = q_ref["resultado"]
+    etapas["etapas"]["referencia"] = revisar_referencia(corrida, q_ref, nombre_ref, ent.resumen_barrido, ent.adaptador_referencia)
+    etapas["todas_ok"] = all(x["estado"] == "ok" for x in etapas["etapas"].values())
+
+    predicciones = leer_predicciones(ent.textos[f"{n}/{ARCHIVO_PREDICCIONES}"].encode("utf-8"))
+    filas = alinear(predicciones, ent.val_splits, ent.val_paquete)
+    metricas = evaluar_validacion(predicciones, filas, ent.codigos)
+    aciertos = aciertos_alineados(predicciones, filas, ent.codigos)
+    if intervalo_bootstrap(aciertos["clase"]) != metricas["ic95_accuracy"] or sum(aciertos["clase"]) != metricas["regla5"]["aciertos"]:
+        raise ErrorCorrida(f"{n}: los aciertos alineados no reproducen las métricas del evaluador.")
+    comprobacion_tfidf = comprobar_registro_tfidf(ent.registro_tfidf, ent.tfidf, filas)
+    comp = comparacion(aciertos, metricas, ent.tfidf, ent.diccionario, ent.registro_tfidf, comprobacion_tfidf,
+                       ent.ruta_registro_tfidf, ent.sha_registro_tfidf)
+    aciertos_ref, info_ref = aciertos_de_la_inicial(
+        ent.predicciones_referencia, res_ref, ent.val_splits, ent.val_paquete, ent.codigos,
+        ruta_pred=f"{nombre_ref}/{ARCHIVO_PREDICCIONES}", etiqueta=nombre_ref,
+    )
+    contra = contra_referencia(aciertos_ref, aciertos, res_ref, info_ref, q_ref["ruta"], nombre_ref, n)
+
+    obs = ent.conf["observaciones"]
+    tiempo = duracion_barrido(b, obs["last_run_time_cli"])
+    horas = horas_gpu_corrida_unica(tiempo, obs)
+    tiempos = tiempos_contra_estimacion(b, m, n)
+    lora = corrida["lora"]
+    advertencias = [
+        f"La configuración (tasa {_tasa(corrida['learning_rate'])}, rank {lora['r']}, alpha {lora['lora_alpha']}) se eligió en el "
+        f"barrido del 0.6B y se transfirió a {n} sin barrido propio: puede no ser la mejor para este modelo.",
+        f"La accuracy en validación de {nombre_ref} es algo optimista: se eligió con la misma validación con la que se mide.",
+        f"La de {n} no lo es por elección: es una sola corrida, no se eligió entre varias con su validación (la "
+        "configuración sí salió de esta validación, pero en el 0.6B).",
+        f"Por eso la pareada {n} − {nombre_ref} queda, si acaso, sesgada en contra de {n}.",
+    ]
+    advertencias += [
+        f"{p} es {v['instalada']}; en 06b-inicial era {v['06b_inicial']} (va con la imagen de Docker, no se fija con pip)."
+        for p, v in etapas["etapas"]["barrido"]["advertencias_no_fijables"].items()
+    ]
+    inv = {a["ruta"]: a for a in ent.inventario}
+    propio = inv.get(f"{n}/{CARPETA_ADAPTADOR}/adapter_model.safetensors", {})
+    adaptadores = {
+        n: {"ruta": f"{ent.conf['carpeta']}/{n}/{CARPETA_ADAPTADOR}/adapter_model.safetensors", "bytes": propio.get("bytes"),
+            "sha256": propio.get("sha256"), "igual_al_de_barrido_json_y_mediciones": True},
+        nombre_ref: {**ent.adaptador_referencia,
+                     "igual_al_de_su_resultado": ent.adaptador_referencia["sha256"] == res_ref["modelo"]["adaptador_sha256"]},
+        "nota": (
+            f"El de {n} coincide con barrido.json y con su mediciones.json (la descarga se verificó); el de {nombre_ref} se "
+            "volvió a hashear y se comparó con su resultado. Los adaptadores solo se hashean: nunca se cargan."
+        ),
+    }
+    curvas_resumen = list(ent.resumen_barrido.get("curvas", {}))
+    resultado = armar_resultado_corrida_unica(
+        manifest=manifest, contexto=contexto, ent=ent, corrida=corrida, m=m, proceso=procesos[n], descarga=descarga,
+        privacidad=privacidad, orquestador=orquestador, etapas=etapas,
+        metricas={k: v for k, v in metricas.items() if k != "definiciones"},
+        concentracion_extra=_concentracion_extra(predicciones, filas, metricas), comparacion=comp, contra=contra,
+        tiempo=tiempo, horas=horas, tiempos=tiempos, tabla=tabla_de_validacion(ent, corrida, metricas),
+        adaptadores=adaptadores, fase4=para_la_fase_4(m, res_ref, n, nombre_ref),
+        curvas={
+            "validacion": etapas["etapas"]["entrenamiento"]["perdida_validacion"],
+            "train_por_ventana": curva_de_train_agregada(m.get("entrenamiento", {}).get("curvas", {}).get("train", [])),
+            "ventana_pasos": VENTANA_CURVA,
+        },
+        curvas_ref={
+            "nombre": nombre_ref,
+            "posicion_en_la_figura_del_barrido": curvas_resumen.index(nombre_ref) if nombre_ref in curvas_resumen else None,
+            "validacion": res_ref["curvas"]["validacion"],
+            "train_por_ventana": res_ref["curvas"]["train_por_ventana"],
+        },
+        advertencias=advertencias,
+    )
+    candado_resultado(resultado, ref)
+    return resultado, privacidad
+
+
+def armar_resultado_corrida_unica(*, manifest, contexto, ent, corrida, m, proceso, descarga, privacidad, orquestador, etapas,
+                                  metricas, concentracion_extra, comparacion, contra, tiempo, horas, tiempos, tabla,
+                                  adaptadores, fase4, curvas, curvas_ref, advertencias) -> dict:
+    """JSON de results/ de la corrida única (regla 4); sin nombres, llaves, ids ni respuestas crudas."""
+    nombre = corrida["nombre"]
+    obs = ent.conf["observaciones"]
+    b = ent.barrido_json
+    archivos = manifest[SECCION][ENTRADA_PAQUETE]["archivos"]
+    sp = manifest["splits"]
+    q_ref = ent.resultados_qwen[ent.referencia]
+    return {
+        "fecha": contexto["fecha"],
+        "experimento": f"fase2_paso13_{nombre}",
+        "commit": contexto["commit"],
+        "arbol_limpio": contexto["arbol_limpio"],
+        "modelo": {
+            "nombre": f"{_prefijo_modelo(corrida['modelo']['repo'])}_qlora_{nombre}",
+            "repo": corrida["modelo"]["repo"],
+            "revision": corrida["modelo"]["revision"],
+            "metodo": "QLoRA (NF4 de bitsandbytes) con Unsloth; enable_thinking=False; responde solo el código de 6 dígitos",
+            "adaptador_sha256": adaptadores[nombre]["sha256"],
+        },
+        "configuracion": {
+            "corrida": dict(corrida),
+            "del_kernel": m.get("configuracion", {}),
+            "kernel": f"{ent.espec.carpeta_relativa}/{ent.espec.archivo_kernel}",
+            "kernel_generador": "src/construir_kernel.py",
+            "commit_kernel": contexto["commit_kernel"],
+            "kernel_kaggle": {"id": ent.espec.id_kernel, "version": obs["version_kaggle"]},
+            "imagen_docker": obs["imagen_docker"],
+            "tiempo_kaggle_s": obs["tiempo_kaggle_s"],
+            "orquestador": "src/barrido_kaggle.py con una sola configuración (src/corrida_4b_kaggle.py)",
+            "referencia": {
+                "nombre": ent.referencia,
+                "resultado": q_ref["ruta"],
+                "sha256": q_ref["sha256"],
+                "resumen_del_barrido": {"ruta": ent.conf["resumen_barrido"], "sha256": ent.resumen_barrido_sha256},
+            },
+            "script": SCRIPT,
+            "evaluador": "src/evaluador_clasificador.py (regla 5: src/metricas_clasificador.py)",
+            "catalogo": {k: manifest["catalogos"][CATALOGO[manifest["scian_version"]]][k] for k in ("ruta", "sha256")},
+            "scian_version": manifest["scian_version"],
+            "python_local": platform.python_version(),
+        },
+        "semilla": SEMILLA,
+        "split": "validación del split por nombre (congelada); train: train final con tope de 1,000 filas por clase",
+        "hash_split": {
+            "validacion": sp[ENTRADA_VAL]["sha256"],
+            "train": sp[ENTRADA_TRAIN_FINAL]["sha256"],
+            "paquete_kaggle": {a: archivos[a]["sha256"] for a in ARCHIVOS_ENTRADA},
+        },
+        "hash_split_origen": f"data/manifest.json: splits.{ENTRADA_VAL}, splits.{ENTRADA_TRAIN_FINAL} y {SECCION}.{ENTRADA_PAQUETE}",
+        "tamano_muestra": {"train": len(ent.train), "validacion": len(ent.val_paquete)},
+        "horas_gpu": horas,
+        "corrida_kaggle": {
+            "estado_cli": obs["estado_cli"],
+            "lanzamiento": obs["lanzamiento"],
+            "fin": obs["fin"],
+            "last_run_time_cli": obs["last_run_time_cli"],
+            "tiempo": tiempo,
+            "proceso": {k: proceso.get(k) for k in ("estado", "codigo_de_salida", "matado_por_tiempo", "estimado_s", "tiempo_maximo_s",
+                                                     "transcurrido_al_empezar_s", "segundos", "memoria_gpu0_al_salir_mib")},
+            "estado_orquestador": b.get("estado"),
+            "fallas_orquestador": len(b.get("fallas", [])),
+            "estado_kernel": m.get("estado"),
+            "fallas": len(m.get("fallas", [])),
+            "duraciones_etapas_s": m.get("duraciones_s"),
+            "archivos_bajados": [dict(a) for a in ent.inventario],
+            "descarga": descarga,
+        },
+        "tiempos_contra_estimacion": tiempos,
+        "privacidad": privacidad_para_resultado(privacidad),
+        "orquestador": orquestador,
+        "etapas": etapas,
+        "metricas": metricas,
+        "concentracion_extra": concentracion_extra,
+        "definiciones": {"pareada": DEFINICION_PAREADA, **DEFINICIONES},
+        "comparacion": comparacion,
+        "contra_referencia": contra,
+        "tabla_validacion": tabla,
+        "adaptadores": adaptadores,
+        "para_la_fase_4": fase4,
+        "curvas": curvas,
+        "curvas_referencia": curvas_ref,
+        "advertencias": advertencias,
+    }
+
+
+def problemas_de_la_corrida_unica(resultado: Mapping) -> list[str]:
+    """Comprobaciones que fallaron (en el orquestador o en una etapa); cada una es PARADA."""
+    res = [f"orquestador: {k}" for k, v in resultado["orquestador"]["comprobaciones"].items() if not v]
+    for etapa, e in resultado["etapas"]["etapas"].items():
+        res += [f"{etapa}: {k}" for k, v in e.get("comprobaciones", {}).items() if not v]
+    return res
+
+
+def figura_corrida_unica(resultado: Mapping, ruta: Path) -> None:
+    """Curvas de pérdida de la corrida junto a las de la referencia, desde el JSON de results/."""
+    corrida = resultado["configuracion"]["corrida"]
+    cr = resultado["curvas_referencia"]
+    i = cr["posicion_en_la_figura_del_barrido"]
+    if i is None:
+        raise ErrorCorrida("La referencia no tiene posición en la figura del barrido.")
+    lora = corrida["lora"]
+    series = [
+        (corrida["nombre"], resultado["curvas"], COLOR_4B, MARCADOR_4B),
+        (cr["nombre"], cr, SERIES_BARRIDO[i], MARCADORES_BARRIDO[i]),
+    ]
+    _figura_dos_paneles(
+        series,
+        corrida=corrida,
+        titulo="Curvas de pérdida: Qwen3-4B frente a Qwen3-0.6B",
+        subtitulo=(
+            f"Misma receta: tasa {_tasa(corrida['learning_rate'])}, rank {lora['r']}, alpha {lora['lora_alpha']}, lote "
+            f"{corrida['lote']}, {corrida['epocas']} época; validación cada {corrida['eval_cada_pasos']} pasos y al final."
+        ),
+        ruta=ruta,
+        columnas_leyenda=2,
+    )
+
+
+def escribir_corrida_unica(resultado: Mapping, conf: Mapping, raiz: Path = REPO_RAIZ) -> list[str]:
+    """Escribe el JSON de results/ y la figura (hecha desde ese JSON); devuelve las rutas escritas."""
+    ruta = _ruta(conf["resultado"], resultado["fecha"])
+    (Path(raiz) / ruta).write_bytes(serializar(resultado))
+    ruta_fig = _ruta(conf["figura"], resultado["fecha"])
+    figura_corrida_unica(json.loads((Path(raiz) / ruta).read_bytes()), Path(raiz) / ruta_fig)
+    return [ruta, ruta_fig]
+
+
+def imprimir_corrida_unica(res: Mapping, privacidad: Mapping) -> None:
+    d = res["corrida_kaggle"]
+    x = d["descarga"]
+    print(f"Archivos bajados: {len(d['archivos_bajados'])}; coinciden con barrido.json {x['coinciden_con_kaggle']} de "
+          f"{x['con_sha256_de_kaggle']}; sin hash de Kaggle: {x['sin_sha256_de_kaggle']}; con hash del manifest: "
+          f"{x['con_sha256_del_manifest']}; por configuración: {x['por_configuracion']}")
+    p = privacidad
+    print(f"Privacidad: posible fuga = {p['posible_fuga']}; tapados por el kernel = {p['tapados_por_el_kernel']}; "
+          f"{p['nombres_buscados']:,} nombres, {p['llaves_varias_palabras_buscadas']:,} llaves de varias palabras y "
+          f"{p['llaves_una_palabra_buscadas']:,} de una")
+    for nombre, r in p["archivos"].items():
+        c = r["clasificacion"]
+        print(f"  {nombre}: crudos {r['nombres_crudos']} (solo dígitos {c['nombres_crudos_solo_digitos']}, cortos dentro de un "
+              f"token {c['nombres_crudos_cortos_solo_dentro_de_un_token']}, posible fuga {c['nombres_crudos_posible_fuga']}), "
+              f"varias palabras {r['llaves_varias_palabras']} (solo dígitos {c['llaves_varias_palabras_solo_digitos']}), "
+              f"una palabra {r['llaves_una_palabra']}")
+    o = res["orquestador"]
+    malas = [k for k, v in o["comprobaciones"].items() if not v]
+    print(f"Orquestador: {o['estado']}" + (f" (fallan: {malas})" if malas else "") + f"; advertencias: {o['advertencias']}; "
+          f"no fijables: {o['no_fijables']}; controlador: {o['controlador_nvidia']}")
+    for c in o["configuraciones"]:
+        print(f"  {c['nombre']}: {c['estado']}, {c['segundos']} s (estimado {c['estimado_s']} s, máximo {c['tiempo_maximo_s']} s), "
+              f"salida {c['codigo_de_salida']}, matado {c['matado_por_tiempo']}, GPU 0 al salir {c['memoria_gpu0_al_salir_mib']} MiB")
+    print("Etapas:")
+    for nombre, e in res["etapas"]["etapas"].items():
+        malas = [k for k, v in e.get("comprobaciones", {}).items() if not v]
+        print(f"  {nombre}: {e['estado']}" + (f" (fallan: {malas})" if malas else ""))
+    et = res["etapas"]["etapas"]
+    en = et["entrenamiento"]
+    print(f"  GPU: {et['gpu']['gpus_en_la_sesion']}; modelo: revisión {res['modelo']['revision'][:8]}…, capas de 4 bits "
+          f"{et['modelo']['capas_linear4bit']}, LoRA {et['modelo']['lora']}")
+    print(f"  Entrenamiento: {en['pasos']} pasos, warmup {en['pasos_warmup']}, orden {en['orden_train']['sha256_orden'][:8]}…, "
+          f"VRAM pico {en['vram_pico_mib']}, estadísticas {en['estadisticas']}")
+    print(f"  Validación: {[(v['paso'], v['eval_loss'], v['fuente']) for v in en['perdida_validacion']]}")
+    print(f"  Inferencia: {et['inferencia']['segundos']} s, {et['inferencia']['s_por_fila']} s/fila, terminación "
+          f"{et['inferencia']['terminacion']}, fichas máx {et['inferencia']['fichas_generadas_max']}")
+    mt = res["metricas"]
+    r5 = mt["regla5"]
+    print(f"Regla 5 (n = {r5['total']}): {r5['conteos']}; aciertos {r5['aciertos']}, accuracy {r5['accuracy']} "
+          f"(IC 95 % {mt['ic95_accuracy']['inferior']}-{mt['ic95_accuracy']['superior']})")
+    print("Por nivel: " + ", ".join(f"{k} {v['accuracy']}" for k, v in mt["por_nivel"].items())
+          + f"; macro-F1 de sector {mt['macro_f1_sector']['valor']}")
+    for marca, g in mt["subgrupos"].items():
+        print(f"  {marca}: con {g['con']['accuracy']} ({g['con']['filas']} filas), sin {g['sin']['accuracy']} ({g['sin']['filas']} filas)")
+    c, ce = mt["concentracion"], res["concentracion_extra"]
+    print(f"Concentración: {c['clases_existentes_distintas_predichas']} clases existentes distintas; {c['codigo_valido_mas_predicho']} en "
+          f"{c['filas_con_ese_codigo']} filas ({c['pct_filas_con_ese_codigo']} %; en validación {ce['filas_de_validacion_con_ese_codigo']}); "
+          f"respuestas distintas {ce['respuestas_distintas_tras_limpiar']}")
+    print("Tabla de validación:")
+    for f in res["tabla_validacion"]:
+        print(f"  {f['modelo']}: {f['aciertos']}/{f['n']} = {f['accuracy']} ({f['ic95']['inferior']}-{f['ic95']['superior']}), sector "
+              f"{f['accuracy_sector']} ({f['ic95_sector']['inferior']}-{f['ic95_sector']['superior']}), macro-F1 sector "
+              f"{f['macro_f1_sector']}, clases {f['clases_existentes_distintas_predichas']}, más predicho {f['codigo_valido_mas_predicho']} "
+              f"({f['pct_filas_con_ese_codigo']} %)")
+    for titulo, dp in (("contra la referencia", res["contra_referencia"]),
+                       ("contra TF-IDF", res["comparacion"]["diferencia_pareada_contra_tfidf"])):
+        for nivel in ("clase", "sector"):
+            v = dp[nivel]
+            print(f"  pareada {titulo}, {nivel} ({dp['signo']}): {v['diferencia']:+.3f} (IC 95 % {v['ic95']['inferior']:+.3f} a "
+                  f"{v['ic95']['superior']:+.3f}); solo A {v['filas_solo_a_acierta']}, solo B {v['filas_solo_b_acierta']}")
+    t = res["tiempos_contra_estimacion"]
+    print("Tiempos (estimado → real, razón):")
+    for k, v in [*t["partes"].items(), ("proceso", t["proceso"]), ("orquestador", t["orquestador"]), ("total", t["total"])]:
+        print(f"  {k}: {v['estimado_s']} → {v['real_s']} s ({v['real_entre_estimado']})")
+    print(f"  s/paso: {t['s_por_paso']}")
+    h = res["horas_gpu"]
+    print(f"Horas de GPU: {h['valor']} (script {h['script']}, desde lastRunTime {h['desde_last_run_time']}, arranque "
+          f"{h['arranque_del_contenedor_s']} s); diferencia con la cuota (min): {h['diferencia_con_la_cuota_min']}")
+    print(f"Adaptadores: { {k: v for k, v in res['adaptadores'].items() if k != 'nota'} }")
+    print(f"Para la Fase 4: { {k: v for k, v in res['para_la_fase_4'].items() if k not in ('fuente', 'nota')} }")
+    for a in res["advertencias"]:
+        print(f"  ADVERTENCIA: {a}")
 
 
 # --- Programa principal ---
@@ -1988,6 +2634,9 @@ def main_barrido(args) -> None:
     from src.splits import esta_ignorado
 
     conf = BARRIDOS[args.barrido]
+    if conf.get("tipo") == "corrida_unica":
+        main_corrida_unica(args, conf)
+        return
     carpeta = REPO_RAIZ / conf["carpeta"]
     manifest = leer_manifest()
     try:
@@ -2012,6 +2661,41 @@ def main_barrido(args) -> None:
         if faltan:
             sys.exit(f"PARADA: faltan observaciones del barrido (BARRIDOS): {faltan}.")
         for ruta in escribir_barrido(resumen, resultados, conf):
+            p = REPO_RAIZ / ruta
+            print(f"Escrito {ruta} ({p.stat().st_size:,} bytes, SHA-256 {sha256_archivo(p)}).")
+
+
+def main_corrida_unica(args, conf: Mapping) -> None:
+    from src.muestra_humo import ErrorMuestra
+    from src.scian import leer_manifest
+    from src.splits import esta_ignorado
+
+    if args.aceptar_incompletas:
+        sys.exit("PARADA: --aceptar-incompletas no va con una corrida única; si quedó incompleta, decide Samuel.")
+    carpeta = REPO_RAIZ / conf["carpeta"]
+    manifest = leer_manifest()
+    try:
+        if not carpeta.is_dir():
+            raise ErrorCorrida(f"No existe {conf['carpeta']}: falta bajar la salida de la corrida.")
+        if not esta_ignorado(carpeta) or not all(esta_ignorado(carpeta / a["ruta"]) for a in inventario(carpeta)):
+            raise ErrorCorrida("La carpeta de la salida o alguno de sus archivos no está ignorado por git.")
+        contexto = contexto_de_kernel(manifest, conf["kernel"])
+        ent = cargar_corrida_unica(args.barrido, manifest)
+        resultado, privacidad = evaluar_corrida_unica(ent, manifest, contexto)
+    except (ErrorCorrida, ErrorMetricas, ErrorEvaluador, ErrorMuestra, AbortoHumo) as e:
+        sys.exit(f"PARADA: {e}")
+    imprimir_corrida_unica(resultado, privacidad)
+    print(f"commit {contexto['commit'][:7]} | árbol limpio: {contexto['arbol_limpio']} | kernel de {contexto['commit_kernel'][:7]}")
+    problemas = problemas_de_la_corrida_unica(resultado)
+    if problemas:
+        sys.exit(f"PARADA: comprobaciones que fallan: {problemas}")
+    if args.escribir:
+        if not contexto["arbol_limpio"]:
+            sys.exit("PARADA: el árbol tiene cambios sin commit; el resultado debe registrar un commit limpio.")
+        faltan = sorted(k for k, v in conf["observaciones"].items() if v is None)
+        if faltan:
+            sys.exit(f"PARADA: faltan observaciones de la corrida (BARRIDOS): {faltan}.")
+        for ruta in escribir_corrida_unica(resultado, conf):
             p = REPO_RAIZ / ruta
             print(f"Escrito {ruta} ({p.stat().st_size:,} bytes, SHA-256 {sha256_archivo(p)}).")
 

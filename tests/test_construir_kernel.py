@@ -275,10 +275,15 @@ def test_cli_verifica_todos_los_kernels(capsys):
 
 # --- Barrido del 0.6B (paso 11) ---
 
-# SHA-256 de lo que se lanzó en Kaggle (kernel y metadata), de sus commits: 1b4e41f, 54374f9 y 41e324a.
+# SHA-256 de lo que se lanzó en Kaggle (kernel y metadata), de sus commits: 1b4e41f, 54374f9, 41e324a y 2c7198f.
 # El del barrido se comprobó el 2026-11-23 con `kaggle kernels pull -m`: el código que corre es este
-# kernel (salvo los CRLF) y su metadata trae la imagen de Docker de 06b-inicial.
+# kernel (salvo los CRLF) y su metadata trae la imagen de Docker de 06b-inicial. El del 4B se comprobó
+# igual el 2026-11-24 (paso 13): mismo código salvo los CRLF de sus 3,164 líneas y la misma imagen.
 LANZADOS = {
+    "4b": {
+        "clasificador_4b.py": "ae2313ce6088843371ab9ac855b2ed7f17bee270d73bc73b9a5ec02bce6e1ed0",
+        "kernel-metadata.json": "4f0078f13cf198b96640411683b3c53a4d69375792d3b292bff3c3d1fa7c43b2",
+    },
     "06b-barrido": {
         "clasificador_06b_barrido.py": "a3d30180241e873932c72c60d148caf0d22f420ed31452161934af148c1e0ab0",
         "kernel-metadata.json": "d7d05deee37918aae5500a50eedf948bf47ca310c1c8e1f4bc38635e522cb0fb",

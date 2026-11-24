@@ -688,3 +688,261 @@ def test_cli_aceptar_incompletas_solo_con_barrido():
         ec.main(["--corrida", "06b-inicial", "--aceptar-incompletas", "x"])
     with pytest.raises(SystemExit):
         ec.main(["--corrida", "06b-inicial", "--barrido", "06b-barrido"])
+
+
+# --- Corrida única: el 4B (paso 13) ---
+
+C4B = dict(ck.KERNELS["4b"].corridas[0])
+N4B = C4B["nombre"]
+REF = "p-ref"
+# Duraciones inventadas de las etapas del proceso: antes de entrenar 187 s, validaciones 10 + 50 = 60 s,
+# pasos de entrenamiento 1,000 − 60 = 940 s, adaptador, inferencia y cierre 303 s.
+DURACIONES_4B = {"gpu": 1.0, "datos": 2.0, "instalacion": 3.0, "imports": 4.0, "descarga": 60.0, "carga": 12.0,
+                 "tokens_y_plantilla": 100.0, "lora": 5.0, "entrenamiento": 1000.0, "adaptador": 2.0, "inferencia": 300.0,
+                 "cierre": 1.0}
+ESTIMADO_4B = {"antes_de_entrenar": 200.0, "pasos_de_entrenamiento": 900.0, "validaciones": 50.0,
+               "adaptador_inferencia_y_cierre": 250.0}
+
+
+def _corrida_unica_inventada(tmp_path, monkeypatch, *, log_extra="", incompleta=False, arranque_s=10, ganadora=REF):
+    """Repo inventado con la inicial, una referencia del barrido (la ganadora) y la salida de una corrida única."""
+    raiz, manifest, contexto, val_regs = _repo_inventado(tmp_path, monkeypatch)
+    filas = validar_referencias(val_regs)
+
+    # La inicial: sus predicciones y su JSON de results/ (solo los campos que se usan).
+    pred_ini = _pred_bytes(val_regs, 4)
+    sha_ini = _escribir(raiz / "kaggle-output" / "inicial" / "predicciones.jsonl", pred_ini)
+    res_ini = {
+        "configuracion": {"corrida": dict(ck.CLASIFICADOR_06B_INICIAL.corrida)},
+        "metricas": evaluar_validacion(ec.leer_predicciones(pred_ini), filas, CATALOGO),
+        "corrida_kaggle": {"archivos_bajados": [{"ruta": "predicciones.jsonl", "sha256": sha_ini}]},
+        "para_el_barrido": {"versiones_entorno": VERSIONES_INI},
+        "curvas": {"validacion": [{"paso": 0, "eval_loss": 3.0}, {"paso": 1, "eval_loss": 1.0}],
+                   "train_por_ventana": [{"paso_inicial": 1, "paso_final": 1, "pasos": 1, "media": 2.0}]},
+    }
+    _escribir(raiz / "results" / "inicial.json", json.dumps(res_ini).encode())
+    monkeypatch.setitem(ec.CORRIDAS, "inicial-prueba", {"kernel": "06b-inicial", "carpeta": "kaggle-output/inicial",
+                                                         "resultado": "results/inicial.json"})
+
+    # La referencia: misma receta que el 4B salvo nombre, descripción y modelo; falla 1 de cada 3 filas,
+    # con sus predicciones desordenadas (la alineación es por int(id)).
+    corrida_ref = {**C4B, "nombre": REF, "descripcion": "Configuración inventada.", "modelo": dict(MODELO_06B)}
+    carpeta_ref = raiz / "kaggle-output" / "barrido-ref" / REF
+    pred_ref = _pred_bytes(val_regs, 3, desordenar=True)
+    sha_pred_ref = _escribir(carpeta_ref / "predicciones.jsonl", pred_ref)
+    sha_adap_ref = _escribir(carpeta_ref / "adaptador" / "adapter_model.safetensors", b"adaptador inventado de la referencia")
+    curvas_ref = {"validacion": [{"paso": 0, "eval_loss": 3.0}, {"paso": 1, "eval_loss": 0.8}],
+                  "train_por_ventana": [{"paso_inicial": 1, "paso_final": 1, "pasos": 1, "media": 1.5}]}
+    res_ref = {
+        "configuracion": {"corrida": corrida_ref},
+        "modelo": {"adaptador_sha256": sha_adap_ref},
+        "metricas": evaluar_validacion(ec.leer_predicciones(pred_ref), filas, CATALOGO),
+        "corrida_kaggle": {"archivos_bajados": [{"ruta": f"{REF}/predicciones.jsonl", "sha256": sha_pred_ref}],
+                           "tiempo": {"duraciones_etapas_s": {"descarga": 4.0, "carga": 8.0}}},
+        "etapas": {"etapas": {"inferencia": {"segundos": 224.0, "s_por_fila": 0.224, "vram_pico_mib": 900}}},
+        "curvas": curvas_ref,
+    }
+    sha_res_ref = _escribir(raiz / "results" / "ref.json", json.dumps(res_ref).encode())
+    resumen = {"resultados_por_configuracion": {REF: {"ruta": "results/ref.json", "sha256": sha_res_ref}},
+               "eleccion": {"ganadora": ganadora}, "curvas": {"inicial-prueba": res_ini["curvas"], REF: curvas_ref}}
+    _escribir(raiz / "results" / "resumen.json", json.dumps(resumen).encode())
+    monkeypatch.setitem(ec.BARRIDOS, "barrido-ref-prueba", {"carpeta": "kaggle-output/barrido-ref"})
+
+    # La corrida única: falla 1 de cada 5 filas.
+    carpeta = raiz / "kaggle-output" / "unica"
+    archivos = manifest["kaggle_datasets"]["denue_scian_clasificador"]["archivos"]
+    esperados = {a: archivos[a]["sha256"] for a in ("train_final.jsonl", "val.jsonl")}
+    med = {"estado": "completo" if not incompleta else "en_curso", "fallas": [], "configuracion": {"corrida": dict(C4B)},
+           "entorno": {"versiones": VERSIONES_INI}, "duraciones_s": DURACIONES_4B,
+           "entrenamiento": {"pasos_hechos": 1, "orden_train": {"sha256_orden": bk.SHA256_ORDEN_06B_INICIAL},
+                             "argumentos": argumentos_entrenamiento(C4B, 1, False, f"/tmp/denue_trabajo/{N4B}/trainer_{N4B}"),
+                             "segundos_evaluacion_paso_0": 10.0, "evaluaciones_s": [{"paso": 1, "s": 50.0}],
+                             "estadisticas": {"s_por_paso_media": 4.0, "s_por_paso_mediana": 4.1}},
+           "segundos_desde_arranque": 1500.0, "inicio_utc": "2026-01-01T00:00:00+00:00"}
+    archivos_salida = []
+    if not incompleta:
+        pred = _pred_bytes(val_regs, 5)
+        sha = _escribir(carpeta / N4B / "predicciones.jsonl", pred)
+        adap = b"adaptador inventado del 4B"
+        sha_adap = _escribir(carpeta / N4B / "adaptador" / "adapter_model.safetensors", adap)
+        archivos_salida = [{"ruta": "predicciones.jsonl", "bytes": len(pred), "sha256": sha},
+                           {"ruta": "adaptador/adapter_model.safetensors", "bytes": len(adap), "sha256": sha_adap}]
+        med["inferencia"] = {"archivo": {"sha256": sha}, "filas": len(val_regs), "segundos": 300.0, "s_por_fila": 10.0,
+                             "vram_pico_mib": 3000}
+    med["archivos_salida"] = archivos_salida
+    _escribir(carpeta / N4B / "mediciones.json", json.dumps(med).encode())
+    _escribir(carpeta / "logs" / f"{N4B}.log",
+              f"[clasificador 00:00:01] pérdida de validación en el paso 0: 3.0\n{log_extra}".encode())
+    inicio = f"2026-01-01T00:{arranque_s // 60:02d}:{arranque_s % 60:02d}+00:00"
+    b = {
+        "estado": "completo" if not incompleta else "completo_con_fallas",
+        "fallas": [] if not incompleta else [{"etapa": f"configuracion_{N4B}", "error": "x"}],
+        "configuracion": {"corridas": [dict(C4B)], "estimado_s": {N4B: 1400.0}, "desglose_estimado_s": {N4B: ESTIMADO_4B},
+                          "razon_4b_06b_s_por_paso": 5.9768},
+        "configuraciones": [{"nombre": N4B, "estado": "completa" if not incompleta else "fallida",
+                             "codigo_de_salida": 0 if not incompleta else -9, "matado_por_tiempo": incompleta,
+                             "memoria_liberada": True, "estimado_s": 1400.0, "segundos": 1550.0, "tiempo_maximo_s": 2800.0,
+                             "memoria_gpu0_al_salir_mib": 3,
+                             "mediciones": {"sha256_orden_train": bk.SHA256_ORDEN_06B_INICIAL, "pasos_hechos": 1}}],
+        "duraciones_s": {"gpu": 0.1, "datos": 0.5, "instalacion": 30.0, "versiones": 0.1, f"configuracion_{N4B}": 1550.0,
+                         "cierre": 0.3},
+        "versiones": {"fijadas_distintas": {}, "fijadas_con_pip": dict(p.split("==") for p in bk.PAQUETES_BARRIDO),
+                      "no_fijables": {}, "controlador_nvidia": bk.CONTROLADOR_06B_INICIAL},
+        "advertencias": {},
+        "gpu": {"nvidia_smi": [{"nombre": "Tesla T4"}, {"nombre": "Tesla T4"}]},
+        "datos": {"sha256_verificados": esperados},
+        "datos_sha256_esperados": esperados,
+        "fuentes_incrustadas_sha256": {},
+        "inicio_utc": inicio,
+        "segundos_desde_arranque": 1600.0,
+        "archivos_salida": _inv_de(carpeta),
+    }
+    _escribir(carpeta / "barrido.json", json.dumps(b).encode())
+    _escribir(carpeta / "unica.log", json.dumps([{"stream_name": "stdout", "time": 1.0, "data": "[barrido 00:00:01] inicio\n"}]).encode())
+    obs = {**ec.BARRIDOS["4b"]["observaciones"], "last_run_time_cli": "2026-01-01 00:00:00.000000", "cuota_descontada_min": 27}
+    monkeypatch.setitem(ec.BARRIDOS, "prueba-4b", {
+        **ec.BARRIDOS["4b"], "inicial": "inicial-prueba", "barrido_referencia": "barrido-ref-prueba",
+        "resumen_barrido": "results/resumen.json", "referencia": REF, "carpeta": "kaggle-output/unica", "log": "unica.log",
+        "observaciones": obs,
+    })
+    return raiz, manifest, contexto, val_regs, carpeta
+
+
+def _evaluar_unica(raiz, manifest, contexto):
+    ent = ec.cargar_corrida_unica("prueba-4b", manifest, raiz)
+    return ec.evaluar_corrida_unica(ent, manifest, contexto)
+
+
+def test_corrida_unica_flujo_completo_sin_test_ni_hard_y_sin_ids(tmp_path, monkeypatch):
+    raiz, manifest, contexto, val_regs, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    abiertos: list[str] = []
+    original = io.open
+
+    def espia(archivo, *args, **kwargs):
+        if not isinstance(archivo, int):
+            abiertos.append(Path(os.fspath(archivo)).name)
+        return original(archivo, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", espia)
+    monkeypatch.setattr(io, "open", espia)
+    res, privacidad = _evaluar_unica(raiz, manifest, contexto)
+    monkeypatch.setattr(builtins, "open", original)
+    monkeypatch.setattr(io, "open", original)
+    assert "val.jsonl" in abiertos and "barrido.json" in abiertos
+    assert "test.jsonl" not in abiertos and "hard.jsonl" not in abiertos
+    assert privacidad["posible_fuga"] is False
+    texto = ec.serializar(res).decode("utf-8")
+    assert not any(r["id"] in texto for r in val_regs)
+    assert "Inventad" not in texto and "INVENTAD" not in texto
+    assert res["experimento"] == f"fase2_paso13_{N4B}" and res["modelo"]["nombre"] == f"qwen3_4b_qlora_{N4B}"
+    # Aciertos: la inicial falla 1 de cada 4 filas, la referencia 1 de cada 3 y la corrida 1 de cada 5.
+    assert [(f["modelo"], f["aciertos"]) for f in res["tabla_validacion"]][:3] == [("inicial-prueba", 22), (REF, 20), (N4B, 24)]
+    assert [f["modelo"] for f in res["tabla_validacion"]][3:] == ["baseline_tfidf_lr (C = 10)", "baseline_diccionario"]
+    assert res["tabla_validacion"][1]["fuente"]["ruta"] == "results/ref.json"
+    assert res["orquestador"]["estado"] == "ok"
+    assert res["etapas"]["etapas"]["barrido"]["estado"] == "ok"
+    assert res["etapas"]["etapas"]["referencia"]["estado"] == "ok"
+    assert res["etapas"]["etapas"]["entrenamiento"]["argumentos"]["distintos"] == []
+    assert res["adaptadores"][REF]["igual_al_de_su_resultado"] is True
+    f4 = res["para_la_fase_4"]
+    assert f4[N4B]["s_por_fila"] == 10.0 and f4[REF]["s_por_fila"] == 0.224 and f4[REF]["carga_s"] == 8.0
+    assert res["curvas_referencia"]["posicion_en_la_figura_del_barrido"] == 1
+
+
+def test_corrida_unica_pareada_contra_la_referencia_signo_y_alineacion(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    contra = res["contra_referencia"]
+    # Corrida − referencia: 24/30 − 20/30, con las predicciones de la referencia desordenadas.
+    assert contra["clase"]["diferencia"] == pytest.approx(24 / 30 - 20 / 30, abs=1e-6)
+    assert contra["signo"].startswith(f"{N4B} − {REF}")
+    assert contra["clase"]["filas_solo_b_acierta"] - contra["clase"]["filas_solo_a_acierta"] == 4
+    assert contra["alineacion"]["comprobaciones_referencia"]["conteo_clase"] is True
+    d = res["comparacion"]["diferencia_pareada_contra_tfidf"]
+    assert d["signo"].startswith("corrida − TF-IDF")
+
+
+def test_corrida_unica_tiempos_contra_la_estimacion(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    t = res["tiempos_contra_estimacion"]
+    assert {k: v["real_s"] for k, v in t["partes"].items()} == {
+        "antes_de_entrenar": 187.0, "pasos_de_entrenamiento": 940.0, "validaciones": 60.0, "adaptador_inferencia_y_cierre": 303.0}
+    assert t["partes"]["pasos_de_entrenamiento"]["real_entre_estimado"] == round(940 / 900, 3)
+    assert t["proceso"] == {"estimado_s": 1400.0, "real_s": 1550.0, "real_entre_estimado": round(1550 / 1400, 3)}
+    assert t["orquestador"]["real_s"] == 31.0 and t["total"]["real_s"] == 1600.0
+    assert t["s_por_paso"]["estimado"] == 900.0 and t["s_por_paso"]["real_media_medida"] == 4.0
+
+
+@pytest.mark.parametrize("arranque_s, con_cola", [(10, False), (1000, True)])
+def test_corrida_unica_horas_de_gpu_con_y_sin_cola(tmp_path, monkeypatch, arranque_s, con_cola):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch, arranque_s=arranque_s)
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    h = res["horas_gpu"]
+    assert h["con_cola_en_el_last_run_time"] is con_cola and h["arranque_del_contenedor_s"] == arranque_s
+    # Sin cola: del lastRunTime (00:00:00) al fin del orquestador; con cola: solo el orquestador (1,600 s).
+    esperado_s = 1600 if con_cola else arranque_s + 1600
+    assert h["valor"] == round(esperado_s / 3600, 3)
+    assert h["diferencia_con_la_cuota_min"]["valor"] == round(esperado_s / 60 - 27, 1)
+    assert ("cola" in h["metodo"]) is con_cola
+
+
+def test_corrida_unica_predicciones_de_la_referencia_alteradas_es_parada(tmp_path, monkeypatch):
+    raiz, manifest, contexto, val_regs, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    _escribir(raiz / "kaggle-output" / "barrido-ref" / REF / "predicciones.jsonl", _pred_bytes(val_regs, 2))
+    with pytest.raises(ec.ErrorCorrida, match=REF):
+        _evaluar_unica(raiz, manifest, contexto)
+
+
+def test_corrida_unica_para_ante_un_nombre_en_el_log(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch, log_extra="cargando Ferretería Inventada 7 ...\n")
+    with pytest.raises(ec.ErrorCorrida, match="Posible fuga"):
+        _evaluar_unica(raiz, manifest, contexto)
+
+
+def test_corrida_unica_incompleta_es_parada(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch, incompleta=True)
+    with pytest.raises(ec.ErrorCorrida, match="incompleta"):
+        _evaluar_unica(raiz, manifest, contexto)
+
+
+@pytest.mark.parametrize("dano", ["extra", "distinto", "sin_log"])
+def test_corrida_unica_descarga_que_no_coincide_es_parada(tmp_path, monkeypatch, dano):
+    raiz, manifest, contexto, val_regs, carpeta = _corrida_unica_inventada(tmp_path, monkeypatch)
+    if dano == "extra":
+        _escribir(carpeta / "sobra.txt", b"x\n")
+    elif dano == "distinto":
+        _escribir(carpeta / N4B / "predicciones.jsonl", _pred_bytes(val_regs, 2))
+    else:
+        (carpeta / "unica.log").unlink()
+    with pytest.raises((ec.ErrorCorrida, FileNotFoundError)):
+        _evaluar_unica(raiz, manifest, contexto)
+
+
+def test_corrida_unica_referencia_que_no_es_la_ganadora_es_parada(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch, ganadora="otra")
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    assert "referencia: referencia_es_la_ganadora_del_barrido" in ec.problemas_de_la_corrida_unica(res)
+
+
+def test_corrida_unica_escribe_resultado_y_figura(tmp_path, monkeypatch):
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    (raiz / "docs" / "figuras").mkdir(parents=True)
+    escritos = ec.escribir_corrida_unica(res, ec.BARRIDOS["prueba-4b"], raiz)
+    assert escritos == ["results/2026-01-01_fase2_4b-lr2e-4-r32.json", "docs/figuras/2026-01-01_fase2_curvas-4b-vs-06b.png"]
+    assert (raiz / escritos[0]).read_bytes() == ec.serializar(res)
+    png = (raiz / escritos[1]).read_bytes()
+    assert png.startswith(b"\x89PNG") and b"Software" not in png
+
+
+def test_tasa_como_en_los_nombres_y_en_la_advertencia(tmp_path, monkeypatch):
+    assert [ec._tasa(x) for x in (1e-4, 2e-4, 5e-5)] == ["1e-4", "2e-4", "5e-5"]
+    raiz, manifest, contexto, _, _ = _corrida_unica_inventada(tmp_path, monkeypatch)
+    res, _ = _evaluar_unica(raiz, manifest, contexto)
+    assert "(tasa 2e-4, rank 32, alpha 32)" in res["advertencias"][0]
+
+
+def test_cli_corrida_unica_no_acepta_incompletas():
+    with pytest.raises(SystemExit, match="corrida única"):
+        ec.main(["--barrido", "4b", "--aceptar-incompletas", "x"])
