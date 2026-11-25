@@ -1076,3 +1076,35 @@
   - de test y hard solo lee el nombre y la llave: la etiqueta se descarta al leer el archivo y no se calcula ninguna métrica;
   - `--comprobar` pasa, incluida la revisión de privacidad del config;
   - `tests/test_preregistro_fase4.py`: 12 pruebas con datos inventados.
+
+## 2026-11-24 21:09 - Fase 4, paso 14 (Tema B): test y hard set sin etiquetas en Kaggle
+
+- **Qué es.** Una copia de test y del hard set con solo el id y el nombre del negocio, sin la clase SCIAN (`codigo_act`) ni el tipo del hard set. Con ella el kernel de Kaggle genera las respuestas sin poder ver las etiquetas. Los baselines también predicen desde estas mismas copias.
+- **Quién.** El chat de Claude del proyecto propuso; Claude Code escribió el código y esta sección; Samuel lo aprobó y subió el dataset desde su PowerShell.
+- **Código:** `src/paquete_evaluacion.py` (commit `b765755`), con 8 pruebas de datos inventados. Sigue el patrón del paquete del clasificador.
+- **Candado** (una revisión automática que se niega a escribir o a verificar si algo no cuadra). Rechaza:
+  - archivos de más, ocultos, subcarpetas o enlaces, y una carpeta dentro del repo;
+  - cualquier archivo con el SHA-256 de test o de hard completos, o con el de otra entrada del manifest;
+  - nuevo: cualquier línea cuyas claves no sean exactamente `id` y `nom_estab`.
+- **Carpeta** `../kaggle-datasets/denue-scian-evaluacion/`, fuera del repo:
+
+  | Archivo | Filas | Bytes | SHA-256 |
+  |---|---:|---:|---|
+  | `test.jsonl` | 2,000 | 114,708 | `a066b066…` |
+  | `hard.jsonl` | 105 | 5,044 | `848f8235…` |
+  | `dataset-metadata.json` | | 470 (ASCII) | `3434fde1…` |
+
+- **Manifest:** la entrada `kaggle_datasets.denue_scian_evaluacion` lleva filas, bytes y SHA-256, sin clases. Las demás secciones no cambiaron.
+- **Subida:**
+  - Samuel la hizo con `kaggle datasets create -p` y la ruta absoluta, sin `--public` ni `-u`;
+  - Kaggle registra los archivos a las 03:04 UTC del 25 nov (21:04 en la Ciudad de México);
+  - `kaggle datasets status` dice ready;
+  - `kaggle datasets files` da 114,708 bytes para `test.jsonl` y 5,044 para `hard.jsonl`, iguales al manifest. `dataset-metadata.json` no aparece en la lista porque Kaggle lo toma como metadato, no como archivo;
+  - un curl sin credenciales a la página del dataset da 404, sin seguir redirecciones y siguiéndolas: no es público.
+- **CLAUDE.md** (sección b) describe el nuevo dataset, con la aprobación de Samuel.
+- Commits del paso 14:
+  - `47c0080`: código del pre-registro;
+  - `57b0d68`: pre-registro y bitácora del Tema A;
+  - `b765755`: código del paquete de evaluación;
+  - el de esta sección, el manifest, el registro de Claude Code y CLAUDE.md.
+- PARADA: falta el push de Samuel desde PowerShell. Sigue el paso 15, el kernel de la Fase 4.

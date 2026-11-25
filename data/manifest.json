@@ -494,6 +494,50 @@
       "python": "3.12.10",
       "fecha_registro": "2026-11-22",
       "nota": "Datos de entrenamiento y validación del clasificador. Test y hard set no suben a Kaggle hasta la Fase 4 (regla 3); el candado rechaza sus SHA-256."
+    },
+    "denue_scian_evaluacion": {
+      "id_kaggle": "samcaballero/denue-scian-evaluacion",
+      "titulo": "DENUE SCIAN evaluacion",
+      "licencia": "other",
+      "privado": true,
+      "desechable": false,
+      "subida": "La hace Samuel con kaggle datasets create -p <carpeta> sin -u/--public (privado por omisión en la CLI 2.2.5).",
+      "carpeta": "../kaggle-datasets/denue-scian-evaluacion",
+      "archivos": {
+        "test.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-evaluacion/test.jsonl",
+          "origen": "splits.clasificador_test",
+          "origen_sha256": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c",
+          "filas": 2000,
+          "tamano_bytes": 114708,
+          "sha256": "a066b066e6bdd4b424348a61be37ef0f7f8a59eff6cdaa34dbda4355a27aa4a5"
+        },
+        "hard.jsonl": {
+          "ruta": "../kaggle-datasets/denue-scian-evaluacion/hard.jsonl",
+          "origen": "splits.clasificador_hard",
+          "origen_sha256": "13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa",
+          "filas": 105,
+          "tamano_bytes": 5044,
+          "sha256": "848f82355dc2335d128c7afe2e09bffa92b611534965a7cf65f2e58f4efb425c"
+        }
+      },
+      "metadata": {
+        "ruta": "../kaggle-datasets/denue-scian-evaluacion/dataset-metadata.json",
+        "codificacion": "ascii",
+        "tamano_bytes": 470,
+        "sha256": "3434fde1df73a0b86f56513cdbf6a9561afe69b2a2a3a8e8583034ba7d86527f"
+      },
+      "procedimiento": "test.jsonl: todas las filas de splits.clasificador_test; hard.jsonl: todas las filas de splits.clasificador_hard. SHA-256 de cada origen verificado antes de parsear; solo los campos id y nom_estab (sin codigo_act, tipo, llave ni marcas), en orden de int(id). Sin sorteo.",
+      "campos": [
+        "id",
+        "nom_estab"
+      ],
+      "formato": "JSONL: un objeto por línea con las claves en el orden de 'campos'; UTF-8 sin BOM; saltos \\n; ordenado por int(id).",
+      "script": "src/paquete_evaluacion.py",
+      "commit_codigo": "b76575585f1193413d59d3b5ce2be35899e5a663",
+      "python": "3.12.10",
+      "fecha_registro": "2026-11-24",
+      "nota": "Fase 4: test y hard set sin etiquetas, para que el kernel genere las respuestas sin ver codigo_act y los baselines predigan desde las mismas copias. Las etiquetas solo se leen en la laptop, una vez, al abrir test (evals/fase4_preregistro.json). El candado rechaza cualquier archivo con el SHA-256 de test, de hard o de otra entrada del manifest, y cualquier línea con claves distintas de id y nom_estab."
     }
   }
 }

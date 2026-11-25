@@ -39,6 +39,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - Registros de los ajustes de los baselines: `data/baselines/<commit>/` (ignorado por git), un JSON por ajuste terminado de `src/baselines.py --escribir`, para reanudar una corrida cortada con el mismo commit.
 - Datasets de Kaggle: carpetas en `../kaggle-datasets/`, fuera del repo, con sus hashes en `data/manifest.json` (`kaggle_datasets`).
   - `denue-scian-clasificador` (dataset privado `samcaballero/denue-scian-clasificador`, armado con `src/paquete_clasificador.py`): `train_final.jsonl` y `val.jsonl` completos, solo con `id`, `nom_estab` y `codigo_act`. Su candado rechaza cualquier archivo con el hash de test, de hard o de otra entrada del manifest.
+  - `denue-scian-evaluacion` (dataset privado `samcaballero/denue-scian-evaluacion`, armado con `src/paquete_evaluacion.py` en la Fase 4): `test.jsonl` y `hard.jsonl` completos, solo con `id` y `nom_estab`, sin `codigo_act` ni `tipo`. Su candado rechaza cualquier archivo con el hash de test, de hard o de otra entrada del manifest, y cualquier línea con claves distintas de `id` y `nom_estab`.
   - `denue-scian-humo`: la muestra desechable de la prueba de punta a punta (`src/muestra_humo.py`).
   - La subida la hace Samuel con `kaggle datasets create -p` y la ruta absoluta de la carpeta.
 - Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).

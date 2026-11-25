@@ -644,3 +644,60 @@ Se corrigió antes del commit.
 Se corrigió antes del commit.
 
 - **La tasa salía como "0.0002"** en una advertencia y en el subtítulo de la figura, en lugar de "2e-4" como en los nombres. Se agregó `_tasa`, con una prueba.
+
+## 2026-11-24 — Fase 4, paso 14: pre-registro de la evaluación final y subida de test y hard sin etiquetas
+
+**Qué se hizo:**
+- Tema A, el pre-registro: `evals/fase4_preregistro.json`, con las reglas de la evaluación final, y `src/preregistro_fase4.py`, con 12 pruebas. El módulo elige los ejemplos del few-shot, arma su prompt, calcula el límite de largo y comprueba el config.
+- Tema B, la subida: `src/paquete_evaluacion.py`, con 8 pruebas. Arma test y hard solo con `id` y `nom_estab`; la carpeta queda fuera del repo, con su entrada en el manifest.
+- En Kaggle, solo lectura: `datasets status` y `datasets files`. Además, un curl sin credenciales a la página del dataset, del que solo se reportó el código HTTP.
+- Autoría:
+  - El chat de Claude del proyecto propuso las reglas y redactó la instrucción; Samuel la aprobó.
+  - Claude Code propuso el plan, con 6 precisiones (la ruta `evals/`, 0.6B antes que 4B, tokens de fin y corte de los base, baselines desde las copias sin etiquetas, reproducción del diccionario y SHA-256 del config en cada script). Samuel las aprobó todas.
+  - Claude Code redactó el config, el código, las pruebas y las secciones de la bitácora.
+  - Samuel subió el dataset desde su PowerShell.
+- Commits `47c0080`, `57b0d68`, `b765755` y el de este registro, sin push.
+
+### Decisiones que Samuel corrigió en el plan
+
+- **Cuál copia manda en el few-shot:** la de Kaggle, que es la que verá el kernel. Si las dos copias no daban la misma selección, PARADA, sin que Claude Code eligiera.
+- **Revisión de largos en el kernel:** se comprueban con fichas reales todas las filas de cada modelo antes de su primera respuesta. Si alguna no cabe, se detiene antes de empezar, nunca a la mitad.
+- **Más contenido en el config:**
+  - la lista explícita de lo que no va a test;
+  - las mismas pareadas en accuracy de sector, como secundarias.
+- **Punto 10:** la comprobación del 404 con un curl sin credenciales.
+
+### Decisiones que Samuel corrigió en la PARADA 1
+
+- **La advertencia del hard set.** Claude Code la había limitado al tipo indirecto, con la frase "con su propio conocimiento". Samuel pidió el texto del estado del proyecto: la pre-curación de Gemini, que Samuel no revisó fila por fila, los 23 ajustes del chat y el sesgo reconocido. La advertencia del n de indirecto queda aparte.
+- **`few_shot.mismo_bloque`.** Claude Code había escrito "validación, test y hard". Los modelos base no corren en validación y eso no está pre-registrado, así que Samuel pidió quitar "validación".
+- **`comparaciones.hard.pares`.** Era un texto. Samuel pidió una lista de las claves que reutiliza, para que los scripts lean el config sin interpretar texto. `--comprobar` ahora revisa esas claves y que `secundarias_sector` sea exactamente principales + secundarias.
+
+### Proceso
+
+- **Plan antes de tocar nada.** Se escribió en modo de plan y Samuel lo aprobó con 7 ajustes.
+- **Test y hard, sin métricas.** Se leyeron solo para las llaves y el largo de los nombres. `codigo_act` y `tipo` se descartan al parsear, y en la terminal solo salieron conteos, bytes y hashes.
+- **Few-shot en las dos copias.** La selección se calculó sobre la copia de Kaggle y sobre `data/splits/train_final.jsonl`, y dieron el mismo hash, los mismos códigos y los mismos sectores.
+- **Límite sin tokenizador.** Como la laptop no tiene el tokenizador de Qwen, el límite del few-shot es una cota por bytes: cada ficha cubre al menos un byte. El kernel confirma con las fichas reales.
+- **`commit_codigo` del config.** Se llenó después del commit del código. `--comprobar` revisa que `src/preregistro_fase4.py` sea el de ese commit, y se corrió con el árbol limpio antes y después del commit del config.
+- **`--escribir`.** Corrió con el árbol limpio y el script en git, generó los archivos dos veces con los mismos bytes y pasó `--verificar` después de escribir.
+- **Ayuda de Kaggle bloqueada.** Para confirmar la opción de privacidad, Claude Code intentó leer la ayuda de `kaggle datasets create`. La regla `deny` la bloqueó, porque revisa el texto del comando aunque sea `--help`. No insistió: la privacidad se confirmó después con el 404.
+
+### Hallazgos
+
+- **El diccionario será constante en test y hard.** Ninguna llave de test ni de hard está en train final (0 y 0), así que el diccionario responderá la clase global en todas sus filas, como en validación.
+- **La cota por bytes es holgada:** unas 3 veces las fichas reales. Por eso en 0-shot solo confirma dentro de 256 fichas a 53 de 2,000 filas de test para los base y a 1,279 para los afinados; las demás las confirma el kernel.
+- **`kaggle datasets files` no lista `dataset-metadata.json`.** Solo aparecen los dos JSONL, porque Kaggle toma ese archivo como metadato.
+
+### Bug que Claude Code introdujo y encontró
+
+- **`--comprobar` se caía con un error de tipo (`TypeError`).**
+  - El bucle de las pareadas suponía que `pares` siempre era una lista de pares, pero en `comparaciones.hard` era un texto.
+  - Salió al correr `--comprobar` sobre el config real, antes de la PARADA 1.
+  - Se corrigió antes del reporte y se agregó el caso a las pruebas.
+
+### Errores de Claude Code
+
+Se corrigió antes del commit.
+
+- **Saltos CRLF en un archivo de pruebas.** Claude Code reescribió `tests/test_preregistro_fase4.py` con Python en modo texto, que en Windows escribe CRLF. Se regresó a LF antes del commit A1.
