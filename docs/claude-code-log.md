@@ -701,3 +701,57 @@ Se corrigió antes del commit.
 Se corrigió antes del commit.
 
 - **Saltos CRLF en un archivo de pruebas.** Claude Code reescribió `tests/test_preregistro_fase4.py` con Python en modo texto, que en Windows escribe CRLF. Se regresó a LF antes del commit A1.
+
+## 2026-11-25 — Fase 4, paso 15: kernel de inferencia en test y hard set
+
+**Qué se hizo:**
+- **Criterio de reproducción de validación** (980 de 1,000 respuestas idénticas) en el config, y su revisión en `--comprobar`.
+- **Tokenizador real en la laptop:** prueba de plantilla y largos con el tokenizador real, en un entorno aparte fuera del repo; todo pasa.
+- **Módulos nuevos:**
+  - `src/plantilla_fase4.py`: plantilla y largos;
+  - `src/inferencia_fase4_kaggle.py`: el orquestador;
+  - `src/etapa_fase4_kaggle.py`: las comprobaciones y cada etapa.
+- **Kernel nuevo**, `samcaballero/denue-scian-fase4-inferencia`, armado con el generador sin cambiar los 4 kernels lanzados.
+- **Kaggle, solo lectura:** `kernels list --mine`, `kernels status` y `kernels pull -m`.
+- **Autoría:** el chat de Claude del proyecto propuso el paso y el criterio; Samuel lo aprobó; Claude Code redactó el plan, el código, las pruebas, el cambio al config y las secciones de la bitácora y de este registro. Samuel lanzó el kernel.
+- **Commits:** `a4330d1`, `e43fe76`, `0081b86`, `32a9f02`, `99de3c4` y el de este registro, sin push.
+
+### Decisiones que Samuel corrigió en el plan
+
+- **Respaldo del adaptador.** En el plan, Claude Code solo probaba el respaldo (`PeftModel.from_pretrained`) si el camino principal lanzaba un error. Samuel pidió además:
+  - probarlo también cuando falle la comparación tensor por tensor;
+  - comparar cada tensor ya convertido al dtype del parámetro;
+  - registrar los dos dtypes.
+- **Punto 9.** Si el estado sale error, se baja la salida y se reportan solo las líneas del error. Si sale en cola o corriendo, no se espera.
+- **Estimado de GPU en la PARADA 2:** separado en arranque y comprobaciones, cada etapa en mejor y peor caso con las fichas reales, y el total, con la cuota que quedaría.
+
+### Proceso
+
+- **Plan en modo de plan**, aprobado con los 3 ajustes de arriba.
+- **Código de peft y unsloth leído antes de escribir la carga del adaptador**, desde sus ruedas bajadas con `pip download --no-deps` al scratchpad, sin instalar. Unsloth carga un adaptador con `PeftModel.from_pretrained(..., is_trainable=True)` y después `patch_peft_model`, y su `get_peft_model` también llama a `patch_peft_model`. El respaldo copia ese camino.
+- **`hk.inferir` no se modificó:** el módulo nuevo copia su lógica de generación. Una prueba con modelo falso demuestra que la copia da los mismos bytes, el mismo `generation_config` y las mismas llamadas a `generate`.
+- **Con los archivos reales, antes del commit del kernel**, se simuló la revisión de entrada: rutas y SHA-256 cuadran. También se revisó que los dos `adapter_config.json` den la LoRA del entrenamiento. Solo se imprimieron rutas y conteos.
+- **`--escribir`** se corrió con las fuentes incrustadas ya en git, dos veces, con los mismos bytes.
+
+### Hallazgos
+
+- **Los dos tokenizadores (0.6B y 4B) son idénticos**, y la plantilla real da exactamente los prompts escritos a mano, también el few-shot de varios turnos.
+- **El prompt few-shot tiene unas 404 fichas** (máximo 436) y el 0-shot unas 63. La cota por bytes del paso 14 era unas 3.5 veces lo real.
+- **La metadata que devuelve `pull -m` cambia el nombre del archivo y el orden de los datasets**, agrega `id_no` y `keywords` y no trae `docker_image_pinning_type`. La imagen y las fuentes de kernels son las mismas.
+
+### Bug que Claude Code introdujo y encontró
+
+- **La etapa no creaba la carpeta `etapas/` antes de escribir su JSON.**
+  - En Kaggle, las 14 etapas habrían fallado al empezar.
+  - Lo atraparon las pruebas con el motor falso antes del primer commit del módulo, y se corrigió antes del commit.
+- **Riesgo de los textos tapados.** Claude Code lo encontró al revisar el módulo antes del commit.
+  - Los JSON de cada etapa tapan cualquier texto que, normalizado, sea la llave de un nombre.
+  - Si un negocio se llamara, por ejemplo, "COMPLETA", el orquestador habría descartado una etapa buena.
+  - Ahora el orquestador decide solo con booleanos, números y el índice del método de carga. Una prueba simula los textos tapados.
+
+### Errores de Claude Code
+
+Ninguno llegó a un commit.
+
+- **Un heredoc de Git Bash perdió una barra invertida** en un reemplazo de las pruebas (`"\n"`). La comprobación del propio script lo detuvo sin escribir nada, y el cambio se hizo con la herramienta de edición, como pide la memoria del proyecto.
+- **Dos expectativas mal escritas en las pruebas nuevas:** el número de llamadas a `generate` con el respaldo de `TypeError`, y un tokenizador falso que no alargaba lo suficiente el prompt. Se corrigieron las pruebas; el código no cambió.

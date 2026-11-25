@@ -1108,3 +1108,72 @@
   - `b765755`: código del paquete de evaluación;
   - el de esta sección, el manifest, el registro de Claude Code y CLAUDE.md.
 - PARADA: falta el push de Samuel desde PowerShell. Sigue el paso 15, el kernel de la Fase 4.
+
+## 2026-11-25 01:05 - Fase 4, paso 15: kernel de inferencia en test y hard set
+
+- **Qué es.** El kernel de Kaggle que genera las respuestas de los 6 LLM del pre-registro en test (2,000 filas) y en el hard set (105): los dos afinados, con su adaptador LoRA, y los cuatro modelos base, en 0-shot y few-shot. Lee test y hard solo desde las copias sin etiquetas, y no calcula ninguna métrica: las respuestas se evalúan una sola vez, en la laptop.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso y el criterio de reproducción; Samuel los aprobó al pegar la instrucción.
+  - Claude Code propuso el plan, con 5 decisiones de diseño. Samuel lo aprobó con 3 ajustes:
+    - el respaldo de la carga del adaptador se prueba también si falla la comparación de tensores, comparando cada tensor ya convertido al dtype del parámetro y registrando los dos dtypes;
+    - en el punto 9, si el estado es error, se baja la salida y se reportan solo las líneas del error;
+    - en la PARADA 2, el estimado de GPU separado en arranque, cada etapa en mejor y peor caso y total, con la cuota que quedaría.
+  - Claude Code redactó el código, las pruebas, el cambio al config y esta sección.
+  - Samuel lanzó el kernel desde su PowerShell.
+- **Criterio de reproducción de validación** (punto 1). En `uso_unico.reproduccion_validacion_en_el_kernel.criterio_de_paro`:
+  - cada afinado repite su inferencia en validación, y su respuesta cruda se compara, por id, con la de su `predicciones.jsonl` de referencia;
+  - con al menos 980 de 1,000 idénticas, sigue con test y hard; con menos, o si validación no termina completa, ese modelo no corre en test ni en hard y el kernel sigue con el siguiente;
+  - queda constancia en `registro.actualizaciones` (2026-11-25, 00:26). El SHA-256 del config pasa de `559ab3bc…` a `7de9d3fc…` (27,038 bytes);
+  - `--comprobar` ahora revisa el criterio, así que `registro.commit_codigo` pasa de `47c0080` a `a4330d1`. La selección few-shot y el límite de largo no cambian.
+- **Tokenizador real en la laptop** (punto 2). Se usó un entorno aparte, fuera del repo, con los pins de Kaggle: transformers 5.17.0, tokenizers 0.23.3, huggingface_hub 1.33.0 y numpy 2.1.3. Se bajaron solo los archivos del tokenizador de las dos revisiones fijadas.
+  - (a) Los dos tokenizadores son idénticos: sus 4 archivos son iguales y los 7,315 prompts dan los mismos ids.
+  - (b) El prompt 0-shot es, byte a byte, el de `apply_chat_template` con `enable_thinking=False` en las 3,105 filas de test, hard y validación.
+  - (c) El prompt few-shot, con los 5 ejemplos, también lo es en las 2,105 filas de test y hard.
+  - (d) Las fichas reales caben en todos los casos:
+
+    | Modo | Máximo del prompt | + nuevas | Límite |
+    |---|---:|---:|---:|
+    | Afinados | 95 (91 en validación) | 111 | 256 |
+    | Base 0-shot | 95 | 127 | 256 |
+    | Base few-shot | 436 (media 404) | 468 | 1,600 |
+
+  - La cota por bytes del paso 14 (1,526 para el few-shot) resultó unas 3.5 veces las fichas reales.
+- **Cómo corre el kernel:**
+  - 14 etapas, cada una en su propio proceso: los afinados en validación, test y hard; los base en test y hard. El 0.6B va antes que el 4B en cada grupo.
+  - Antes de cargar ningún modelo revisa:
+    - el SHA-256 del config incrustado;
+    - el SHA-256 de cada insumo: las dos copias, train final, validación, adaptadores, `adapter_config` y predicciones de referencia;
+    - que ningún archivo de la entrada tenga el SHA-256 de test o de hard con etiquetas;
+    - las versiones fijadas;
+    - la selección few-shot rehecha;
+    - la descarga verificada de las dos bases;
+    - la plantilla y los largos con los tokenizadores reales en todas las filas de cada modelo.
+
+    Si algo falla, sale antes de la primera etapa.
+  - Cada etapa tiene un tiempo máximo y un candado de tiempo. Si falla o se pasa, queda incompleta, sus salidas no se evalúan y el kernel sigue con la siguiente.
+  - El adaptador se carga como en el entrenamiento: la LoRA de su `adapter_config` con la misma llamada de Unsloth y los pesos del archivo. Si eso falla, se usa el respaldo, que es el mismo camino del cargador de Unsloth. En los dos casos se compara cada tensor con el del archivo.
+  - Las salidas van en `fase4/`: un JSONL de predicciones por etapa completa, el JSON de cada etapa, `comprobaciones.json` y `mediciones.json`. En los JSON y en el log van solo estados, conteos, tiempos y hashes.
+- **Kernel** `samcaballero/denue-scian-fase4-inferencia`:
+  - privado, T4, internet y la imagen de 06b-inicial;
+  - fuentes: los datasets de evaluación y del clasificador y las salidas de los kernels del barrido y del 4B;
+  - `fase4_inferencia.py`: 338,408 bytes, SHA-256 `c13dfb94…`;
+  - `kernel-metadata.json`: 760 bytes, SHA-256 `5cc5b0e7…`.
+- **GPU estimada:**
+  - arranque y comprobaciones: 450 s;
+  - mejor caso: 2.14 h; peor caso, con los base siempre al tope de 32 fichas: 5.12 h;
+  - `-t 28800` (8 h);
+  - cuota: hay 16 h 37 min. En el peor caso quedarían unas 11 h 30 min; con el tope de 8 h, 8 h 37 min.
+- **Lanzamiento:**
+  - Samuel lanzó la versión 1 con `kaggle kernels push -p` y la ruta absoluta, con `-t 28800`;
+  - `kaggle kernels status` a las 07:05 UTC (01:05 en la Ciudad de México): QUEUED;
+  - `kaggle kernels pull -m` bajó el código a una carpeta nueva del scratchpad, sin ejecutarlo. Es el del repo salvo los CRLF de sus 5,787 líneas. La metadata trae la misma imagen y las mismas fuentes de kernels;
+  - sus SHA-256 quedan en la prueba de kernels lanzados.
+- **Pruebas:** pasan las 874 del repo. `--verificar` pasa en los 5 kernels, y los 4 anteriores siguen idénticos byte a byte.
+- **Commits del paso 15:**
+  - `a4330d1`: `--comprobar` revisa el criterio;
+  - `e43fe76`: criterio en el config;
+  - `0081b86`: comprobaciones de plantilla y largos;
+  - `32a9f02`: orquestador y procesos del kernel;
+  - `99de3c4`: generador y kernel;
+  - el de esta sección, el registro de Claude Code y la prueba de kernels lanzados.
+- PARADA: el kernel está en cola. Falta el push de Samuel desde PowerShell. Cuando el kernel termine, siguen la descarga de la salida y la revisión de nombres, antes de mirar logs o mediciones.

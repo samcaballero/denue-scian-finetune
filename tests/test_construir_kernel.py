@@ -284,8 +284,14 @@ def test_cli_verifica_todos_los_kernels(capsys):
 # SHA-256 de lo que se lanzó en Kaggle (kernel y metadata), de sus commits: 1b4e41f, 54374f9, 41e324a y 2c7198f.
 # El del barrido se comprobó el 2026-11-23 con `kaggle kernels pull -m`: el código que corre es este
 # kernel (salvo los CRLF) y su metadata trae la imagen de Docker de 06b-inicial. El del 4B se comprobó
-# igual el 2026-11-24 (paso 13): mismo código salvo los CRLF de sus 3,164 líneas y la misma imagen.
+# igual el 2026-11-24 (paso 13): mismo código salvo los CRLF de sus 3,164 líneas y la misma imagen. El de la
+# Fase 4 (commit 99de3c4) se comprobó el 2026-11-25 (paso 15) con `kaggle kernels pull -m`, en cola: mismo código
+# salvo los CRLF de sus 5,787 líneas, la misma imagen y las mismas kernel_sources.
 LANZADOS = {
+    "fase4-inferencia": {
+        "fase4_inferencia.py": "c13dfb94581bd6d0378b70778362cd88de45400666af7cb714278edbd98bc7db",
+        "kernel-metadata.json": "5cc5b0e7a143a988dfa9975b72fb261d7a270662103021c97df5712db793a90e",
+    },
     "4b": {
         "clasificador_4b.py": "ae2313ce6088843371ab9ac855b2ed7f17bee270d73bc73b9a5ec02bce6e1ed0",
         "kernel-metadata.json": "4f0078f13cf198b96640411683b3c53a4d69375792d3b292bff3c3d1fa7c43b2",
