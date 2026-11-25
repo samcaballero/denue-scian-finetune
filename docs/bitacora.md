@@ -1177,3 +1177,40 @@
   - `99de3c4`: generador y kernel;
   - el de esta sección, el registro de Claude Code y la prueba de kernels lanzados.
 - PARADA: el kernel está en cola. Falta el push de Samuel desde PowerShell. Cuando el kernel termine, siguen la descarga de la salida y la revisión de nombres, antes de mirar logs o mediciones.
+
+## 2026-11-25 02:29 - Fase 4, paso 16: baselines en test y hard set
+
+- **Qué es.** Las predicciones del diccionario y de TF-IDF + LR (C = 10) en test y en el hard set, sacadas de las copias sin `codigo_act` (las mismas que subieron a Kaggle). Antes, cada baseline reproduce fila por fila sus aciertos de validación. No se calcula ninguna métrica de test ni de hard: eso pasa una sola vez, en la evaluación final.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso; Samuel lo aprobó.
+  - Al aprobar el plan, Samuel pidió reusar un modelo ya guardado sin reentrenar, solo si coinciden su SHA-256, la huella de la configuración, el SHA-256 de train final y las versiones de numpy, scipy, scikit-learn y joblib.
+  - Claude Code redactó el código, las pruebas y esta sección.
+- **Código:** `src/baselines_fase4.py`, que usa `src/baselines.py` sin cambios (commit `40e4671`).
+- **Mínimo de memoria libre** para `--escribir` (commit `57b28b4`): baja de 7.0 a 5.0 GB.
+  - El chat de Claude del proyecto lo propuso; Samuel lo aprobó antes de lanzar.
+  - Motivo: la laptop no pasa de unos 5.6 GB libres aunque se cierre todo, y con 7.0 GB la corrida nunca arrancaría. La del 23 nov terminó bien con esa memoria. Si falta memoria, Windows usa el archivo de paginación y la corrida solo se hace más lenta.
+- **Corrida `--escribir`:** de 2:29 a 3:37 (68.5 min), con el commit `57b28b4`, el árbol limpio y la suspensión del equipo bloqueada.
+  - Memoria: 5.6 GB libres al inicio y pico del proceso de 5,069 MB.
+  - Config: SHA-256 `7de9d3fc…`, el esperado. Los dos registros de validación tienen el SHA-256, el commit y la huella del config.
+  - **Diccionario:** reproduce validación en 1,000 de 1,000 filas (83 aciertos). Ninguna llave de test ni de hard está en train final (0 y 0), así que responde la clase global en todas sus filas, como esperaba el config.
+  - **TF-IDF + LR:**
+    - vectorizador: 13 s, 100,000 rasgos;
+    - ajuste: 68.0 min, contra 55 en validación, con las mismas 43 iteraciones y el mismo pico de 4,171 MB. No se midió por qué tardó más. Lo probable es la laptop con menos memoria libre (4.9 GB durante el ajuste), pero no está comprobado;
+    - el modelo se guardó antes de comparar: `tfidf-lr-C10_modelo.joblib`, 746,673,129 bytes, SHA-256 `88c3138c…`. Se recargó desde el archivo, y de él salen las predicciones;
+    - reproduce validación en 1,000 de 1,000 filas (682 aciertos).
+  - **Predicciones** en `data/fase4/baselines/` (ignorado), con su SHA-256:
+
+    | Archivo | Filas | SHA-256 |
+    |---|---:|---|
+    | `diccionario_validacion.jsonl` | 1,000 | `ef66c913…` |
+    | `diccionario_test.jsonl` | 2,000 | `7072e5d9…` |
+    | `diccionario_hard.jsonl` | 105 | `92f8cd2f…` |
+    | `tfidf-lr-C10_validacion.jsonl` | 1,000 | `924489a6…` |
+    | `tfidf-lr-C10_test.jsonl` | 2,000 | `68fd36e2…` |
+    | `tfidf-lr-C10_hard.jsonl` | 105 | `339c9eb1…` |
+
+  - **Registro de la corrida:** `results/2026-11-25_fase4_baselines-predicciones.json`, sin ids, nombres ni métricas de test o hard. HEAD no cambió durante la corrida.
+- **Revisión de privacidad del registro** (paso 17, punto 2, antes de su commit):
+  - `verificar_privacidad` con 319,875 llaves (train final, validación, train candidato sin hard y las copias) y `verificar_sin_ids` con 421,061 ids: limpias.
+  - La regla acotada contra los 4 conjuntos que vio el kernel marca una llave de dos palabras de train final en el campo `split`. Ese campo es un texto fijo de `src/baselines_fase4.py`, ya versionado, y la frase también está en ese código.
+  - Por la regla es PARADA, así que el registro queda fuera del commit hasta que decida Samuel. El log y el JSON del modelo no tienen posible fuga.

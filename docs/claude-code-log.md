@@ -755,3 +755,28 @@ Ninguno llegó a un commit.
 
 - **Un heredoc de Git Bash perdió una barra invertida** en un reemplazo de las pruebas (`"\n"`). La comprobación del propio script lo detuvo sin escribir nada, y el cambio se hizo con la herramienta de edición, como pide la memoria del proyecto.
 - **Dos expectativas mal escritas en las pruebas nuevas:** el número de llamadas a `generate` con el respaldo de `TypeError`, y un tokenizador falso que no alargaba lo suficiente el prompt. Se corrigieron las pruebas; el código no cambió.
+
+## 2026-11-25 — Fase 4, paso 16: baselines en test y hard set
+
+**Qué se hizo:**
+- `src/baselines_fase4.py`, con sus pruebas. Usa `src/baselines.py` sin cambios.
+- La corrida `--escribir`:
+  - los dos baselines reproducen validación fila por fila (1,000 de 1,000);
+  - las predicciones de validación, test y hard quedan en `data/fase4/baselines/`;
+  - el registro sin métricas queda en `results/`.
+- Autoría: el chat de Claude del proyecto propuso el paso; Samuel lo aprobó; Claude Code redactó el código, las pruebas y las secciones de la bitácora y de este registro.
+- Commits: `40e4671`, `57b28b4` y, en el paso 17, el de la bitácora, este registro y `CLAUDE.md`. El registro de `results/` sigue sin commit: falta la decisión de Samuel sobre la revisión de nombres.
+
+### Decisiones que Samuel corrigió
+
+- **Reúso del modelo guardado.** Al aprobar el plan, Samuel pidió reusar el modelo TF-IDF guardado sin reentrenar, solo si coinciden su SHA-256, la huella de la configuración, el SHA-256 de train final y las versiones de numpy, scipy, scikit-learn y joblib. El commit de entrenamiento solo se registra.
+- **Mínimo de memoria libre** (commit `57b28b4`).
+  - El plan exigía 7.0 GB libres para `--escribir`: el pico más el margen.
+  - La laptop no pasa de unos 5.6 GB libres aunque se cierre todo, así que la corrida nunca habría arrancado.
+  - El chat de Claude del proyecto propuso bajarlo a 5.0 GB; Samuel lo aprobó antes de lanzar; Claude Code lo redactó, con pruebas.
+
+### Hallazgos
+
+- **El ajuste de TF-IDF + LR tardó 68 min**, contra 55 en validación, con las mismas 43 iteraciones y el mismo pico de 4,171 MB. No se midió la causa. Lo probable es la laptop con menos memoria libre (5.6 GB al inicio y 4.9 GB durante el ajuste), pero no está comprobado.
+- **El diccionario responde la clase global en todas las filas de test y de hard:** ninguna de sus llaves está en train final, como anticipó el config.
+- **Revisión del registro** (en el paso 17, antes de su commit). La regla acotada marca una llave de dos palabras en el campo `split`. Ese campo es un texto fijo del propio script, ya versionado. `verificar_privacidad` no lo detecta, porque compara el texto completo del campo, no sus palabras. Queda para que decida Samuel.

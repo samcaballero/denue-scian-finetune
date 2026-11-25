@@ -43,6 +43,12 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - `denue-scian-humo`: la muestra desechable de la prueba de punta a punta (`src/muestra_humo.py`).
   - La subida la hace Samuel con `kaggle datasets create -p` y la ruta absoluta de la carpeta.
 - Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).
+- Archivos de la Fase 4 en la laptop: `data/fase4/` (ignorado por git).
+  - `baselines/`, escrita con `src/baselines_fase4.py` en el paso 16:
+    - las predicciones de validación, test y hard de los dos baselines (`<modelo>_<conjunto>.jsonl`, solo con `id` y `respuesta`);
+    - el modelo TF-IDF + LR con C = 10 (`tfidf-lr-C10_modelo.joblib`), con su SHA-256 en `tfidf-lr-C10_modelo.json`. Lleva n-gramas de nombres, así que nunca sale de `data/`;
+    - el log de la corrida.
+  - El registro de la corrida va en `results/2026-11-25_fase4_baselines-predicciones.json`.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
 ## c. Reglas de evaluación (no negociables)
