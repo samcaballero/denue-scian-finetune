@@ -32,6 +32,18 @@ def test_extraer_zip(tmp_path):
     assert not (tmp_path / "fuera.txt").exists()
 
 
+def test_huella_de_carpeta(tmp_path):
+    (tmp_path / "b").mkdir()
+    (tmp_path / "a.py").write_bytes(b"x")
+    (tmp_path / "b" / "c.py").write_bytes(b"y")
+    (tmp_path / "b" / "__pycache__").mkdir()
+    (tmp_path / "b" / "__pycache__" / "c.pyc").write_bytes(b"z")
+    h = fg.huella_de_carpeta(tmp_path, hash_archivo=lambda p: p.read_text())
+    import hashlib
+
+    assert h["archivos"] == 2 and h["sha256"] == hashlib.sha256(b"a.py x\nb/c.py y\n").hexdigest()
+
+
 def test_comparar_tensores():
     a = {"x": np.ones(3), "y": np.zeros(2)}
     b = {"x": np.ones(3), "y": np.ones(2), "lm_head.weight": np.ones(1)}

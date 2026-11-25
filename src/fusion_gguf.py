@@ -138,6 +138,15 @@ def extraer_zip(zip_ruta: Path, destino: Path) -> list[str]:
     return nombres
 
 
+def huella_de_carpeta(carpeta: Path, hash_archivo: Callable[[Path], str] = sha256_archivo) -> dict:
+    """Archivos y SHA-256 de las líneas "ruta_relativa sha256\\n" de todos los archivos, en orden."""
+    carpeta = Path(carpeta)
+    archivos = sorted(p for p in carpeta.rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+    lineas = "".join(f"{p.relative_to(carpeta).as_posix()} {hash_archivo(p)}\n" for p in archivos)
+    return {"archivos": len(archivos), "sha256": hashlib.sha256(lineas.encode("utf-8")).hexdigest(),
+            "definicion": "SHA-256 de las líneas 'ruta_relativa sha256' de cada archivo, en orden, con \\n."}
+
+
 def comparar_tensores(claves_a: Sequence[str], claves_b: Sequence[str], iguales: Callable[[str], bool]) -> dict:
     """Conteos de la comparación tensor por tensor de dos archivos (a: espejo, b: oficial)."""
     a, b = set(claves_a), set(claves_b)
@@ -209,9 +218,13 @@ def correr_herramientas() -> dict:
                      "verificado_contra": "digest sha256 de la API de GitHub"},
         "fuente": {"url": URL_FUENTE, "bytes": ZIP_FUENTE.stat().st_size, "sha256": SHA_FUENTE,
                    "comentario_del_zip": comentario},
-        "llama_server_exe": {"bytes": server.stat().st_size, "sha256": sha256_archivo(server)},
+        "llama_server_exe": {"bytes": server.stat().st_size, "sha256": sha256_archivo(server),
+                             "nota": "Lanzador: el servidor está en llama-server-impl.dll (ver binarios_extraidos)."},
         "llama_quantize_exe": {"bytes": quantize.stat().st_size, "sha256": sha256_archivo(quantize)},
+        "binarios_extraidos": {p.name: sha256_archivo(p) for p in sorted(DIR_BIN.iterdir()) if p.is_file()},
         "convert_hf_to_gguf_py": {"bytes": convert.stat().st_size, "sha256": sha256_archivo(convert)},
+        "conversion_py": huella_de_carpeta(convert.parent / "conversion"),
+        "gguf_py": huella_de_carpeta(convert.parent / "gguf-py"),
         "llama_server_version": [l for l in texto_version if "version" in l.lower() or "built" in l.lower()][:3],
     }
     actualizar_registro("llama_cpp", datos)
@@ -232,12 +245,12 @@ def correr_entorno() -> dict:
     freeze = subprocess.run([str(python), "-m", "pip", "freeze", "--all"], capture_output=True, text=True,
                             check=True).stdout.splitlines()
     version = subprocess.run([str(python), "--version"], capture_output=True, text=True, check=True).stdout.strip()
-    datos = {"python": version, "pip_freeze": [l for l in freeze if "@ file:" not in l] + [
-        f"{l.split(' @ ')[0]} (desde {Path(l.split('file:///')[-1]).name} de la fuente de llama.cpp {TAG_LLAMA})"
-        for l in freeze if "@ file:" in l], "ruedas": ruedas,
-        "instalacion": "pip download a herramientas/wheels-gguf/ con los pins del convertidor de la etiqueta "
-                       "(requirements-convert_hf_to_gguf.txt), más peft 0.21.3 y safetensors; pip install --no-index "
-                       "--find-links; gguf desde gguf-py de la misma fuente."}
+    datos = {"python": version, "pip_freeze": freeze, "ruedas": ruedas,
+             "instalacion": "pip download a herramientas/wheels-gguf/ con los pins del convertidor de la etiqueta "
+                            "(requirements-convert_hf_to_gguf.txt: torch 2.11.0 de la CPU, transformers 4.57.6, numpy "
+                            "~2.2.6, sentencepiece, protobuf <5), más peft 0.21.3 y safetensors; después pip install "
+                            "--no-index --find-links. El paquete gguf no se instala: convert_hf_to_gguf.py agrega a "
+                            "sys.path el gguf-py de la misma fuente (ver llama_cpp.gguf_py)."}
     actualizar_registro("venv_gguf", datos)
     return datos
 
