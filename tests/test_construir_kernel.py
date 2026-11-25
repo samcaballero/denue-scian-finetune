@@ -165,8 +165,8 @@ def espacio_06b(generados_por_kernel):
 
 
 def test_registro_de_kernels():
-    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial", "06b-barrido", "4b"]
-    assert ck.KERNELS["4b"] is ck.CLASIFICADOR_4B
+    assert list(ck.KERNELS) == ["humo-6b", "06b-inicial", "06b-barrido", "4b", "fase4-inferencia"]
+    assert ck.KERNELS["4b"] is ck.CLASIFICADOR_4B and ck.KERNELS["fase4-inferencia"] is ck.FASE4_INFERENCIA
     assert ck.KERNELS["humo-6b"] is ck.HUMO and ck.HUMO.corrida is None
     assert (ck.CARPETA, ck.ARCHIVO_KERNEL, ck.ID_KERNEL, ck.FUENTES) == (
         ck.HUMO.carpeta, ck.HUMO.archivo_kernel, ck.HUMO.id_kernel, ck.HUMO.fuentes
@@ -244,17 +244,23 @@ def test_metadata_del_kernel_06b(generados_por_kernel, manifest):
     assert meta["docker_image_pinning_type"] == "original"
 
 
+# numpy viene en la imagen de Kaggle (y queda fijado en la instalación); solo el preregistro lo importa
+# arriba, y el orquestador de la Fase 4 no lo importa (tests/test_inferencia_fase4_kaggle.py).
+CON_NUMPY = {"src/preregistro_fase4.py"}
+
+
 @pytest.mark.parametrize(
     "clave,fuente",
-    [(c, f) for c, e in ck.KERNELS.items() for f in e.fuentes if f != "src/__init__.py"],
+    [(c, f) for c, e in ck.KERNELS.items() for f in e.fuentes if f != "src/__init__.py" and f.endswith(".py")],
 )
 def test_modulos_de_cada_kernel_solo_usan_la_biblioteca_estandar(clave, fuente):
     incrustados = {f.removesuffix(".py").replace("/", ".") for f in ck.KERNELS[clave].fuentes}
+    permitidos = sys.stdlib_module_names | {"__future__"} | ({"numpy"} if fuente in CON_NUMPY else set())
     for m in _imports_de_nivel_superior(REPO_RAIZ / fuente):
         if m.startswith("src."):
             assert m in incrustados, m
         else:
-            assert m.split(".")[0] in sys.stdlib_module_names | {"__future__"}, m
+            assert m.split(".")[0] in permitidos, m
 
 
 def test_corrida_invalida_no_genera(manifest):
@@ -390,3 +396,108 @@ def test_barrido_con_nombres_repetidos_o_con_corrida_y_corridas_no_genera(manife
     mala = dict(ESPEC_BARRIDO.corridas[1], semilla=7)
     with pytest.raises(ck.ErrorKernel):
         ck.generar(manifest, espec=ck.EspecKernel(**{**ESPEC_BARRIDO.__dict__, "corridas": (mala,)}))
+
+
+# --- Kernel de inferencia de la Fase 4 (paso 15) ---
+
+ESPEC_FASE4 = ck.KERNELS["fase4-inferencia"]
+
+
+def _texto_fase4(generados_por_kernel):
+    return generados_por_kernel["fase4-inferencia"][ESPEC_FASE4.archivo_kernel].decode("utf-8")
+
+
+def test_kernel_fase4_lleva_sus_datos_modulos_y_el_preregistro(generados_por_kernel, manifest, tmp_path):
+    texto = _texto_fase4(generados_por_kernel)
+    ns = {"__name__": "kernel_en_prueba"}
+    exec(compile(texto, ESPEC_FASE4.archivo_kernel, "exec"), ns)
+    kd = manifest["kaggle_datasets"]
+    assert ns["ESPERADOS"] == {
+        "test.jsonl": kd["denue_scian_evaluacion"]["archivos"]["test.jsonl"]["sha256"],
+        "hard.jsonl": kd["denue_scian_evaluacion"]["archivos"]["hard.jsonl"]["sha256"],
+        "train_final.jsonl": kd["denue_scian_clasificador"]["archivos"]["train_final.jsonl"]["sha256"],
+        "val.jsonl": kd["denue_scian_clasificador"]["archivos"]["val.jsonl"]["sha256"],
+    }
+    config = REPO_RAIZ / ck.CONFIG_FASE4
+    assert ns["SHA256_FUENTES"][ck.CONFIG_FASE4] == hashlib.sha256(config.read_bytes()).hexdigest()
+    assert ns["FUENTES"][ck.CONFIG_FASE4].encode("utf-8") == config.read_bytes()
+    assert list(ns["FUENTES"])[-5:] == ["src/preregistro_fase4.py", "src/plantilla_fase4.py", "src/inferencia_fase4_kaggle.py",
+                                        "src/etapa_fase4_kaggle.py", ck.CONFIG_FASE4]
+    assert "from src.inferencia_fase4_kaggle import main" in texto and "main(ESPERADOS, T_ARRANQUE, SHA256_FUENTES)" in texto
+    assert "CORRIDA" not in ns and "kaggle_datasets.denue_scian_evaluacion y kaggle_datasets.denue_scian_clasificador" in texto
+    for e in ("clasificador_test", "clasificador_hard"):  # los splits con etiquetas solo aparecen dentro del pre-registro
+        assert texto.count(manifest["splits"][e]["sha256"]) == ns["FUENTES"][ck.CONFIG_FASE4].count(manifest["splits"][e]["sha256"]) == 1
+
+
+def test_metadata_del_kernel_fase4(generados_por_kernel, manifest):
+    meta = json.loads(generados_por_kernel["fase4-inferencia"][ck.ARCHIVO_METADATA].decode("ascii"))
+    assert meta["id"] == "samcaballero/denue-scian-fase4-inferencia" and ck.slug(meta["title"]) == "denue-scian-fase4-inferencia"
+    assert meta["code_file"] == "fase4_inferencia.py" and (meta["language"], meta["kernel_type"]) == ("python", "script")
+    assert meta["is_private"] is True and meta["enable_gpu"] is True and meta["enable_internet"] is True
+    assert meta["enable_tpu"] is False and meta["machine_shape"] == "NvidiaTeslaT4"
+    assert meta["dataset_sources"] == ["samcaballero/denue-scian-evaluacion", "samcaballero/denue-scian-clasificador"]
+    assert meta["kernel_sources"] == ["samcaballero/denue-scian-06b-barrido", "samcaballero/denue-scian-4b"]
+    assert meta["docker_image"] == ck.DOCKER_06B_INICIAL and meta["docker_image_pinning_type"] == "original"
+    assert meta["competition_sources"] == meta["model_sources"] == []
+    for clave in ("humo-6b", "06b-inicial", "06b-barrido", "4b"):  # los lanzados siguen sin kernel_sources
+        assert json.loads(generados_por_kernel[clave][ck.ARCHIVO_METADATA])["kernel_sources"] == []
+
+
+def test_candado_del_kernel_fase4(generados_por_kernel, manifest):
+    kernel = _texto_fase4(generados_por_kernel)
+    ck.candado(kernel, manifest, ESPEC_FASE4)
+    splits = manifest["splits"]
+    humo = manifest["kaggle_datasets"]["denue_scian_humo"]["archivos"]
+    for h in (splits["clasificador_test"]["sha256"], splits["clasificador_hard"]["sha256"],
+              splits["clasificador_validacion"]["sha256"], humo["humo_val.jsonl"]["sha256"]):
+        with pytest.raises(ck.ErrorKernel):  # fuera del pre-registro no puede ir ningún otro hash del manifest
+            ck.candado(kernel + f"\n# {h}\n", manifest, ESPEC_FASE4)
+    literal = ck._literal(ck.leer_fuente(REPO_RAIZ / ck.CONFIG_FASE4), "    ")
+    with pytest.raises(ck.ErrorKernel, match="incrustado"):
+        ck.candado(kernel.replace(literal, '""'), manifest, ESPEC_FASE4)
+    otro = json.loads(json.dumps(manifest))
+    otro["kaggle_datasets"]["denue_scian_evaluacion"]["campos"] = ["id", "nom_estab", "codigo_act"]
+    with pytest.raises(ck.ErrorKernel, match="id y nom_estab"):
+        ck.candado(kernel, otro, ESPEC_FASE4)
+    with pytest.raises(ck.ErrorKernel):  # los demás kernels siguen sin poder nombrar test.jsonl
+        ck.candado(kernel, manifest, ESPEC_06B)
+
+
+def test_config_que_no_sirve_no_genera_el_kernel_fase4(manifest, tmp_path):
+    for archivo in ESPEC_FASE4.fuentes:
+        destino = tmp_path / archivo
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_bytes((REPO_RAIZ / archivo).read_bytes())
+    config = json.loads((REPO_RAIZ / ck.CONFIG_FASE4).read_text(encoding="utf-8"))
+    config["uso_unico"]["reproduccion_validacion_en_el_kernel"]["criterio_de_paro"] = None
+    (tmp_path / ck.CONFIG_FASE4).write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(ck.ErrorKernel, match="criterio_de_paro"):
+        ck.generar(manifest, tmp_path, ESPEC_FASE4)
+    config = json.loads((REPO_RAIZ / ck.CONFIG_FASE4).read_text(encoding="utf-8"))
+    config["few_shot"]["fuente"]["sha256"] = "0" * 64
+    (tmp_path / ck.CONFIG_FASE4).write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(ck.ErrorKernel, match="few-shot"):
+        ck.generar(manifest, tmp_path, ESPEC_FASE4)
+
+
+def test_el_kernel_fase4_extrae_e_importa_sus_procesos_aislado(generados_por_kernel, tmp_path):
+    """Los módulos incrustados bastan para el orquestador y para los procesos de comprobaciones y etapas."""
+    import os
+    import subprocess
+
+    ns = {"__name__": "kernel_en_prueba"}
+    exec(compile(_texto_fase4(generados_por_kernel), ESPEC_FASE4.archivo_kernel, "exec"), ns)
+    raiz = ns["extraer"](tmp_path / "denue_src")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["PYTHONPATH"] = str(raiz)
+    codigo = (
+        "import sys, pathlib, src.inferencia_fase4_kaggle as f\n"
+        "c, h = f.leer_config(f.RAIZ_FUENTES, sys.argv[2])\n"
+        "print(f.RAIZ_FUENTES == pathlib.Path(sys.argv[1]).resolve(), len(f.validar_config_kernel(c)['etapas']))\n"
+    )
+    r = subprocess.run([sys.executable, "-c", codigo, str(raiz), ns["SHA256_FUENTES"][ck.CONFIG_FASE4]], env=env, cwd=tmp_path,
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.split() == ["True", "14"]
+    r = subprocess.run([sys.executable, "-m", "src.etapa_fase4_kaggle", "--help"], env=env, cwd=tmp_path, capture_output=True, text=True)
+    assert r.returncode == 0 and "--comprobaciones" in r.stdout and "--etapa" in r.stdout

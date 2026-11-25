@@ -142,10 +142,20 @@ class EspecKernel:
     corridas: tuple | None = field(default=None)  # barrido: varias corridas en un kernel
     docker_image: str | None = field(default=None)  # imagen fijada en kernel-metadata.json
     corrida_unica: bool = field(default=False)  # 4B: una sola corrida con el orquestador (solo cambia el texto)
+    # Fase 4 (paso 15). Con sus valores por omisión, el texto y la metadata de los kernels anteriores no cambian.
+    entradas_extra: tuple = field(default=())  # ((entrada de kaggle_datasets, (archivos...)), ...)
+    kernel_sources: tuple = field(default=())  # salidas de otros kernels como fuente ("dueño/slug")
+    lee_test_y_hard: bool = field(default=False)  # lee las copias sin etiquetas de test y hard
+    config_incrustado: str | None = field(default=None)  # fuente con el pre-registro; sus hashes no cuentan en el candado
 
     @property
     def carpeta(self) -> Path:
         return REPO_RAIZ / self.carpeta_relativa
+
+    @property
+    def entradas(self) -> tuple:
+        """(entrada, archivos) de cada dataset de Kaggle que lee el kernel, el principal primero."""
+        return ((self.entrada, self.archivos_datos), *self.entradas_extra)
 
 
 HUMO = EspecKernel(
@@ -285,7 +295,40 @@ def espec_4b(etiqueta_tasa: str, tasa: float, rank: int) -> EspecKernel:
 # 06b-lr2e-4-r32, la única con la mayor accuracy de clase en validación.
 CLASIFICADOR_4B = espec_4b("2e-4", 2e-4, 32)
 
-KERNELS: dict[str, EspecKernel] = {e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B, CLASIFICADOR_4B)}
+# Inferencia de la evaluación final (Fase 4, paso 15): los 6 LLM del pre-registro en test y hard set,
+# con el orquestador de la Fase 4 (src/inferencia_fase4_kaggle.py). Lee las copias sin etiquetas de
+# test y hard (dataset de evaluación), train final y validación (dataset del clasificador) y los
+# adaptadores y predicciones de validación de las salidas de los kernels del barrido y del 4B.
+CONFIG_FASE4 = "evals/fase4_preregistro.json"
+FASE4_INFERENCIA = EspecKernel(
+    clave="fase4-inferencia",
+    carpeta_relativa="notebooks/kaggle-fase4-inferencia",
+    archivo_kernel="fase4_inferencia.py",
+    id_kernel="samcaballero/denue-scian-fase4-inferencia",
+    titulo="DENUE SCIAN fase4 inferencia",
+    entrada="denue_scian_evaluacion",
+    archivos_datos=("test.jsonl", "hard.jsonl"),
+    fuentes=(
+        *BARRIDO_06B.fuentes,
+        "src/preregistro_fase4.py",
+        "src/plantilla_fase4.py",
+        "src/inferencia_fase4_kaggle.py",
+        "src/etapa_fase4_kaggle.py",
+        CONFIG_FASE4,
+    ),
+    modulo="src.inferencia_fase4_kaggle",
+    resumen="Kernel de Kaggle: inferencia de la evaluación final del clasificador en test y hard set (Fase 4, paso 15).",
+    comentario_esperados="SHA-256 de los archivos de los datasets privados",
+    docker_image=DOCKER_06B_INICIAL,
+    entradas_extra=(("denue_scian_clasificador", (ARCHIVO_TRAIN_FINAL, ARCHIVO_VAL_CLASIFICADOR)),),
+    kernel_sources=("samcaballero/denue-scian-06b-barrido", "samcaballero/denue-scian-4b"),
+    lee_test_y_hard=True,
+    config_incrustado=CONFIG_FASE4,
+)
+
+KERNELS: dict[str, EspecKernel] = {
+    e.clave: e for e in (HUMO, CLASIFICADOR_06B_INICIAL, BARRIDO_06B, CLASIFICADOR_4B, FASE4_INFERENCIA)
+}
 
 # Nombres de antes de la generalización; apuntan a la prueba (los usa src/evaluar_humo.py).
 CARPETA_RELATIVA = HUMO.carpeta_relativa
@@ -323,8 +366,13 @@ def leer_fuentes(raiz: Path = REPO_RAIZ, espec: EspecKernel = HUMO) -> dict[str,
 
 def esperados(manifest: Mapping, espec: EspecKernel = HUMO) -> dict[str, str]:
     """SHA-256 de los archivos de datos del kernel, tal como están en el manifest."""
-    archivos = manifest[SECCION][espec.entrada]["archivos"]
-    res = {a: archivos[a]["sha256"] for a in espec.archivos_datos}
+    res = {}
+    for entrada, nombres in espec.entradas:
+        archivos = manifest[SECCION][entrada]["archivos"]
+        for a in nombres:
+            if a in res:
+                raise ErrorKernel(f"{a} está en dos datasets del kernel.")
+            res[a] = archivos[a]["sha256"]
     if not all(isinstance(h, str) and re.fullmatch(r"[0-9a-f]{64}", h) for h in res.values()):
         raise ErrorKernel("Los SHA-256 de los datos en el manifest no tienen el formato esperado.")
     return res
@@ -410,7 +458,7 @@ from pathlib import Path
 
 T_ARRANQUE = time.time()
 
-# {espec.comentario_esperados} (data/manifest.json, {SECCION}.{espec.entrada}).
+# {espec.comentario_esperados} (data/manifest.json, {" y ".join(f"{SECCION}.{e}" for e, _ in espec.entradas)}).
 ESPERADOS = {_dict_literal(hashes_datos)}
 {bloque_corrida}
 # SHA-256 del texto UTF-8 (saltos "\\n") de cada módulo incrustado.
@@ -468,9 +516,9 @@ def metadata_kernel(manifest: Mapping, espec: EspecKernel = HUMO) -> bytes:
         "enable_tpu": False,
         "enable_internet": True,
         "machine_shape": MACHINE_SHAPE,
-        "dataset_sources": [manifest[SECCION][espec.entrada]["id_kaggle"]],
+        "dataset_sources": [manifest[SECCION][e]["id_kaggle"] for e, _ in espec.entradas],
         "competition_sources": [],
-        "kernel_sources": [],
+        "kernel_sources": list(espec.kernel_sources),
         "model_sources": [],
         "docker_image_pinning_type": "original",
     }
@@ -479,11 +527,27 @@ def metadata_kernel(manifest: Mapping, espec: EspecKernel = HUMO) -> bytes:
     return (json.dumps(meta, ensure_ascii=True, indent=2) + "\n").encode("ascii")
 
 
-def candado(kernel: str, manifest: Mapping, espec: EspecKernel = HUMO) -> None:
-    """Sin test.jsonl ni hard.jsonl, sin sus SHA-256 y con solo los SHA-256 de los datos del kernel."""
-    for texto in TEXTOS_PROHIBIDOS:
-        if texto in kernel:
-            raise ErrorKernel(f"El kernel menciona {texto}.")
+def candado(kernel: str, manifest: Mapping, espec: EspecKernel = HUMO, raiz: Path = REPO_RAIZ) -> None:
+    """Sin test.jsonl ni hard.jsonl, sin sus SHA-256 y con solo los SHA-256 de los datos del kernel.
+
+    Kernel de la Fase 4 (`lee_test_y_hard`): puede nombrar test.jsonl y hard.jsonl, pero sus copias
+    deben ser las del manifest sin etiquetas (solo id y nom_estab). El texto del pre-registro
+    incrustado (`config_incrustado`) trae los SHA-256 de los splits; se quita antes de buscar hashes,
+    y fuera de él solo pueden estar los SHA-256 de los datos del kernel.
+    """
+    if espec.lee_test_y_hard:
+        campos = manifest[SECCION][espec.entrada].get("campos")
+        if campos != ["id", "nom_estab"] or set(espec.archivos_datos) != set(TEXTOS_PROHIBIDOS):
+            raise ErrorKernel("Test y hard solo se leen de las copias del manifest con id y nom_estab.")
+    else:
+        for texto in TEXTOS_PROHIBIDOS:
+            if texto in kernel:
+                raise ErrorKernel(f"El kernel menciona {texto}.")
+    if espec.config_incrustado is not None:
+        literal = _literal(leer_fuente(Path(raiz) / espec.config_incrustado), "    ")
+        if kernel.count(literal) != 1:
+            raise ErrorKernel("El pre-registro no está incrustado exactamente una vez.")
+        kernel = kernel.replace(literal, "")
     permitidos = set(esperados(manifest, espec).values())
     presentes = {h for h in hashes_del_manifest(manifest) if h in kernel}
     reservados = {manifest["splits"][e]["sha256"] for e in (ENTRADA_TEST, ENTRADA_HARD) if e in manifest["splits"]}
@@ -491,6 +555,25 @@ def candado(kernel: str, manifest: Mapping, espec: EspecKernel = HUMO) -> None:
         raise ErrorKernel("El kernel lleva un SHA-256 del manifest que no es de sus datos.")
     if presentes != permitidos:
         raise ErrorKernel("El kernel no lleva los SHA-256 de sus archivos de datos.")
+
+
+def revisar_config_incrustado(texto: str, manifest: Mapping, espec: EspecKernel) -> dict:
+    """El pre-registro que va en el kernel de la Fase 4 sirve para su plan y cuadra con los datos del kernel."""
+    from src.inferencia_fase4_kaggle import AbortoFase4, validar_config_kernel
+
+    config = json.loads(texto)
+    try:
+        plan = validar_config_kernel(config)
+    except AbortoFase4 as e:
+        raise ErrorKernel(str(e)) from e
+    hashes = esperados(manifest, espec)
+    if config["few_shot"]["fuente"]["sha256"] != hashes.get(ARCHIVO_TRAIN_FINAL):
+        raise ErrorKernel("La fuente del few-shot no es la copia de train final del kernel.")
+    evaluacion = manifest[SECCION][espec.entrada]["archivos"]
+    for conj, archivo in (("test", "test.jsonl"), ("hard", "hard.jsonl")):
+        if evaluacion[archivo]["origen_sha256"] != config["conjuntos"][conj]["sha256"] or hashes[archivo] == config["conjuntos"][conj]["sha256"]:
+            raise ErrorKernel(f"La copia de {archivo} no sale del {conj} del pre-registro o lleva sus etiquetas.")
+    return plan
 
 
 def generar(manifest: Mapping, raiz: Path = REPO_RAIZ, espec: EspecKernel = HUMO) -> dict[str, bytes]:
@@ -502,8 +585,11 @@ def generar(manifest: Mapping, raiz: Path = REPO_RAIZ, espec: EspecKernel = HUMO
             raise ErrorKernel(str(e)) from e
     if espec.corridas is not None and len({c["nombre"] for c in espec.corridas}) != len(espec.corridas):
         raise ErrorKernel("Las corridas de un barrido deben tener nombres distintos.")
-    kernel = generar_kernel(leer_fuentes(raiz, espec), esperados(manifest, espec), espec)
-    candado(kernel, manifest, espec)
+    textos = leer_fuentes(raiz, espec)
+    if espec.config_incrustado is not None:
+        revisar_config_incrustado(textos[espec.config_incrustado], manifest, espec)
+    kernel = generar_kernel(textos, esperados(manifest, espec), espec)
+    candado(kernel, manifest, espec, raiz)
     compile(kernel, espec.archivo_kernel, "exec")
     return {espec.archivo_kernel: kernel.encode("utf-8"), ARCHIVO_METADATA: metadata_kernel(manifest, espec)}
 
@@ -554,7 +640,11 @@ def main(argv=None) -> None:
             print(f"Imagen de Docker fijada: {espec.docker_image}")
         for nombre, datos in generados.items():
             print(f"{espec.carpeta_relativa}/{nombre}: {len(datos):,} bytes, SHA-256 {sha256_bytes(datos)}")
-        print("Candado: sin test.jsonl ni hard.jsonl y sin otros SHA-256 del manifest.")
+        if espec.lee_test_y_hard:
+            print("Candado: test y hard solo como copias sin etiquetas (id y nom_estab); fuera del pre-registro "
+                  "incrustado, solo los SHA-256 de sus datos.")
+        else:
+            print("Candado: sin test.jsonl ni hard.jsonl y sin otros SHA-256 del manifest.")
 
         if args.escribir:
             espec.carpeta.mkdir(parents=True, exist_ok=True)

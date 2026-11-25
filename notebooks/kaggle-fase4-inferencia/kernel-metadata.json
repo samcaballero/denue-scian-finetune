@@ -1,0 +1,24 @@
+{
+  "id": "samcaballero/denue-scian-fase4-inferencia",
+  "title": "DENUE SCIAN fase4 inferencia",
+  "code_file": "fase4_inferencia.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "samcaballero/denue-scian-evaluacion",
+    "samcaballero/denue-scian-clasificador"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [
+    "samcaballero/denue-scian-06b-barrido",
+    "samcaballero/denue-scian-4b"
+  ],
+  "model_sources": [],
+  "docker_image_pinning_type": "original",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:fc720c15545eb096a510e1f085b17fc118387a007599424d953a4f327b71cacf"
+}
