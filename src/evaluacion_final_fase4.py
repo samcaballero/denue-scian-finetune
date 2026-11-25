@@ -94,6 +94,8 @@ GRUPOS = ("principales", "secundarias", "secundarias_sector")
 NIVEL_DE_METRICA = {"accuracy de clase": "clase", "accuracy de sector oficial": "sector"}
 ENTRADA_SPLIT = {"test": "clasificador_test", "hard": "clasificador_hard", "validacion": "clasificador_validacion"}
 TOP_CODIGOS = 5
+# Campos cuyo valor es un código SCIAN respondido (concentración de respuestas): quedan fuera del chequeo de ids.
+CAMPOS_CODIGO = frozenset({"codigo", "codigo_valido_mas_predicho"})
 DECIMALES = 6
 # Pareadas de validación que se pueden recalcular (los base no corren en validación) y dónde está lo registrado.
 PAREADAS_VALIDACION = (
@@ -672,12 +674,24 @@ def revisar_nombres_salida(textos: Mapping[str, str], filas: Sequence[Mapping]) 
     return {"archivos": res, "posible_fuga": sorted(n for n, c in res.items() if posible_fuga(c))}
 
 
+def sin_codigos_scian(obj, clave: str | None = None):
+    """Copia del objeto sin los valores de los campos que, por construcción, son códigos SCIAN respondidos (6 dígitos
+    ASCII): un código puede coincidir con un id de 6 dígitos sin serlo. Cualquier otro texto queda igual."""
+    if isinstance(obj, str):
+        return None if clave in CAMPOS_CODIGO and RE_CODIGO.fullmatch(obj) else obj
+    if isinstance(obj, Mapping):
+        return {k: sin_codigos_scian(v, k) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [sin_codigos_scian(v, clave) for v in obj]
+    return obj
+
+
 def candados(resultado: Mapping, textos: Mapping[str, str], llaves: set[str], ids: set[str],
              filas_nombres: Sequence[Mapping]) -> dict:
     """verificar_privacidad, sin ids y regla acotada; ErrorFinal (o ErrorPrivacidad) si algo falla."""
     verificar_privacidad(resultado, llaves, set())
     try:
-        verificar_sin_ids(resultado, ids)
+        verificar_sin_ids(sin_codigos_scian(resultado), ids)
     except ValueError as e:
         raise ErrorFinal(str(e)) from e
     # Los ids son números chicos: un conteo o un decimal de la tabla puede coincidir con uno sin ser un id, así que

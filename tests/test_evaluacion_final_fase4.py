@@ -257,6 +257,19 @@ def test_candados(tmp_path):
         ef.candados({"a": "ok"}, {"tabla": "| Negocio inventado test 505 |"}, set(), set(), filas)
 
 
+def test_candado_de_ids_no_confunde_codigos_scian_con_ids(tmp_path):
+    ent, etiquetas = juguete(tmp_path)
+    filas = [*etiquetas["test"], *etiquetas["hard"]]
+    ids = {"461110", "500"}  # un id de 6 dígitos igual a un código
+    con_codigo = {"concentracion": {"codigo_valido_mas_predicho": "461110"},
+                  "codigos_validos_mas_predichos": [{"codigo": "461110", "filas": 3}]}
+    ef.candados(con_codigo, {}, set(), ids, filas)
+    for malo in ({"otro": "461110"}, {"codigo": "500"}, {"commit": "500"}):
+        with pytest.raises(ef.ErrorFinal):
+            ef.candados(malo, {}, set(), ids, filas)
+    assert ef.sin_codigos_scian({"codigo": "461110", "x": ["461110"]}) == {"codigo": None, "x": ["461110"]}
+
+
 # --- --test ---
 
 
