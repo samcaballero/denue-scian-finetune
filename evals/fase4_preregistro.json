@@ -28,9 +28,19 @@
       "El diccionario también reproduce fila por fila sus aciertos de validación antes de predecir test y hard.",
       "Cada script de la Fase 4 registra en su salida el SHA-256 de este archivo."
     ],
+    "actualizaciones": [
+      {
+        "fecha": "2026-11-25",
+        "hora": "00:26 (Ciudad de México)",
+        "paso": "Fase 4, paso 15, antes de lanzar el kernel",
+        "que": "Se llenó uso_unico.reproduccion_validacion_en_el_kernel.criterio_de_paro, que estaba en null: un afinado sigue con test y hard solo si al menos 980 de sus 1,000 respuestas crudas de validación son idénticas a las de referencia. registro.commit_codigo pasa de 47c008079b3724cb8c471fc65893a6200161e72b a a4330d180792ec73d0f6bd14847049ce8f61a99c, el commit en que --comprobar agrega la revisión del criterio; la selección few-shot y el límite de largo no cambian.",
+        "autoria": "El chat de Claude del proyecto propuso el criterio; Samuel lo aprobó; Claude Code lo redactó.",
+        "sha256_anterior": "559ab3bc2503e7005d36fc93df6a0ccdae3dd739a75bee2307b947284e071064"
+      }
+    ],
     "script": "src/preregistro_fase4.py",
     "comprobacion": ".venv/Scripts/python -m src.preregistro_fase4 --comprobar",
-    "commit_codigo": "47c008079b3724cb8c471fc65893a6200161e72b"
+    "commit_codigo": "a4330d180792ec73d0f6bd14847049ce8f61a99c"
   },
   "conjuntos": {
     "test": {
@@ -524,7 +534,14 @@
         "4b-lr2e-4-r32"
       ],
       "que": "Antes de test, el kernel repite la inferencia en validación con los dos afinados y la compara con sus predicciones de validación (predicciones_validacion de cada modelo).",
-      "criterio_de_paro": null,
+      "criterio_de_paro": {
+        "comparacion": "Para cada afinado, la respuesta cruda de validación del kernel (las fichas generadas antes del primer token de fin, decodificadas con skip_special_tokens=False) se compara, emparejada por id, con la de su predicciones_validacion: cuenta como idéntica solo si las dos cadenas son iguales carácter por carácter.",
+        "minimo_identicas": 980,
+        "filas": 1000,
+        "si_cumple": "Con al menos 980 de 1,000 respuestas idénticas, ese modelo sigue con test y hard.",
+        "si_no_cumple": "Con menos de 980, ese modelo no corre en test ni en hard; se registra en las mediciones del kernel y el kernel sigue con el siguiente modelo.",
+        "validacion_incompleta": "Si la etapa de validación falla, pasa de su tiempo máximo o no trae exactamente los 1,000 ids de la referencia, cuenta como no cumple."
+      },
       "nota": "El criterio de paro se fija en el paso 15, antes de lanzar el kernel."
     },
     "baselines": "Antes de predecir test y hard, cada baseline reproduce fila por fila sus aciertos de validación (ver reproduccion_validacion de cada uno). Después predice desde las copias sin codigo_act y guarda sus predicciones en data/fase4/ (ignorado por git).",
