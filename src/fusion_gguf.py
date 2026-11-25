@@ -246,11 +246,13 @@ def correr_entorno() -> dict:
                             check=True).stdout.splitlines()
     version = subprocess.run([str(python), "--version"], capture_output=True, text=True, check=True).stdout.strip()
     datos = {"python": version, "pip_freeze": freeze, "ruedas": ruedas,
-             "instalacion": "pip download a herramientas/wheels-gguf/ con los pins del convertidor de la etiqueta "
-                            "(requirements-convert_hf_to_gguf.txt: torch 2.11.0 de la CPU, transformers 4.57.6, numpy "
-                            "~2.2.6, sentencepiece, protobuf <5), más peft 0.21.3 y safetensors; después pip install "
-                            "--no-index --find-links. El paquete gguf no se instala: convert_hf_to_gguf.py agrega a "
-                            "sys.path el gguf-py de la misma fuente (ver llama_cpp.gguf_py)."}
+             # Redacción revisada con la regla acotada de nombres: la primera versión tenía frases comunes de dos
+             # palabras que coinciden con llaves del DENUE y detenía la escritura del resultado (paso 19).
+             "instalacion": "Ruedas bajadas con pip download a herramientas/wheels-gguf/ según "
+                            "requirements-convert_hf_to_gguf.txt de b12359 (torch 2.11.0+cpu, transformers 4.57.6, "
+                            "numpy 2.2.6, sentencepiece, protobuf <5), más peft 0.21.3 y safetensors; instaladas con "
+                            "pip install --no-index --find-links. gguf: no se instala; convert_hf_to_gguf.py usa gguf-py "
+                            "de b12359 desde sys.path (ver llama_cpp.gguf_py)."}
     actualizar_registro("venv_gguf", datos)
     return datos
 
