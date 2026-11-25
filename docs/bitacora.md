@@ -1316,3 +1316,27 @@
   - `176378c`: la evaluación final;
   - `0c0d552`: el candado de ids;
   - el de esta sección, con el resultado, la tabla, el registro de Claude Code y `CLAUDE.md`.
+
+## 2026-11-25 14:24 - Fase 4, paso 18: tipos de error del 4B en test
+
+- **Qué es.** Claude Code propone un tipo para cada uno de los 50 errores del 4B en test sorteados en el paso 17. Samuel confirma o cambia cada fila en Google Sheets.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso y los tipos; Samuel lo aprobó.
+  - Claude Code propuso el plan. Samuel lo aprobó con 3 ajustes:
+    - el CSV para Google Sheets lleva la posición (1 a 50) en lugar del id;
+    - la constancia de los falsos positivos del paso 17 (ver abajo);
+    - al terminar, exportar el CSV revisado a `data/fase4/` y borrar la hoja de Google Drive.
+  - Claude Code redactó los criterios y propone el tipo de cada fila.
+- **Criterios:** en `docs/criterios-errores.md`, con su commit antes de clasificar.
+  - **Tipos, en orden de precedencia:**
+    - a. `codigo_inexistente` (automático);
+    - b. `clases_hermanas`, con la rama de 4 dígitos en común (automático);
+    - c. `etiqueta_dudosa`;
+    - d. `nombre_ambiguo`;
+    - `otro`, con su razón.
+  - Los criterios incluyen además los desempates, la razón de 15 palabras como máximo y los candidatos para la charla.
+  - Samuel no cambia los tipos automáticos: si una de esas filas merece otra lectura, deja una nota. Lo propuso Claude Code y Samuel lo aprobó.
+  - **Sesgo de anclaje** (D7): Samuel ve la propuesta antes de decidir. El conteo registra la matriz propuesto → final.
+- **Falsos positivos del paso 17.** La revisión extra contra train final encontró coincidencias en tres textos fijos del resultado y la tabla: la línea de crédito de los datos, la nota del 06b del config y una nota del código.
+  - Samuel confirmó que son falsos positivos, con el criterio de la PARADA 2: texto fijo de código o config ya versionado, en un archivo que escribió el script y que no se edita a mano.
+  - Esos archivos ya están en el push de `7e11b0e`.
