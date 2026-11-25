@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import src.preregistro_fase4 as pf
 from src.evaluador_clasificador import SECTORES_2023
 from src.exploracion_clasificador import ErrorPrivacidad, mapa_sectores
 from src.preregistro_fase4 import (
@@ -239,6 +240,8 @@ def _config(calc, manifest, raiz: Path) -> dict:
     resultado = raiz / "results" / "afinado.json"
     resultado.parent.mkdir(parents=True)
     resultado.write_text(json.dumps({"modelo": {"adaptador_sha256": _sha(b"pesos inventados")}}), encoding="utf-8")
+    referencia = raiz / "kaggle-output" / "predicciones.jsonl"
+    referencia.write_bytes(b'{"id": "1000", "respuesta": "461110"}\n')
     base06 = {"repo": "Qwen/Qwen3-0.6B", "revision": "a" * 40}
     base4 = {"repo": "Qwen/Qwen3-4B", "revision": "b" * 40}
     pub = calc.publico()
@@ -248,6 +251,8 @@ def _config(calc, manifest, raiz: Path) -> dict:
     llm = [
         {"id": "afinado-06b", "tamano": "0.6B", "base": base06,
          "adaptador": {"ruta": "kaggle-output/adaptador.safetensors", "sha256": _sha(b"pesos inventados")},
+         "predicciones_validacion": {"ruta": "kaggle-output/predicciones.jsonl",
+                                     "sha256": _sha(b'{"id": "1000", "respuesta": "461110"}\n')},
          "resultado_validacion": "results/afinado.json"},
         {"id": "afinado-4b", "tamano": "4B", "base": base4},
         {"id": "base-06b-0", "tamano": "0.6B", "base": base06},
@@ -278,10 +283,26 @@ def _config(calc, manifest, raiz: Path) -> dict:
             "hard": {"pares": ["principales", "secundarias", "secundarias_sector"]},
             "nota": "texto",
         },
+        "uso_unico": {"reproduccion_validacion_en_el_kernel": {
+            "modelos": ["afinado-06b"],
+            "criterio_de_paro": {
+                "comparacion": "respuesta cruda idéntica por id", "minimo_identicas": UMBRAL_JUGUETE,
+                "filas": manifest["splits"]["clasificador_validacion"]["filas"], "si_cumple": "sigue",
+                "si_no_cumple": "no corre", "validacion_incompleta": "no cumple",
+            },
+        }},
     }, {"sectores": SECTORES_2023, "modelos_base": {"0.6B": base06, "4B": base4}}
 
 
-def test_comprobar_config_cuadra_y_detecta_cada_cambio(tmp_path):
+UMBRAL_JUGUETE = 5  # de las 6 filas de validación del repo de juguete
+
+
+def _criterio(c):
+    return c["uso_unico"]["reproduccion_validacion_en_el_kernel"]["criterio_de_paro"]
+
+
+def test_comprobar_config_cuadra_y_detecta_cada_cambio(tmp_path, monkeypatch):
+    monkeypatch.setattr(pf, "UMBRAL_REPRODUCCION", UMBRAL_JUGUETE)
     raiz, manifest = _repo(tmp_path)
     calc = calcular(manifest, raiz, SECTORES_2023)
     config, refs = _config(calc, manifest, raiz)
@@ -306,6 +327,18 @@ def test_comprobar_config_cuadra_y_detecta_cada_cambio(tmp_path):
         "comparaciones.hard": lambda c: c["comparaciones"]["hard"]["pares"].append("no-existe"),
         "comparaciones.hard.pares": lambda c: c["comparaciones"]["hard"].update(pares="Los mismos de principales."),
         "secundarias_sector.pares": lambda c: c["comparaciones"]["secundarias_sector"]["pares"].reverse(),
+        "reproduccion_validacion_en_el_kernel no está": lambda c: c.pop("uso_unico"),
+        "criterio_de_paro debe tener": lambda c: c["uso_unico"]["reproduccion_validacion_en_el_kernel"].update(
+            criterio_de_paro=None),
+        "criterio_de_paro debe tener exactamente": lambda c: _criterio(c).pop("validacion_incompleta"),
+        "criterio_de_paro: minimo_identicas": lambda c: _criterio(c).update(minimo_identicas=UMBRAL_JUGUETE - 1),
+        "criterio_de_paro: minimo_identicas ": lambda c: _criterio(c).update(filas=7),
+        "criterio_de_paro: minimo_identicas  ": lambda c: _criterio(c).update(minimo_identicas=float(UMBRAL_JUGUETE)),
+        "criterio_de_paro: [": lambda c: _criterio(c).update(si_no_cumple=" "),
+        "kernel.modelos": lambda c: c["uso_unico"]["reproduccion_validacion_en_el_kernel"].update(modelos=["base-06b-0"]),
+        "kernel.modelos ": lambda c: c["uso_unico"]["reproduccion_validacion_en_el_kernel"].update(
+            modelos=["afinado-06b", "afinado-06b"]),
+        "kernel.modelos debe": lambda c: c["uso_unico"]["reproduccion_validacion_en_el_kernel"].update(modelos=[]),
     }
     for motivo, cambiar in cambios.items():
         c = copy.deepcopy(config)

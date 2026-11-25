@@ -17,7 +17,9 @@ Fase 4 las leen de ahí. Este módulo implementa lo que se calcula de ese archiv
 - `cota_fichas()` y `limite_largo()`: el límite de largo del few-shot. Cada ficha del BPE por
   bytes de Qwen, especial o no, cubre al menos un byte del texto, así que los bytes UTF-8 del
   prompt son una cota superior exacta de sus fichas. Se toma el máximo entre el texto y su
-  forma NFC, la que usa el normalizador del tokenizador. El kernel cuenta las fichas reales.
+  forma NFC, la que usa el normalizador del tokenizador. El kernel cuenta las fichas reales;
+- `problemas_reproduccion()` (paso 15): `--comprobar` revisa el criterio de paro de la reproducción
+  de validación en el kernel (al menos UMBRAL_REPRODUCCION de las respuestas de validación idénticas).
 
 Arriba solo se importan la biblioteca estándar, numpy y `src/prompt_clasificador.py`, para que el
 kernel de la Fase 4 pueda incrustar este módulo. Lo que lee archivos del repo se importa dentro de
@@ -60,6 +62,12 @@ LARGO_GENERAL = 256  # todo, salvo el prompt few-shot (CAMBIO DE DISEÑO aprobad
 NUEVAS_BASE = 32  # tope de fichas nuevas de los modelos base
 NUEVAS_AFINADOS = 16  # las de la validación de los afinados
 MULTIPLO_LARGO = 64
+# Reproducción de validación en el kernel (paso 15): un afinado sigue con test y hard solo si al menos
+# 980 de sus 1,000 respuestas crudas de validación son idénticas a las de referencia. Lo propuso el
+# chat de Claude del proyecto y lo aprobó Samuel el 2026-11-25.
+UMBRAL_REPRODUCCION = 980
+CLAVES_CRITERIO = ("comparacion", "minimo_identicas", "filas", "si_cumple", "si_no_cumple", "validacion_incompleta")
+RUTA_REPRODUCCION = "uso_unico.reproduccion_validacion_en_el_kernel"
 RUTA_CONFIG = "evals/fase4_preregistro.json"
 SCRIPT = "src/preregistro_fase4.py"
 
@@ -432,6 +440,8 @@ def comprobar_config(config: Mapping, calc: Calculo, manifest: Mapping, raiz: Pa
             if m["adaptador"]["sha256"] != res["modelo"].get("adaptador_sha256"):
                 p.append(f"modelos.{m['id']}.adaptador.sha256 no es el de su resultado de validación.")
 
+    p.extend(problemas_reproduccion(config))
+
     fuera_de_test = {x["modelo"] for x in config["no_van_a_test"]}
     if len(config["no_van_a_test"]) != 7 or len(fuera_de_test) != 7 or fuera_de_test & set(modelos):
         p.append("no_van_a_test debe listar 7 modelos distintos, ninguno de los 8 que van a test.")
@@ -468,6 +478,45 @@ def comprobar_config(config: Mapping, calc: Calculo, manifest: Mapping, raiz: Pa
             local = (Path(raiz) / SCRIPT).read_bytes().decode("utf-8").replace("\r\n", "\n")
             if en_git != local:
                 p.append(f"{SCRIPT} no es el del commit registrado.")
+    return p
+
+
+def problemas_reproduccion(config: Mapping) -> list[str]:
+    """Problemas del criterio de reproducción de validación (paso 15); [] si cuadra.
+
+    `modelos` debe nombrar afinados distintos de `orden_en_el_kernel` (con adaptador y predicciones
+    de validación), y `criterio_de_paro` traer exactamente CLAVES_CRITERIO, con
+    `minimo_identicas` = UMBRAL_REPRODUCCION y `filas` = las de `conjuntos.validacion`.
+    """
+    rv = config.get("uso_unico", {}).get("reproduccion_validacion_en_el_kernel") if isinstance(
+        config.get("uso_unico"), Mapping) else None
+    if not isinstance(rv, Mapping):
+        return [f"{RUTA_REPRODUCCION} no está en el config."]
+    p: list[str] = []
+    modelos = {m.get("id"): m for m in config.get("modelos", []) if isinstance(m, Mapping)}
+    orden = list(config.get("orden_en_el_kernel", []))
+    nombres = rv.get("modelos")
+    if (
+        not isinstance(nombres, list)
+        or not nombres
+        or len(set(map(str, nombres))) != len(nombres)
+        or any(n not in orden or not {"adaptador", "predicciones_validacion"} <= set(modelos.get(n, {})) for n in nombres)
+    ):
+        p.append(f"{RUTA_REPRODUCCION}.modelos debe nombrar afinados distintos de orden_en_el_kernel, "
+                 "con adaptador y predicciones de validación.")
+    c = rv.get("criterio_de_paro")
+    if not isinstance(c, Mapping) or set(c) != set(CLAVES_CRITERIO):
+        p.append(f"{RUTA_REPRODUCCION}.criterio_de_paro debe tener exactamente las claves {list(CLAVES_CRITERIO)}.")
+        return p
+    filas = config.get("conjuntos", {}).get("validacion", {}).get("filas")
+    minimo, total = c["minimo_identicas"], c["filas"]
+    enteros = all(isinstance(x, int) and not isinstance(x, bool) for x in (minimo, total))
+    if not enteros or minimo != UMBRAL_REPRODUCCION or total != filas or not 0 < minimo <= total:
+        p.append(f"{RUTA_REPRODUCCION}.criterio_de_paro: minimo_identicas debe ser {UMBRAL_REPRODUCCION} "
+                 f"y filas, las de conjuntos.validacion ({filas}).")
+    textos = [k for k in CLAVES_CRITERIO if k not in ("minimo_identicas", "filas")]
+    if any(not isinstance(c[k], str) or not c[k].strip() for k in textos):
+        p.append(f"{RUTA_REPRODUCCION}.criterio_de_paro: {textos} deben ser textos no vacíos.")
     return p
 
 
