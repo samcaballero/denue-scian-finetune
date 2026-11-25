@@ -1213,4 +1213,10 @@
 - **Revisión de privacidad del registro** (paso 17, punto 2, antes de su commit):
   - `verificar_privacidad` con 319,875 llaves (train final, validación, train candidato sin hard y las copias) y `verificar_sin_ids` con 421,061 ids: limpias.
   - La regla acotada contra los 4 conjuntos que vio el kernel marca una llave de dos palabras de train final en el campo `split`. Ese campo es un texto fijo de `src/baselines_fase4.py`, ya versionado, y la frase también está en ese código.
-  - Por la regla es PARADA, así que el registro queda fuera del commit hasta que decida Samuel. El log y el JSON del modelo no tienen posible fuga.
+  - Por la regla era PARADA, así que el registro se dejó fuera del commit hasta que decidiera Samuel. El log y el JSON del modelo no tienen posible fuga.
+  - **Decisión de Samuel en la PARADA 2 del paso 17:** es un falso positivo, por tres razones:
+    - la coincidencia es texto fijo de código ya versionado, no un dato del DENUE;
+    - el archivo lo escribió el script;
+    - no se edita a mano.
+
+    Se hizo su commit tal cual, sin cambiar un byte. La frase no se repite aquí ni en ningún otro archivo.

@@ -1,0 +1,209 @@
+{
+  "fecha": "2026-11-25",
+  "experimento": "fase4_paso16_baselines",
+  "commit": "57b28b4f9957142c4ffa52680f5793a008a1923c",
+  "arbol_limpio": true,
+  "head_sin_cambios": true,
+  "modelo": [
+    "baseline_diccionario",
+    "baseline_tfidf_lr"
+  ],
+  "ids_preregistro": [
+    "diccionario",
+    "tfidf-lr-C10"
+  ],
+  "configuracion": {
+    "script": "src/baselines_fase4.py",
+    "baselines": "src/baselines.py sin cambios (funciones públicas en el orden de correr_diccionario y correr_tfidf)",
+    "preregistro": {
+      "ruta": "evals/fase4_preregistro.json",
+      "sha256": "7de9d3fc1335179540e35f91cba0ac98920f9f00a4ddc28a680b148898b6156e"
+    },
+    "python": "3.12.10",
+    "versiones": {
+      "numpy": "2.5.5",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "joblib": "1.6.0"
+    },
+    "diccionario": {
+      "entrada": "nom_estab, normalizado con src/normalizacion.py:normalizar_nombre",
+      "regla": "Clase más frecuente de la llave en train; si la llave no se vio en train, la clase más frecuente global.",
+      "desempate": "Dentro de una llave: el conteo de (llave, clase) en el train antes del tope; en el global: el conteo de la clase en el train antes del tope. Si persiste, el código menor.",
+      "train_antes_del_tope": {
+        "nombre": "splits.clasificador_train_candidatos_sin_hard",
+        "aleatorio": "P menos la validación aleatoria (splits.clasificador_train_candidatos_sin_hard ∪ splits.clasificador_validacion menos splits.experimento_aleatorio_validacion)"
+      }
+    },
+    "tfidf": {
+      "vectorizador": {
+        "clase": "sklearn.feature_extraction.text.TfidfVectorizer",
+        "analyzer": "char_wb",
+        "ngram_range": [
+          2,
+          5
+        ],
+        "min_df": 2,
+        "max_features": 100000,
+        "sublinear_tf": true,
+        "norm": "l2",
+        "lowercase": true,
+        "strip_accents": null
+      },
+      "preprocesamiento": "Entrada: nom_estab original. Preprocesamiento propio del vectorizador: todo pasa a minúsculas (lowercase=True); los acentos y la Ñ se conservan (strip_accents=None); analyzer='char_wb' saca los n-gramas de 2 a 5 caracteres dentro de cada palabra (separadas por espacios), rellenada con un espacio a cada lado. Solo se conservan los n-gramas de al menos 2 nombres de train (min_df=2), y de ellos los 100,000 más frecuentes; TF sublineal (1 + log tf) y norma L2 por fila. El vectorizador se ajusta solo con los nombres de train.",
+      "regresion_logistica": {
+        "clase": "sklearn.linear_model.LogisticRegression",
+        "solver": "saga",
+        "tol": 0.001,
+        "max_iter": 100,
+        "random_state": 42,
+        "l1_ratio": 0.0,
+        "C": 10.0
+      },
+      "descripcion": "LogisticRegression de scikit-learn con solver saga (descenso de gradiente estocástico con promedio; memoria lineal) y penalización L2 (l1_ratio=0, el valor por omisión). Con 3 o más clases, scikit-learn ajusta el modelo multinomial. C es el inverso de la fuerza de la regularización."
+    },
+    "huellas": {
+      "diccionario": "5a7f8c47eaac85d82744aaa8e7b59073618e5f0b3177e90d77acc5c9f1d1ff3c",
+      "tfidf-lr-C10": "19c4350a90f8e30cec2ee93d317c560df940b6a3a6f20e114c86cd51fc8b2f9d"
+    },
+    "entrada_test_hard": "Copias sin codigo_act de kaggle_datasets.denue_scian_evaluacion (solo id y nom_estab), las mismas que suben a Kaggle.",
+    "formato_predicciones": "JSONL: un objeto por línea con las claves id y respuesta (el código SCIAN de 6 dígitos que da el baseline), en orden de int(id); UTF-8 sin BOM; saltos \\n."
+  },
+  "semilla": 42,
+  "split": "nombre: train final y validación congelada; test y hard desde las copias sin codigo_act",
+  "hash_split": {
+    "train_final": "fe6780a7e60400604238b601a4052dc55e0ab4ab9747f49a89166e217aaa9a9e",
+    "train_candidatos_sin_hard": "db3dd09accc6715ffc844192d1a5a0f1ce0feee7029634f4871725575bc8cefc",
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d",
+    "test_copia": "a066b066e6bdd4b424348a61be37ef0f7f8a59eff6cdaa34dbda4355a27aa4a5",
+    "hard_copia": "848f82355dc2335d128c7afe2e09bffa92b611534965a7cf65f2e58f4efb425c",
+    "test_origen": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c",
+    "hard_origen": "13755fc7022d78b3e6b161425b4ee87bd7aec2eebf0ea42e4c7169f3288b08fa"
+  },
+  "hash_split_origen": "data/manifest.json (splits y kaggle_datasets.denue_scian_evaluacion) y evals/fase4_preregistro.json (conjuntos)",
+  "registros_validacion": {
+    "diccionario": {
+      "ruta": "data/baselines/d5e7a84b2cc4/diccionario_nombre.json",
+      "sha256": "f991c82ae2fbe418e6ba2827c8a39bb7d57f51e4150d5f7b4547359e89cfd587",
+      "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d"
+    },
+    "tfidf-lr-C10": {
+      "ruta": "data/baselines/d5e7a84b2cc4/tfidf_nombre_C10.json",
+      "sha256": "0c4d1deb511c03e47a1178fc458537cab99354bc3b6dbf6111706ccbddefe6a6",
+      "commit": "d5e7a84b2cc4b7d55efd1bbf5a6fd734852f4a1d"
+    }
+  },
+  "tamano_muestra": {
+    "train_final": 187350,
+    "train_antes_del_tope": 417956,
+    "validacion": 1000,
+    "test": 2000,
+    "hard": 105
+  },
+  "horas_gpu": 0,
+  "reproduccion_validacion": {
+    "diccionario": {
+      "filas": 1000,
+      "identicas": 1000,
+      "aciertos_registro": 83,
+      "aciertos_reproducidos": 83,
+      "criterio": "aciertos.clase idénticos fila por fila, en orden de int(id) (reproduccion_validacion del config)",
+      "cumple": true
+    },
+    "tfidf-lr-C10": {
+      "filas": 1000,
+      "identicas": 1000,
+      "aciertos_registro": 682,
+      "aciertos_reproducidos": 682,
+      "criterio": "aciertos.clase idénticos fila por fila, en orden de int(id) (reproduccion_validacion del config)",
+      "cumple": true
+    }
+  },
+  "tfidf_ajuste": {
+    "tiempo_vectorizador_s": 12.53,
+    "tiempo_ajuste_s": 4078.36,
+    "n_iter": 43,
+    "convergio": true,
+    "avisos": [],
+    "memoria_pico_ajuste_mb": 4170.9,
+    "rasgos": 100000,
+    "no_ceros": 14125297,
+    "clases_en_train": 929,
+    "modelo_reusado": false,
+    "commit_entrenamiento": "57b28b4f9957142c4ffa52680f5793a008a1923c"
+  },
+  "modelo_guardado": {
+    "ruta": "data/fase4/baselines/tfidf-lr-C10_modelo.joblib",
+    "bytes": 746673129,
+    "sha256": "88c3138ca40ee25be98d632dc628ef6847044fe8d3568c89c5fb87199e281da5",
+    "metadatos": {
+      "ruta": "data/fase4/baselines/tfidf-lr-C10_modelo.json",
+      "sha256": "f16d8827273c6e7bc401eeda8fbcf5b20c122af357c986e8000281193b18eac0"
+    }
+  },
+  "predicciones": {
+    "diccionario": {
+      "validacion": {
+        "ruta": "data/fase4/baselines/diccionario_validacion.jsonl",
+        "filas": 1000,
+        "bytes": 40947,
+        "sha256": "ef66c9130c42cfb12cc42e49ab012be258e82352f7afa6e2d1ba52eec6a8304e"
+      },
+      "test": {
+        "ruta": "data/fase4/baselines/diccionario_test.jsonl",
+        "filas": 2000,
+        "bytes": 81752,
+        "sha256": "7072e5d91a9420d063cbaae96590d7921e5971dd1607cdb3077c78876432f42b"
+      },
+      "hard": {
+        "ruta": "data/fase4/baselines/diccionario_hard.jsonl",
+        "filas": 105,
+        "bytes": 4312,
+        "sha256": "92f8cd2f16b34935eeff9d33a78b305f97c1c3a272c8cd76eda4c00007500faf"
+      }
+    },
+    "tfidf-lr-C10": {
+      "validacion": {
+        "ruta": "data/fase4/baselines/tfidf-lr-C10_validacion.jsonl",
+        "filas": 1000,
+        "bytes": 40947,
+        "sha256": "924489a6ac1e3d73e48b4e4aab7641cd8333ca85561554a1078236e27d1de42e"
+      },
+      "test": {
+        "ruta": "data/fase4/baselines/tfidf-lr-C10_test.jsonl",
+        "filas": 2000,
+        "bytes": 81752,
+        "sha256": "68fd36e22902b6d1f0e638f29d2b3f9f73acb1462cfc705c6c9454bdf4230000"
+      },
+      "hard": {
+        "ruta": "data/fase4/baselines/tfidf-lr-C10_hard.jsonl",
+        "filas": 105,
+        "bytes": 4312,
+        "sha256": "339c9eb1d912d8b5c062c26ea4e23bcf99c85a872cd4cab458f0f06c76ca358a"
+      }
+    }
+  },
+  "cpu": {
+    "tiempos_s": {
+      "carga_y_verificacion_s": 3.95,
+      "diccionario_s": 5.94,
+      "vectorizador_s": 12.53,
+      "ajuste_s": 4078.36,
+      "guardar_modelo_s": 3.32,
+      "cargar_modelo_s": 2.14,
+      "prediccion_s": 0.64,
+      "total_s": 4107.63
+    },
+    "memoria": {
+      "libre_al_inicio_gb": 5.59,
+      "minimo_libre_gb": 5.0,
+      "pico_ajuste_mb": 4170.9,
+      "pico_proceso_mb": 5069.0
+    }
+  },
+  "log": "data/fase4/baselines/baselines_2026-11-25_022914.log",
+  "advertencias": [
+    "Sin métricas de test ni de hard: se calculan una sola vez, en la evaluación final, con las predicciones de los 8 modelos (uso_unico del config).",
+    "Diccionario: ninguna llave de test ni de hard está en train final (nota del config), así que responde la clase global en todas sus filas, como en validación."
+  ]
+}

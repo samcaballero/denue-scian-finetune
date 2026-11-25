@@ -765,7 +765,7 @@ Ninguno llegó a un commit.
   - las predicciones de validación, test y hard quedan en `data/fase4/baselines/`;
   - el registro sin métricas queda en `results/`.
 - Autoría: el chat de Claude del proyecto propuso el paso; Samuel lo aprobó; Claude Code redactó el código, las pruebas y las secciones de la bitácora y de este registro.
-- Commits: `40e4671`, `57b28b4` y, en el paso 17, el de la bitácora, este registro y `CLAUDE.md`. El registro de `results/` sigue sin commit: falta la decisión de Samuel sobre la revisión de nombres.
+- Commits: `40e4671`, `57b28b4` y, en el paso 17, `9e9208e` (bitácora, este registro y `CLAUDE.md`) y el del registro de `results/`, que se hizo cuando Samuel lo declaró falso positivo.
 
 ### Decisiones que Samuel corrigió
 
@@ -779,4 +779,7 @@ Ninguno llegó a un commit.
 
 - **El ajuste de TF-IDF + LR tardó 68 min**, contra 55 en validación, con las mismas 43 iteraciones y el mismo pico de 4,171 MB. No se midió la causa. Lo probable es la laptop con menos memoria libre (5.6 GB al inicio y 4.9 GB durante el ajuste), pero no está comprobado.
 - **El diccionario responde la clase global en todas las filas de test y de hard:** ninguna de sus llaves está en train final, como anticipó el config.
-- **Revisión del registro** (en el paso 17, antes de su commit). La regla acotada marca una llave de dos palabras en el campo `split`. Ese campo es un texto fijo del propio script, ya versionado. `verificar_privacidad` no lo detecta, porque compara el texto completo del campo, no sus palabras. Queda para que decida Samuel.
+- **Revisión del registro** (en el paso 17, antes de su commit). La regla acotada marca una llave de dos palabras en el campo `split`. Ese campo es un texto fijo del propio script, ya versionado. `verificar_privacidad` no lo detecta, porque compara el texto completo del campo, no sus palabras.
+  - Claude Code se detuvo y no hizo el commit del registro.
+  - En la PARADA 2 del paso 17, Samuel lo declaró **falso positivo**: la coincidencia es texto fijo de código ya versionado, no un dato; el archivo lo escribió el script y no se edita a mano.
+  - Se hizo su commit tal cual. La frase no se repite en ningún archivo.
