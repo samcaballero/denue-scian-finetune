@@ -50,6 +50,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
     - el log de la corrida.
   - El registro de la corrida va en `results/2026-11-25_fase4_baselines-predicciones.json`.
   - `errores_4b-lr2e-4-r32_test.jsonl` y `.csv` (UTF-8 con BOM, para Google Sheets): los 50 errores del 4B en test sorteados según el pre-registro (paso 17). Llevan nombres, así que nunca salen de `data/`; en `results/` solo van su conteo y sus hashes. En el paso 18, Claude Code propone un tipo de error por fila y Samuel confirma o cambia cada una.
+  - Paso 18, con `src/errores_fase4.py` y los criterios de `docs/criterios-errores.md`, versionados antes de clasificar. Estos archivos llevan nombres, así que nunca salen de `data/`, salvo el CSV que Samuel revisa en Google Sheets:
+    - `errores_4b_vista.md` (`--vista`): la vista sin ids que lee Claude Code;
+    - `errores_4b_propuestas.json`: las propuestas de Claude Code, por posición (1 a 50 en orden de `int(id)`);
+    - `errores_4b_para_revision.csv` (`--proponer`; UTF-8 con BOM): el CSV que Samuel revisa en Google Sheets. Lleva `posicion` en lugar de `id`: los ids no salen de la laptop. Al terminar, Samuel lo exporta a `errores_4b_revisado.csv` y borra la hoja de Google Drive;
+    - `--contar` lee ese CSV revisado y escribe `results/<fecha>_fase4_errores-por-tipo.json` una sola vez, sin nombres, llaves ni ids.
 - Evaluación final del clasificador (paso 17): `src/evaluacion_final_fase4.py`. `--test` es lo único que lee `codigo_act` de test y hard, y escribió una sola vez: la primera corrida se detuvo antes de escribir, y su constancia está en la bitácora del paso 17. Se niega a repetirse si el resultado ya existe. Escribió `results/2026-11-25_fase4_evaluacion-final.json` y la tabla para la charla, `results/2026-11-25_fase4_tabla-final.md`, generada desde ese JSON.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
@@ -114,6 +119,7 @@ denue-scian-finetune/
 └── docs/
     ├── bitacora.md         # bitácora del proyecto, con un encabezado por fecha
     ├── claude-code-log.md  # momentos notables del trabajo con Claude Code
+    ├── criterios-errores.md # criterios de los tipos de error del 4B (paso 18), sin nombres
     ├── evidencia/          # capturas de pantalla (revisadas antes de agregarse)
     ├── figuras/            # figuras para la charla generadas por scripts (sin nombres de negocio)
     └── sesiones/           # sesiones importantes de Claude Code guardadas con /export

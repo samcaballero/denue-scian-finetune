@@ -852,3 +852,58 @@ Ninguno llegó a un commit.
 
 - **Un heredoc de Git Bash falló al agregar esta sección a la bitácora,** por un error del intérprete, y no escribió nada. El texto se escribió con la herramienta de escritura, como pide la memoria del proyecto para textos largos.
 - **Un conteo de retornos de carro con `grep` en Git Bash dio todas las líneas.** Se comprobó con Python, en los archivos y en los blobs: los archivos nuevos van con LF.
+
+## 2026-11-25 — Fase 4, paso 18: tipos de error del 4B en test
+
+**Qué se hizo:**
+- **Criterios:** `docs/criterios-errores.md`, con su commit (`046ca3d`) antes de clasificar ninguna fila.
+- **Módulo nuevo** `src/errores_fase4.py`, con `--vista`, `--proponer` y `--contar`, y sus pruebas (`65bf6f6`). Con datos reales solo se corrieron `--vista` y `--proponer`; `--contar` solo se probó con datos inventados.
+- **Propuestas:** Claude Code propuso un tipo por fila en las 50.
+- **CSV para Samuel:** `data/fase4/errores_4b_para_revision.csv`, con 4 candidatos para la charla.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso y los tipos; Samuel lo aprobó.
+  - Claude Code redactó el plan, los criterios, el código, las pruebas y las secciones de la bitácora y de este registro, y clasificó las filas.
+  - Samuel confirma o cambia cada fila.
+- **Commits:** `046ca3d`, `65bf6f6` y el de este registro, sin push.
+
+### Decisiones que Samuel corrigió
+
+- **Al aprobar el plan:**
+  - el CSV para Google Sheets lleva `posicion` (1 a 50) en lugar de `id`, para que los ids no salgan de la laptop. `--contar` saca el id del JSONL verificado y acepta filas reordenadas;
+  - dejar constancia de los falsos positivos del paso 17 (abajo);
+  - al terminar la revisión, exportar el CSV a `data/fase4/` y borrar la hoja de Google Drive, porque lleva nombres.
+- **Aprobó la precisión de Claude Code:** Samuel no cambia los tipos automáticos (`codigo_inexistente` y `clases_hermanas`); si una fila automática merece otra lectura, la anota en `nota_samuel`.
+
+### Constancia: falsos positivos del paso 17
+
+- La revisión extra contra train final del paso 17 marcó tres textos fijos del resultado y la tabla: la línea de crédito de los datos, la nota del 06b del config y una nota del código.
+- Samuel confirmó que son falsos positivos, con el criterio de la PARADA 2: texto fijo de código o config ya versionado, en un archivo que escribió el script y que no se edita a mano.
+- Esos archivos ya están en el push de `7e11b0e`.
+
+### Proceso
+
+- **Plan en modo de plan,** aprobado con los ajustes de arriba.
+- **Cómo vio Claude Code los nombres:**
+  - Leyó la vista sin ids (`data/fase4/errores_4b_vista.md`) con su herramienta de lectura de archivos, que en la terminal no muestra el contenido.
+  - Escribió sus propuestas por posición, sin ids ni nombres.
+  - Ningún comando imprimió nombres, llaves ni ids.
+  - Los nombres sí quedan en el contexto y en el transcript de la sesión, así que su export a `docs/sesiones/` necesita la revisión de datos sensibles.
+- **Nada salió de la laptop:** no se buscó ningún nombre en internet ni en otra fuente.
+- **Antes de cada commit:**
+  - la regla acotada contra los 4 conjuntos al texto nuevo de los documentos;
+  - una maqueta del resultado de `--contar`, con conteos inventados, por los candados reales;
+  - pytest completo.
+
+### Hallazgos
+
+- **Frases comunes que coinciden con llaves.** En el borrador de los criterios, dos frases comunes de dos palabras coincidían con llaves de nombres de los 4 conjuntos, y en el borrador de la bitácora, una. Se reescribieron antes del commit. Las frases no se registran, porque son llaves.
+- **La regla acotada sobre código fuente siempre encuentra coincidencias por casualidad:** fragmentos cortos e identificadores en mayúsculas. Pasa igual en los módulos ya versionados, como `src/evaluacion_final_fase4.py`. Lo que se revisa como candado es lo que va a `results/` y a los documentos: la maqueta de `--contar` salió limpia.
+- **Ninguno de los 50 errores es `codigo_inexistente`,** como era de esperar: el 4B no responde códigos inexistentes en test.
+
+### Bugs que Claude Code introdujo y encontró
+
+Ninguno: las 65 pruebas nuevas pasaron en la primera corrida.
+
+### Errores de Claude Code
+
+Ninguno llegó a un commit.

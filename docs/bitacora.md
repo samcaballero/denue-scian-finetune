@@ -1340,3 +1340,41 @@
 - **Falsos positivos del paso 17.** La revisión extra contra train final encontró coincidencias en tres textos fijos del resultado y la tabla: la línea de crédito de los datos, la nota del 06b del config y una nota del código.
   - Samuel confirmó que son falsos positivos, con el criterio de la PARADA 2: texto fijo de código o config ya versionado, en un archivo que escribió el script y que no se edita a mano.
   - Esos archivos ya están en el push de `7e11b0e`.
+- **Código nuevo:** `src/errores_fase4.py`, con tres modos:
+  - **`--vista`:** verifica los 50 errores contra el SHA-256 del resultado final, calcula los tipos automáticos y escribe una ficha por posición, sin ids.
+  - **`--proponer`:** valida las propuestas de Claude Code contra los criterios versionados y escribe el CSV para Samuel. Revisa:
+    - las 50 posiciones en orden;
+    - la precedencia de los tipos;
+    - las razones: 15 palabras como máximo y sin la llave de su fila;
+    - los candidatos: hasta 6, de tipos distintos;
+    - el SHA-256 de los criterios.
+  - **`--contar`:** lee el CSV que Samuel exporta de Google Sheets y escribe el resultado una sola vez.
+    - Por posición, aunque Sheets reordene las filas, exige las mismas 50 posiciones y no acepta tipos automáticos cambiados.
+    - Los datos de cada fila salen del JSONL verificado, no de la hoja.
+    - Antes de escribir, exige el árbol limpio, calcula dos veces y pasa los candados de privacidad, de ids y de nombres contra los 4 conjuntos.
+    - Esta sesión solo lo probó con datos inventados.
+- **Clasificación:**
+  - Claude Code leyó la vista sin ids con su herramienta de lectura de archivos y propuso un tipo y una razón por posición, en `data/fase4/errores_4b_propuestas.json`, sin ids ni nombres.
+  - Los nombres quedaron en el contexto de la sesión, no en la terminal: el export de esta sesión a `docs/sesiones/` necesita la revisión de datos sensibles.
+  - Ninguna fila es `codigo_inexistente`, porque el 4B no responde códigos inexistentes en test (`results/2026-11-25_fase4_evaluacion-final.json`).
+  - Los conteos por tipo se registran en `results/` cuando Samuel termine: `--contar` guarda la matriz propuesto → final.
+- **Archivos en `data/fase4/`** (ignorados por git):
+
+  | Archivo | Bytes | SHA-256 |
+  |---|---:|---|
+  | `errores_4b_vista.md` | 18,548 | `28305a26…` |
+  | `errores_4b_propuestas.json` | 7,505 | `eae2f624…` |
+  | `errores_4b_para_revision.csv` | 14,782 | `2d5958e2…` |
+
+- **Candidatos para la charla:** Claude Code marcó 4, uno por cada tipo presente en la muestra. Los elige Samuel.
+- **Revisión de nombres** con la regla acotada, contra los 4 conjuntos:
+  - Los criterios y esta sección quedaron limpios después de reescribir tres frases comunes de dos palabras que coincidían con llaves de nombres.
+  - Una maqueta del resultado de `--contar`, con conteos inventados, pasa los candados.
+- **Pruebas:** pasan las 1,015 del repo (65 nuevas).
+- **Commits del paso 18:**
+  - `046ca3d`: los criterios, antes de clasificar;
+  - `65bf6f6`: el módulo y sus pruebas;
+  - el de esta sección, con el registro de Claude Code y `CLAUDE.md`.
+- **Pendiente:**
+  - Samuel revisa el CSV en Google Sheets, lo exporta a `data/fase4/errores_4b_revisado.csv` y borra la hoja.
+  - La sesión siguiente corre `--contar`.
