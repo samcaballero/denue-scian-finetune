@@ -97,10 +97,14 @@ RE_CODIGO = re.compile(r"[0-9]{6}")
 # Memoria (paso 16). Pico estimado del proceso ~5.3 GB: datos cargados (~1 GB) + matriz TF-IDF de train y
 # vectorizador (~0.3 GB) + ajuste saga (4,171 MB medidos con tracemalloc en el registro de validación de
 # C = 10). Cota superior: el pico de 5,297 MB de la corrida de validación, que además tenía cargado el
-# split aleatorio. Mínimo para lanzar = pico + ~1.7 GB de margen para el sistema.
+# split aleatorio. Mínimo para lanzar: 5.0 GB libres (decisión de Samuel del 2026-11-25, antes de lanzar):
+# la laptop no pasa de ~5.6 GB libres aunque se cierre todo, la corrida del 23 nov terminó bien así, y si
+# falta memoria Windows usa el archivo de paginación y la corrida solo se hace más lenta. El plan tenía
+# 7.0 GB (pico + margen), con el que nunca arrancaría.
 PICO_ESTIMADO_GB = 5.3
-MINIMO_LIBRE_GB = 7.0
-MARGEN_GB = 1.5  # el punto de control recomienda: pico medido + margen, redondeado hacia arriba a 0.5 GB
+MINIMO_LIBRE_GB = 5.0
+MARGEN_GB = 1.5  # el punto de control reporta además el pico medido + margen, redondeado hacia arriba a 0.5 GB
+AVISO_PAGINACION = "si falta memoria, Windows usa el archivo de paginación y la corrida solo se hace más lenta"
 
 CONTENIDO_MODELO = (
     "joblib de un dict con 'vectorizador' (TfidfVectorizer ajustado con los nombres de train final) y "
@@ -738,11 +742,11 @@ def correr(*, modo: str, raiz: Path, manifest: Mapping, config_bytes: bytes, sha
     libre = memoria()
     if minimo_libre_gb is not None:
         avance(f"Memoria libre: {_texto_gb(libre)} (mínimo para lanzar: {minimo_libre_gb:.1f} GB; pico estimado "
-               f"~{PICO_ESTIMADO_GB:.1f} GB).")
+               f"~{PICO_ESTIMADO_GB:.1f} GB; {AVISO_PAGINACION}).")
         if libre is None or libre < minimo_libre_gb:
             raise ErrorFase4(f"Memoria libre {_texto_gb(libre)}, por debajo del mínimo de {minimo_libre_gb:.1f} GB: me "
-                             "detengo antes de leer datos. Cierra programas (navegador, editores) y vuelve a lanzar el "
-                             "mismo comando.")
+                             "detengo antes de leer datos. Cierra programas (navegador, editores) hasta tener al menos "
+                             f"{minimo_libre_gb:.1f} GB libres y vuelve a lanzar el mismo comando.")
     else:
         avance(f"Memoria libre: {_texto_gb(libre)} (en el modo {modo} no se exige mínimo; --escribir exige "
                f"{MINIMO_LIBRE_GB:.1f} GB).")
@@ -818,9 +822,9 @@ def _control_estimar(e: Entradas, tiempos: Mapping, avance: Callable[[str], None
     avance(f"Vectorizador de control: {seg_vec:.0f} s, {nnz if nnz is None else f'{nnz:,}'} no ceros. Memoria del "
            f"proceso tras cargar y vectorizar: {actual} MB.")
     avance(f"Pico estimado de --escribir: {actual} MB + {ajuste_mb:,.0f} MB del ajuste (registro de validación) = "
-           f"{pico_mb / 1024:.1f} GB; mínimo recomendado (pico + {MARGEN_GB} GB, a 0.5 GB): {recomendado:.1f} GB; "
-           f"mínimo del script: {MINIMO_LIBRE_GB:.1f} GB" + (" (alcanza)." if MINIMO_LIBRE_GB >= recomendado else
-                                                              " (NO alcanza: hay que subirlo)."))
+           f"{pico_mb / 1024:.1f} GB; pico + {MARGEN_GB} GB de margen, a 0.5 GB: {recomendado:.1f} GB; mínimo del "
+           f"script: {MINIMO_LIBRE_GB:.1f} GB" + (" (cubre pico y margen)." if MINIMO_LIBRE_GB >= recomendado else
+                                                   f" (no cubre pico y margen: {AVISO_PAGINACION})."))
     avance(f"Tiempo estimado de --escribir: ~{minutos:.0f} min (ajuste de validación: "
            f"{reg['cpu']['tiempo_ajuste_s'] / 60:.0f} min).")
     _, pico_control = bl._memoria_proceso()

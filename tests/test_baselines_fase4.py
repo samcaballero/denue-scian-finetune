@@ -250,14 +250,27 @@ def test_memoria_insuficiente_en_escribir_se_detiene_antes_de_leer_datos(tmp_pat
     abiertos = _espiar_open(monkeypatch)
     lineas: list[str] = []
     with pytest.raises(ErrorFase4) as e:
-        _correr(j, modo="escribir", minimo=7.0, memoria=lambda: 3.2, lineas=lineas)
+        _correr(j, modo="escribir", minimo=bf.MINIMO_LIBRE_GB, memoria=lambda: 3.2, lineas=lineas)
     monkeypatch.undo()
-    assert str(e.value) == ("Memoria libre 3.2 GB, por debajo del mínimo de 7.0 GB: me detengo antes de leer datos. "
-                            "Cierra programas (navegador, editores) y vuelve a lanzar el mismo comando.")
-    assert "Memoria libre: 3.2 GB (mínimo para lanzar: 7.0 GB" in lineas[-1]
+    assert str(e.value) == ("Memoria libre 3.2 GB, por debajo del mínimo de 5.0 GB: me detengo antes de leer datos. "
+                            "Cierra programas (navegador, editores) hasta tener al menos 5.0 GB libres y vuelve a "
+                            "lanzar el mismo comando.")
+    assert lineas[-1].endswith("Memoria libre: 3.2 GB (mínimo para lanzar: 5.0 GB; pico estimado ~5.3 GB; si falta "
+                               "memoria, Windows usa el archivo de paginación y la corrida solo se hace más lenta).")
     assert _splits_abiertos(j, abiertos) == []
     with pytest.raises(ErrorFase4, match="no se pudo medir"):
-        _correr(_juguete(tmp_path / "otro"), modo="escribir", minimo=7.0, memoria=lambda: None)
+        _correr(_juguete(tmp_path / "otro"), modo="escribir", minimo=bf.MINIMO_LIBRE_GB, memoria=lambda: None)
+
+
+def test_con_memoria_justo_en_el_minimo_si_arranca(tmp_path):
+    j = _juguete(tmp_path)
+    _correr(j, modo="escribir", minimo=bf.MINIMO_LIBRE_GB, memoria=lambda: 5.0)
+    assert len(_resultados(j)) == 1
+
+
+def test_minimo_de_memoria_aprobado():
+    # Decisión de Samuel del 2026-11-25, antes de lanzar: 5.0 GB (el plan tenía 7.0; la laptop no pasa de ~5.6 GB).
+    assert bf.MINIMO_LIBRE_GB == 5.0
 
 
 def test_ya_hay_un_registro_en_results_se_detiene_al_arrancar(tmp_path, monkeypatch):
