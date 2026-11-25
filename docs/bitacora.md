@@ -1180,7 +1180,7 @@
 
 ## 2026-11-25 02:29 - Fase 4, paso 16: baselines en test y hard set
 
-- **Qué es.** Las predicciones del diccionario y de TF-IDF + LR (C = 10) en test y en el hard set, sacadas de las copias sin `codigo_act` (las mismas que subieron a Kaggle). Antes, cada baseline reproduce fila por fila sus aciertos de validación. No se calcula ninguna métrica de test ni de hard: eso pasa una sola vez, en la evaluación final.
+- **Qué es.** Las predicciones del diccionario y de TF-IDF + LR (C = 10) en test y en el hard set, sacadas de test y hard sin `codigo_act` (los archivos que subieron a Kaggle). Antes, cada baseline reproduce fila por fila sus aciertos de validación. No se calcula ninguna métrica de test ni de hard: eso pasa una sola vez, en la evaluación final.
 - **Autoría:**
   - El chat de Claude del proyecto propuso el paso; Samuel lo aprobó.
   - Al aprobar el plan, Samuel pidió reusar un modelo ya guardado sin reentrenar, solo si coinciden su SHA-256, la huella de la configuración, el SHA-256 de train final y las versiones de numpy, scipy, scikit-learn y joblib.
@@ -1211,7 +1211,7 @@
 
   - **Registro de la corrida:** `results/2026-11-25_fase4_baselines-predicciones.json`, sin ids, nombres ni métricas de test o hard. HEAD no cambió durante la corrida.
 - **Revisión de privacidad del registro** (paso 17, punto 2, antes de su commit):
-  - `verificar_privacidad` con 319,875 llaves (train final, validación, train candidato sin hard y las copias) y `verificar_sin_ids` con 421,061 ids: limpias.
+  - `verificar_privacidad` con 319,875 llaves (train final, validación, train candidato sin hard, y test y hard sin etiquetas) y `verificar_sin_ids` con 421,061 ids: limpias.
   - La regla acotada contra los 4 conjuntos que vio el kernel marca una llave de dos palabras de train final en el campo `split`. Ese campo es un texto fijo de `src/baselines_fase4.py`, ya versionado, y la frase también está en ese código.
   - Por la regla era PARADA, así que el registro se dejó fuera del commit hasta que decidiera Samuel. El log y el JSON del modelo no tienen posible fuga.
   - **Decisión de Samuel en la PARADA 2 del paso 17:** es un falso positivo, por tres razones:
@@ -1220,3 +1220,99 @@
     - no se edita a mano.
 
     Se hizo su commit tal cual, sin cambiar un byte. La frase no se repite aquí ni en ningún otro archivo.
+
+## 2026-11-25 13:49 - Fase 4, paso 17: evaluación final del clasificador en test y hard set
+
+- **Qué es.** La salida del kernel de inferencia revisada sin etiquetas, el ensayo en validación y la evaluación final de los 8 modelos del pre-registro en test y en el hard set, una sola vez, con su tabla para la charla.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso; Samuel lo aprobó.
+  - Claude Code propuso el plan, con 5 precisiones. Samuel lo aprobó con 3 ajustes:
+    - una copia CSV de los errores (UTF-8 con BOM, para Google Sheets);
+    - en la PARADA 2, primero el resumen del kernel y después el ensayo;
+    - en la PARADA 3, la tabla de validación contra test y los 5 niveles del SCIAN del 4B y de TF-IDF.
+  - Samuel aprobó además la D7: en el paso 18, Claude Code propone un tipo de error por fila y Samuel confirma o cambia cada una.
+  - Claude Code redactó el código, las pruebas y esta sección.
+- **Salida del kernel** (`src/salida_fase4.py`; de Kaggle, solo lectura: `kernels status`, `kernels output` y `kernels pull -m`):
+  - **Descarga:** 48 archivos en `kaggle-output/fase4/` (ignorado). Los 46 que lista el kernel coinciden en bytes y SHA-256 con `mediciones.json`, y cada uno de los 14 JSONL coincide también con el JSON de su etapa. Ninguno tiene un SHA-256 del manifest ni el de test o hard con etiquetas.
+  - **Revisión de nombres con la regla acotada**, antes de leer los JSON en detalle: 50 textos contra los 4 archivos que vio el kernel (copias de test y hard, train final y validación). 0 posibles fugas; solo 32 nombres crudos de 4 caracteres o menos dentro de tokens más largos.
+  - **Ids:** los de cada JSONL son exactamente los de su copia, en orden de `int(id)`.
+  - **Etapas:** 14 de 14 completas, 0 fallas. Respuestas de validación idénticas a la referencia: 1,000 de 1,000 en los dos afinados (mínimo, 980), recalculado en la laptop.
+  - **Tiempo:** 1.35 h de GPU (4,872 s), contra 2.14 h estimadas en el mejor caso y 5.12 h en el peor. Ninguna respuesta llegó al tope de fichas: los base generaron 9 como máximo.
+  - **Imagen:** se usó la fijada (`fc720c15…`), aunque la página de Kaggle decía "Latest Container Image".
+    - La metadata de `pull -m` trae esa imagen.
+    - El `pip freeze` de antes de instalar es idéntico byte a byte al del kernel del 4B.
+    - Python 3.13.16, torch 2.11.0+cu130, CUDA 13.0, cudnn 92700 y el controlador 580.178.04 coinciden con los del 4B.
+    - Las 20 versiones fijadas quedaron instaladas.
+  - El código que bajó `pull -m` es el del repo salvo los CRLF.
+- **Commit del paso 16.** Ver la sección del paso 16: el registro de `results/` entró al commit después de que Samuel declaró falso positivo la coincidencia de la revisión de nombres.
+- **Código nuevo:**
+  - `src/metrica_tolerante.py`: la métrica tolerante del config.
+  - `src/evaluacion_final_fase4.py`. Usa el evaluador único sin cambios y tiene tres modos:
+    - punto de control;
+    - `--validacion`: ensayo que no escribe nada;
+    - `--test`: la evaluación final. Es el único modo que lee `codigo_act` de test y hard y escribe una vez: se niega si el resultado ya existe, calcula todo dos veces y escribe solo con bytes idénticos y candados limpios.
+- **Maqueta:** `--validacion` arma el resultado y la tabla completos con números de validación y les pasa los candados de `--test`. Claude Code la propuso durante el paso.
+  - Encontró que el texto fijo de la regla 5 en `src/metricas_clasificador.py` (también presente en los `results/` anteriores con `definiciones`) tiene dos palabras seguidas que, por casualidad, son la llave de un nombre de test.
+  - En el resultado final, `definiciones.regla5` es una referencia a donde vive la definición, sin su texto. La frase no se repite en ningún archivo.
+- **Ensayo en validación:** todo idéntico a lo registrado, campo por campo, en los 4 modelos (06b, 4B, TF-IDF y diccionario) y en las 6 pareadas.
+  - La pareada 4B − TF-IDF, alineada ahora por id con las predicciones de validación de TF-IDF del paso 16, da +0.025 (+0.004 a +0.046) en clase y +0.017 (−0.001 a +0.036) en sector: igual a la registrada, y queda como valor de referencia.
+- **Primera corrida de `--test`** (hacia la 1:00 pm, commit `176378c`):
+  - leyó las etiquetas de test y hard y calculó todo en memoria; pasaron el doble cálculo y `verificar_privacidad`;
+  - se detuvo antes de escribir, en el candado de ids: 10 campos de la concentración de respuestas tenían códigos SCIAN respondidos (6 dígitos) que coinciden por casualidad con ids de 6 dígitos;
+  - en la terminal solo salieron las rutas de esos campos: nadie vio ningún número ni métrica, y no se escribió ningún archivo;
+  - la corrección (`0c0d552`) saca del chequeo de ids solo esos dos campos, que por construcción son códigos. No depende de los resultados, y el cálculo es determinista;
+  - Samuel dio el visto bueno para relanzar una vez.
+- **Segunda corrida de `--test`** (1:49 pm, commit `0c0d552`, árbol limpio): bytes idénticos en el doble cálculo, candados limpios y HEAD sin cambios. Escribió:
+
+  | Archivo | Bytes | SHA-256 |
+  |---|---:|---|
+  | `results/2026-11-25_fase4_evaluacion-final.json` | 233,740 | `4b990601…` |
+  | `results/2026-11-25_fase4_tabla-final.md` | 10,150 | `5e6471b0…` |
+  | `data/fase4/errores_4b-lr2e-4-r32_test.jsonl` (ignorado) | 22,815 | `8958bcfd…` |
+  | `data/fase4/errores_4b-lr2e-4-r32_test.csv` (ignorado) | 10,972 | `dc46b0c5…` |
+
+- **Resultados en test** (2,000 filas, distribución natural; de `results/2026-11-25_fase4_evaluacion-final.json`):
+
+  | Modelo | Clase (IC 95 %) | Sector | Macro-F1 de sector | % inválido | % inexistente |
+  |---|---|---:|---:|---:|---:|
+  | diccionario | 8.3 (7.1–9.6) | 44.1 | 0.034 | 0.0 | 0.0 |
+  | tfidf-lr-C10 | 69.5 (67.5–71.5) | 84.5 | 0.678 | 0.0 | 0.0 |
+  | 06b-lr2e-4-r32 | 68.8 (66.8–70.9) | 84.4 | 0.679 | 0.0 | 0.0 |
+  | 4b-lr2e-4-r32 | 71.6 (69.6–73.5) | 86.1 | 0.724 | 0.0 | 0.0 |
+  | 06b-base-0shot | 0.0 | 0.0 | 0.000 | 78.0 | 21.9 |
+  | 4b-base-0shot | 0.0 | 0.0 | 0.000 | 22.0 | 78.0 |
+  | 06b-base-fewshot | 0.1 | 2.5 | 0.005 | 0.0 | 17.4 |
+  | 4b-base-fewshot | 8.9 (7.7–10.2) | 23.7 | 0.093 | 0.3 | 38.0 |
+
+  - **Pareadas principales** (b − a, puntos porcentuales): 4B − TF-IDF, +2.1 (+0.8 a +3.6); 06b − TF-IDF, −0.7 (−2.1 a +0.7).
+  - **Secundarias:** 4B − 06b, +2.8 (+1.6 a +3.9). Cada afinado contra su base, de +62.6 a +71.6.
+  - **Validación contra test:** en los 4 modelos que tienen las dos, la accuracy de test cae dentro del IC de validación.
+  - **Métrica tolerante:** igual a la de la regla 5 en los 6 LLM; no rescata ninguna fila.
+- **Hard set** (exploratorio; accuracy de clase total, ambiguo e indirecto):
+  - TF-IDF 10.5, 6.8 y 19.4;
+  - 06b 11.4, 5.4 y 25.8;
+  - 4B 9.5, 4.1 y 22.6;
+  - diccionario 1.9, 2.7 y 0.0;
+  - los 4 base, 0.0.
+
+  Con sus dos advertencias: la curación y el n de indirecto (31).
+- **Hallazgos:**
+  - El 06b few-shot responde 541110, el código del último ejemplo del prompt, en el 68 % de las filas de test.
+  - El 4B 0-shot responde sobre todo códigos inexistentes.
+  - El macro-F1 de sector del 4B queda arriba del de TF-IDF en test (0.724 contra 0.678); en validación era al revés.
+- **Revisión extra contra train final**, más allá de los candados del paso (que son contra test y hard y salieron limpios). Claude Code pasó la regla acotada a los archivos de `results/` y al texto nuevo de los documentos contra los 4 conjuntos.
+  - En el resultado y la tabla marca coincidencias con nombres de train final en tres textos fijos:
+    - la atribución exigida por CLAUDE.md, idéntica a una constante del código;
+    - la nota del 06b que viene del config;
+    - una nota que escribe el código.
+  - Con el criterio de Samuel de la PARADA 2 (texto fijo de código o config ya versionado, en un archivo que escribió el script y no se edita a mano), van tal cual.
+  - En el texto que Claude Code agregó hoy a la bitácora, al registro de Claude Code y a CLAUDE.md hubo coincidencias en su redacción, también en dos líneas de la sección del paso 16 que ya tenían commit. Se reescribieron esas líneas hasta que la revisión quedó limpia.
+- **Errores para el análisis:** 568 errores de clase del 4B en test. Se sortearon 50 con la convención del config, en JSONL y CSV en `data/fase4/`. En `results/` solo van el conteo y los hashes. Su clasificación va en el paso 18.
+- **Pruebas:** pasan las 950 del repo.
+- **Commits del paso 17:**
+  - `9e9208e` y `170640c`: paso 16;
+  - `46432f4`: la métrica tolerante;
+  - `721e87e`: la revisión de la salida del kernel;
+  - `176378c`: la evaluación final;
+  - `0c0d552`: el candado de ids;
+  - el de esta sección, con el resultado, la tabla, el registro de Claude Code y `CLAUDE.md`.

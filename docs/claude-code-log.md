@@ -783,3 +783,72 @@ Ninguno llegó a un commit.
   - Claude Code se detuvo y no hizo el commit del registro.
   - En la PARADA 2 del paso 17, Samuel lo declaró **falso positivo**: la coincidencia es texto fijo de código ya versionado, no un dato; el archivo lo escribió el script y no se edita a mano.
   - Se hizo su commit tal cual. La frase no se repite en ningún archivo.
+
+## 2026-11-25 — Fase 4, paso 17: evaluación final del clasificador en test y hard set
+
+**Qué se hizo:**
+- **Salida del kernel:** se bajó a `kaggle-output/fase4/` y se revisó con un módulo nuevo, `src/salida_fase4.py`: descarga, nombres con la regla acotada, ids, compuertas, costos e imagen. Todo pasa; no hubo PARADA 1.
+- **Commits del paso 16:** el del registro de `results/` entró cuando Samuel declaró falso positivo la revisión de nombres.
+- **Módulos nuevos:**
+  - `src/metrica_tolerante.py`;
+  - `src/evaluacion_final_fase4.py`, con `--validacion`, maqueta, candados y `--test`.
+- **Ensayo en validación:** idéntico a lo registrado.
+- **`--test`:** dos corridas; ver la constancia abajo. El resultado y la tabla quedaron en `results/`, y los 50 errores del 4B en `data/fase4/`.
+- **Kaggle, solo lectura:** `kernels status`, `kernels output` y `kernels pull -m`.
+- **Autoría:** el chat de Claude del proyecto propuso el paso; Samuel lo aprobó; Claude Code redactó el plan, el código, las pruebas y las secciones de la bitácora y de este registro.
+- **Commits:** `9e9208e`, `170640c`, `46432f4`, `721e87e`, `176378c`, `0c0d552` y el de este registro, sin push.
+
+### Decisiones que Samuel corrigió
+
+- **En el plan:**
+  - una copia CSV de los 50 errores (UTF-8 con BOM, para Google Sheets);
+  - el orden del reporte de la PARADA 2: primero el resumen del kernel y después el ensayo;
+  - la tabla de validación contra test, con los 5 niveles del SCIAN del 4B y de TF-IDF, en la PARADA 3;
+  - la D7: en el paso 18, Claude Code propone un tipo de error por fila y Samuel confirma o cambia cada una.
+- **En la PARADA 2:** el registro del paso 16 es un falso positivo de la revisión de nombres. La coincidencia es texto fijo de código ya versionado, el archivo lo escribió el script y no se edita a mano, así que va tal cual. Claude Code había detenido su commit.
+- **Después de la primera corrida de `--test`:** Samuel dio el visto bueno para relanzarla una vez con la corrección.
+
+### Constancia de la primera corrida de `--test`
+
+- Corrió con el commit `176378c`. Leyó las etiquetas de test y hard y calculó todo en memoria; pasaron el doble cálculo (bytes idénticos) y `verificar_privacidad`.
+- Se detuvo antes de escribir, en el candado de ids. Rechazó 10 campos de la concentración de respuestas (`codigos_validos_mas_predichos[].codigo` y `codigo_valido_mas_predicho`): eran códigos SCIAN respondidos, de 6 dígitos, que coinciden por casualidad con ids de 6 dígitos.
+- En la terminal solo salieron las rutas de esos campos. Nadie vio ningún número ni métrica, y no se escribió ningún archivo.
+- La corrección (`0c0d552`, con una prueba) saca del chequeo de ids solo esos dos campos, que por construcción son códigos. Cualquier otro texto igual a un id sigue deteniendo la escritura. La corrección no depende de los resultados, y el cálculo es determinista.
+- La segunda corrida, con `0c0d552`, escribió el resultado.
+
+### Proceso
+
+- **Plan en modo de plan**, aprobado con los ajustes de arriba.
+- **Revisión de nombres antes de leer** los JSON de la salida, contra los 4 archivos que vio el kernel. Los JSONL de predicciones no se revisan ni se imprimen: pueden traer nombres.
+- **La imagen se confirmó con datos y no con la página de Kaggle:** el `pip freeze` de antes de instalar es idéntico al del 4B, y coinciden el entorno, el controlador y la metadata de `pull -m`.
+- **Maqueta:** Claude Code agregó durante el paso que `--validacion` arme el resultado y la tabla completos con números de validación y les pase los candados de `--test`, para que una coincidencia de los textos fijos saliera antes de abrir test.
+- **Entre las dos corridas de `--test`, `--validacion` volvió a reproducir todo** y la maqueta siguió limpia.
+
+### Hallazgos
+
+- **La imagen fijada sí se usó,** aunque la página de Kaggle decía "Latest Container Image".
+- **Los modelos base casi nunca responden un código existente.** El 06b few-shot copia el código del último ejemplo del prompt en el 68 % de las filas.
+- **La métrica tolerante no rescata ninguna fila** en los 6 LLM.
+- **La pareada 4B − TF-IDF de validación, alineada ahora fila por fila por id,** da exactamente lo registrado: la alineación anterior, con los aciertos del registro, era correcta.
+- **La definición de la regla 5 coincide por casualidad con un nombre de test.**
+  - El texto fijo de la regla 5 en `src/metricas_clasificador.py` tiene dos palabras seguidas que son la llave de un nombre de test. Ese texto también está en los `results/` anteriores que llevan `definiciones`; es texto de código, no un dato.
+  - Lo encontró la maqueta.
+  - En el resultado final, `definiciones.regla5` es una referencia a la definición, sin su texto.
+  - La frase no se repite en ningún archivo.
+
+- **Revisión extra contra train final** de `results/` y del texto nuevo de los documentos.
+  - En el resultado y la tabla hay coincidencias en tres textos fijos, que van tal cual con el criterio de la PARADA 2: la línea de crédito de los datos, una nota del config y una nota del código.
+  - En los documentos hubo coincidencias en la redacción de Claude Code, también en dos líneas de la sección del paso 16 que ya tenían commit; se reescribió esa redacción hasta quedar limpia.
+
+### Bugs que Claude Code introdujo y encontró
+
+- **El candado de ids confundía códigos SCIAN con ids.** Detuvo la primera corrida de `--test` después de abrir test y antes de escribir (constancia arriba). La maqueta no lo atrapó porque en validación ningún código respondido coincidió con un id. Corregido en `0c0d552`, con una prueba.
+- **Un chequeo de ids por números sueltos en los textos.** Rechazaba la maqueta, porque los conteos y decimales coinciden con ids, que son números chicos. Lo atrapó la maqueta y se quitó antes del commit: el candado real es `verificar_sin_ids` sobre los textos del JSON, y la tabla sale solo del JSON.
+- **`correr_test` no creaba `results/` si no existía.** Lo atrapó una prueba con datos inventados antes del commit; en el repo, la carpeta ya existe.
+
+### Errores de Claude Code
+
+Ninguno llegó a un commit.
+
+- **Un heredoc de Git Bash falló al agregar esta sección a la bitácora,** por un error del intérprete, y no escribió nada. El texto se escribió con la herramienta de escritura, como pide la memoria del proyecto para textos largos.
+- **Un conteo de retornos de carro con `grep` en Git Bash dio todas las líneas.** Se comprobó con Python, en los archivos y en los blobs: los archivos nuevos van con LF.

@@ -42,13 +42,15 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - `denue-scian-evaluacion` (dataset privado `samcaballero/denue-scian-evaluacion`, armado con `src/paquete_evaluacion.py` en la Fase 4): `test.jsonl` y `hard.jsonl` completos, solo con `id` y `nom_estab`, sin `codigo_act` ni `tipo`. Su candado rechaza cualquier archivo con el hash de test, de hard o de otra entrada del manifest, y cualquier línea con claves distintas de `id` y `nom_estab`.
   - `denue-scian-humo`: la muestra desechable de la prueba de punta a punta (`src/muestra_humo.py`).
   - La subida la hace Samuel con `kaggle datasets create -p` y la ruta absoluta de la carpeta.
-- Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git).
+- Salidas descargadas de Kaggle: `kaggle-output/` (ignorado por git). La del kernel de inferencia de la Fase 4 está en `kaggle-output/fase4/`: el log de la CLI y la carpeta `fase4/` del kernel. Se revisa con `src/salida_fase4.py`, que nunca lee etiquetas.
 - Archivos de la Fase 4 en la laptop: `data/fase4/` (ignorado por git).
   - `baselines/`, escrita con `src/baselines_fase4.py` en el paso 16:
     - las predicciones de validación, test y hard de los dos baselines (`<modelo>_<conjunto>.jsonl`, solo con `id` y `respuesta`);
     - el modelo TF-IDF + LR con C = 10 (`tfidf-lr-C10_modelo.joblib`), con su SHA-256 en `tfidf-lr-C10_modelo.json`. Lleva n-gramas de nombres, así que nunca sale de `data/`;
     - el log de la corrida.
   - El registro de la corrida va en `results/2026-11-25_fase4_baselines-predicciones.json`.
+  - `errores_4b-lr2e-4-r32_test.jsonl` y `.csv` (UTF-8 con BOM, para Google Sheets): los 50 errores del 4B en test sorteados según el pre-registro (paso 17). Llevan nombres, así que nunca salen de `data/`; en `results/` solo van su conteo y sus hashes. En el paso 18, Claude Code propone un tipo de error por fila y Samuel confirma o cambia cada una.
+- Evaluación final del clasificador (paso 17): `src/evaluacion_final_fase4.py`. `--test` es lo único que lee `codigo_act` de test y hard, y escribió una sola vez: la primera corrida se detuvo antes de escribir, y su constancia está en la bitácora del paso 17. Se niega a repetirse si el resultado ya existe. Escribió `results/2026-11-25_fase4_evaluacion-final.json` y la tabla para la charla, `results/2026-11-25_fase4_tabla-final.md`, generada desde ese JSON.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
 ## c. Reglas de evaluación (no negociables)
