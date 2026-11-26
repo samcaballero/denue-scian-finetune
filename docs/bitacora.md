@@ -1566,7 +1566,7 @@
   - Los dos casos caen en la excepción de `CLAUDE.md` (sección d): los nombres inventados y los títulos del catálogo pueden coincidir por casualidad con un `nom_estab`, y eso no cuenta como copia.
   - Con esto se precisa la frase de la sección anterior ("ninguno coincide con una llave"): se refería al nombre completo.
 
-## 2026-11-26 03:30 - Paso 20 (preparación): auditoría de privacidad y material para Hugging Face
+## 2026-11-26 01:04 - Paso 20 (preparación): auditoría de privacidad y material para Hugging Face
 
 - **Qué es.** Dejar lista la publicación del repo de GitHub y de los modelos en Hugging Face sin que nada salga de la laptop: auditoría de todo el historial, model cards, script de subida con dry-run, candados, README y checklist. Esa noche no hubo push, ni subida, ni cambio de visibilidad, y nadie pidió ni leyó un token.
 - **Autoría:**
