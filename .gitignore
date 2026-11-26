@@ -247,3 +247,5 @@ kaggle-output/
 !data/scian_2023_clases.csv
 # Excepción: vocabulario de los títulos del SCIAN de la versión fijada (ver data/manifest.json)
 !data/scian_2023_vocabulario.csv
+# Permisos locales de Claude Code (cada laptop tiene los suyos; el versionado es .claude/settings.json)
+.claude/settings.local.json
