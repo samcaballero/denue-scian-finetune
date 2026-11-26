@@ -1,0 +1,160 @@
+{
+  "fecha": "2026-11-25",
+  "experimento": "fase4_paso18_errores_por_tipo",
+  "commit": "02d1cfd71bc94d98c51f20f98423eefded2318ee",
+  "arbol_limpio": true,
+  "head_sin_cambios": true,
+  "modelo": "4b-lr2e-4-r32",
+  "configuracion": {
+    "script": "src/errores_fase4.py",
+    "criterios": {
+      "ruta": "docs/criterios-errores.md",
+      "sha256": "f677bb6f7daba8458ac17ba0a6415914f343a0f416bb82fa2094cd3a03d6e65a",
+      "commit": "046ca3dab201f0c158bfe8a14efd7b79a9555b8c",
+      "sha256_de": "los bytes con saltos de línea \\n"
+    },
+    "tipos": [
+      "codigo_inexistente",
+      "clases_hermanas",
+      "etiqueta_dudosa",
+      "nombre_ambiguo",
+      "otro"
+    ],
+    "automaticos": [
+      "codigo_inexistente",
+      "clases_hermanas"
+    ],
+    "precedencia": "En el orden de tipos: la fila recibe el primero que aplica.",
+    "tipo_final": "tipo_samuel si no está vacío; si no, tipo_propuesto.",
+    "python": "3.12.10"
+  },
+  "semilla": 42,
+  "semilla_uso": "La del sorteo de los errores en el paso 17; el conteo no sortea nada.",
+  "split": "test",
+  "hash_split": {
+    "test": "9799a9a6efd249e5ce9ca73940377ec00af402e2a719481642873df7d0d9550c"
+  },
+  "hash_split_origen": "data/manifest.json (splits.clasificador_test)",
+  "tamano_muestra": {
+    "errores_del_modelo_en_test": 568,
+    "muestra": 50
+  },
+  "horas_gpu": 0.0,
+  "fuentes": {
+    "evaluacion_final": {
+      "ruta": "results/2026-11-25_fase4_evaluacion-final.json",
+      "sha256": "4b990601c540a53d62328dcd6bc3a584ef2f40f9b5aada1618b6a2ec495e828d"
+    },
+    "errores": {
+      "ruta": "data/fase4/errores_4b-lr2e-4-r32_test.jsonl",
+      "sha256": "8958bcfdcff178fe981026b8080af8856f0100a62d7b6b682d48049a4cb3d4ad",
+      "verificado_contra": "results/2026-11-25_fase4_evaluacion-final.json"
+    },
+    "para_revision": {
+      "ruta": "data/fase4/errores_4b_para_revision.csv",
+      "bytes": 14782,
+      "sha256": "2d5958e251241b1d5e58d13fc55eefe69364526ff5e52b65e238c4fe208b20f1"
+    },
+    "revisado": {
+      "bytes": 14845,
+      "sha256": "183f200a3dcc41563449c47dea8f59de43b5cf25ad2c3f4b78cb05ac223420fd",
+      "nota": "Exportado de Google Sheets por Samuel; su ruta no se registra."
+    }
+  },
+  "conteos": {
+    "por_tipo_final": {
+      "codigo_inexistente": {
+        "filas": 0,
+        "pct": 0.0,
+        "sector_acertado": 0,
+        "pct_sector_acertado_del_tipo": 0.0
+      },
+      "clases_hermanas": {
+        "filas": 8,
+        "pct": 16.0,
+        "sector_acertado": 8,
+        "pct_sector_acertado_del_tipo": 100.0
+      },
+      "etiqueta_dudosa": {
+        "filas": 4,
+        "pct": 8.0,
+        "sector_acertado": 2,
+        "pct_sector_acertado_del_tipo": 50.0
+      },
+      "nombre_ambiguo": {
+        "filas": 32,
+        "pct": 64.0,
+        "sector_acertado": 8,
+        "pct_sector_acertado_del_tipo": 25.0
+      },
+      "otro": {
+        "filas": 6,
+        "pct": 12.0,
+        "sector_acertado": 2,
+        "pct_sector_acertado_del_tipo": 33.33
+      }
+    },
+    "total": {
+      "filas": 50,
+      "sector_acertado": 20,
+      "pct_sector_acertado": 40.0
+    },
+    "por_tipo_propuesto": {
+      "codigo_inexistente": 0,
+      "clases_hermanas": 8,
+      "etiqueta_dudosa": 4,
+      "nombre_ambiguo": 32,
+      "otro": 6
+    },
+    "revision_de_samuel": {
+      "cambiadas": 0,
+      "confirmadas_con_el_mismo_tipo": 0,
+      "sin_tocar": 50,
+      "con_nota": 3
+    },
+    "propuesto_a_final": {
+      "codigo_inexistente": {
+        "codigo_inexistente": 0,
+        "clases_hermanas": 0,
+        "etiqueta_dudosa": 0,
+        "nombre_ambiguo": 0,
+        "otro": 0
+      },
+      "clases_hermanas": {
+        "codigo_inexistente": 0,
+        "clases_hermanas": 8,
+        "etiqueta_dudosa": 0,
+        "nombre_ambiguo": 0,
+        "otro": 0
+      },
+      "etiqueta_dudosa": {
+        "codigo_inexistente": 0,
+        "clases_hermanas": 0,
+        "etiqueta_dudosa": 4,
+        "nombre_ambiguo": 0,
+        "otro": 0
+      },
+      "nombre_ambiguo": {
+        "codigo_inexistente": 0,
+        "clases_hermanas": 0,
+        "etiqueta_dudosa": 0,
+        "nombre_ambiguo": 32,
+        "otro": 0
+      },
+      "otro": {
+        "codigo_inexistente": 0,
+        "clases_hermanas": 0,
+        "etiqueta_dudosa": 0,
+        "nombre_ambiguo": 0,
+        "otro": 6
+      }
+    }
+  },
+  "autoria": "El chat de Claude del proyecto propuso el paso y los tipos; Samuel lo aprobó. Claude Code redactó los criterios y el código y propuso un tipo por fila; Samuel confirmó o cambió cada fila.",
+  "cambio_de_diseno": "CAMBIO DE DISEÑO D7, aprobado por Samuel el 2026-11-25: Claude Code propone un tipo por fila con criterios escritos y versionados antes de clasificar, y Samuel confirma o cambia cada una. Sesgo de anclaje: Samuel vio la propuesta antes de decidir, así que los conteos son de la clasificación revisada, no de una independiente; la matriz propuesto_a_final muestra cuánto cambió.",
+  "advertencias": [
+    "Muestra de 50 de los 568 errores de clase del 4B en test, sorteada con la semilla 42 (paso 17): los porcentajes por tipo tienen mucha incertidumbre.",
+    "Los tipos de juicio (etiqueta_dudosa, nombre_ambiguo y otro) los propuso un modelo de lenguaje (Claude Code) con los criterios versionados, y Samuel los revisó viendo la propuesta.",
+    "Los tipos codigo_inexistente y clases_hermanas son automáticos (códigos), y Samuel no los cambia."
+  ]
+}
