@@ -1,0 +1,245 @@
+{
+  "fecha": "2026-11-25",
+  "experimento": "fase4_paso19_latencia",
+  "commit": "1e6101d358df09dce2c3f439271f5b0269e67c68",
+  "arbol_limpio": true,
+  "medido_con_commit": "c6bffee3b45671934007dfe9b8e1c297dc0ca7f3",
+  "modelo": "06b-lr2e-4-r32",
+  "configuracion": {
+    "script": "src/gguf_fase4.py",
+    "python": "3.12.10",
+    "corre_en": "laptop (CPU, sin GPU)",
+    "llama_cpp": "b12359",
+    "banderas_servidor": [
+      "-c",
+      "512",
+      "-np",
+      "1",
+      "-t",
+      "4",
+      "--host",
+      "127.0.0.1",
+      "--no-webui",
+      "--cache-ram",
+      "0",
+      "--offline"
+    ],
+    "parametros": {
+      "temperature": 0.0,
+      "top_k": 1,
+      "top_p": 1.0,
+      "min_p": 0.0,
+      "typical_p": 1.0,
+      "repeat_penalty": 1.0,
+      "presence_penalty": 0.0,
+      "frequency_penalty": 0.0,
+      "dry_multiplier": 0.0,
+      "xtc_probability": 0.0,
+      "mirostat": 0,
+      "seed": 42,
+      "n_probs": 0,
+      "cache_prompt": false,
+      "return_tokens": true,
+      "stream": false
+    },
+    "punta_a_punta": "/completion + /detokenize, medido con time.perf_counter en el cliente (como la demo).",
+    "percentiles": "Interpolación lineal (como numpy.percentile por omisión).",
+    "fichas_por_s": "De los timings del servidor: mediana por fila y agregado (fichas totales / ms totales)."
+  },
+  "semilla": 42,
+  "split": "validacion",
+  "hash_split": {
+    "validacion": "c78dc600e44a979e4fc993a072b95fa6fe02e179171a5644609598ed0203ba6d"
+  },
+  "tamano_muestra": 200,
+  "muestra": {
+    "sorteadas": 210,
+    "calentamiento": 10,
+    "medidas": 200,
+    "regla": "perm = numpy.random.default_rng(42).permutation(1000) sobre la validación en orden de int(id); filas perm[:210]: las 10 primeras de calentamiento (descartadas) y 200 medidas. En cada fila se pregunta primero al base y después al afinado, con los dos servidores arriba."
+  },
+  "horas_gpu": 0.0,
+  "preregistro": {
+    "ruta": "evals/fase4_preregistro.json",
+    "sha256": "7de9d3fc1335179540e35f91cba0ac98920f9f00a4ddc28a680b148898b6156e"
+  },
+  "sistema": {
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+    "nucleos_logicos": 8,
+    "ram_total_mb": 16110,
+    "ram_libre_inicio_mb": 6940,
+    "ram_libre_fin_mb": 7114,
+    "programas_abiertos_inicio": [
+      {
+        "proceso": "svchost",
+        "mb": 1394
+      },
+      {
+        "proceso": "chrome",
+        "mb": 1379
+      },
+      {
+        "proceso": "MsMpEng",
+        "mb": 456
+      },
+      {
+        "proceso": "Memory Compression",
+        "mb": 448
+      },
+      {
+        "proceso": "claude",
+        "mb": 357
+      },
+      {
+        "proceso": "msedgewebview2",
+        "mb": 335
+      },
+      {
+        "proceso": "explorer",
+        "mb": 306
+      },
+      {
+        "proceso": "msedge",
+        "mb": 283
+      },
+      {
+        "proceso": "SupportAssistAgent",
+        "mb": 217
+      },
+      {
+        "proceso": "powershell",
+        "mb": 178
+      },
+      {
+        "proceso": "RuntimeBroker",
+        "mb": 164
+      },
+      {
+        "proceso": "Dell.TechHub.Instrumentation.SubAgent",
+        "mb": 147
+      },
+      {
+        "proceso": "PSExpressCore",
+        "mb": 141
+      },
+      {
+        "proceso": "ServiceShell",
+        "mb": 140
+      },
+      {
+        "proceso": "dwm",
+        "mb": 121
+      },
+      {
+        "proceso": "copilotapp",
+        "mb": 113
+      },
+      {
+        "proceso": "ShellHost",
+        "mb": 110
+      },
+      {
+        "proceso": "SearchHost",
+        "mb": 105
+      },
+      {
+        "proceso": "TextInputHost",
+        "mb": 102
+      }
+    ],
+    "windows": "Windows-11-10.0.26300-SP0"
+  },
+  "modelos": {
+    "base-BF16": {
+      "gguf": {
+        "archivo": "qwen3-0.6b-base-BF16.gguf",
+        "bytes": 1198182336,
+        "sha256": "b610113ac0a02bcbbaaa397cc1f59873f9c9d4c0cefd76d0d387103c1a436f7a"
+      },
+      "arranque_s": 1.58,
+      "memoria_proceso": {
+        "en_uso_mb": 1268,
+        "pico_mb": 1268,
+        "privada_mb": 197
+      },
+      "hilos": 4,
+      "contexto": 512,
+      "n_predict": 32,
+      "puerto": 8081,
+      "resumen": {
+        "n": 200,
+        "ms_punta_a_punta": {
+          "p50": 578.2,
+          "p95": 870.5,
+          "min": 394.9,
+          "max": 1034.6
+        },
+        "ms_completion_en_el_cliente": {
+          "p50": 575.1,
+          "p95": 866.8
+        },
+        "fichas_por_s": {
+          "prompt_mediana_por_fila": 148.3,
+          "prompt_agregado": 137.9,
+          "generacion_mediana_por_fila": 24.3,
+          "generacion_agregado": 31.2
+        },
+        "fichas_prompt": {
+          "p50": 62.0,
+          "max": 82
+        },
+        "fichas_generadas": {
+          "p50": 2.0,
+          "max": 7
+        },
+        "al_tope": 0
+      }
+    },
+    "afinado-BF16": {
+      "gguf": {
+        "archivo": "qwen3-0.6b-06b-lr2e-4-r32-BF16.gguf",
+        "bytes": 1198182400,
+        "sha256": "5b97e03baf1c940909a334ea74ec4beb6d4fd9a73048f22bf2a49b8ea382fb20"
+      },
+      "arranque_s": 1.15,
+      "memoria_proceso": {
+        "en_uso_mb": 1268,
+        "pico_mb": 1268,
+        "privada_mb": 197
+      },
+      "hilos": 4,
+      "contexto": 512,
+      "n_predict": 16,
+      "puerto": 8082,
+      "resumen": {
+        "n": 200,
+        "ms_punta_a_punta": {
+          "p50": 689.1,
+          "p95": 887.0,
+          "min": 565.6,
+          "max": 1124.0
+        },
+        "ms_completion_en_el_cliente": {
+          "p50": 679.3,
+          "p95": 881.8
+        },
+        "fichas_por_s": {
+          "prompt_mediana_por_fila": 148.1,
+          "prompt_agregado": 139.3,
+          "generacion_mediana_por_fila": 24.4,
+          "generacion_agregado": 27.8
+        },
+        "fichas_prompt": {
+          "p50": 62.0,
+          "max": 82
+        },
+        "fichas_generadas": {
+          "p50": 7.0,
+          "max": 7
+        },
+        "al_tope": 0
+      }
+    }
+  },
+  "autoria": "El chat de Claude del proyecto propuso el paso; Samuel lo aprobó; Claude Code lo redactó."
+}
