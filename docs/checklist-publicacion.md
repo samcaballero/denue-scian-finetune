@@ -72,5 +72,5 @@ git -C "C:\sca\fine-tuning\proyecto-denue\denue-scian-finetune" push origin main
 
 ## Pendientes de la auditoría para revisar con calma
 
-- **Pasada extra contra todo el DENUE:** 629 coincidencias parciales (una llave de 2 o más palabras dentro de una frase más larga) quedaron sin categoría. Por el criterio de Samuel no detienen. Su detalle, con las llaves, está en `data/auditoria/` (ignorado por git).
+- **Pasada extra contra todo el DENUE:** 645 coincidencias parciales quedaron sin categoría: 481 llaves de 2 o más palabras dentro de una frase más larga y 164 nombres dentro de una palabra o de menos de 5 caracteres. Por el criterio de Samuel no detienen. Su detalle, con las llaves, está en `data/auditoria/` (ignorado por git).
 - **Aviso del crédito:** una frase del aviso contiene dos palabras seguidas que son la llave de un negocio. Se conservó porque es el texto actual del crédito, que Samuel pidió mantener; está en el README y en las dos cards.

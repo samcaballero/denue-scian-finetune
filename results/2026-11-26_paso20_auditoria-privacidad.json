@@ -1,0 +1,105 @@
+{
+  "fecha": "2026-11-26",
+  "experimento": "paso20_auditoria-privacidad",
+  "commit": "68d53533d807de3caf2017b5a19f07fb2a9b99e2",
+  "arbol_limpio": true,
+  "modelo": "no aplica (auditoría de privacidad del repo)",
+  "configuracion": {
+    "script": "src/auditoria_publicacion.py",
+    "metodo_nombres": "regla acotada (método del paso 6c indexado, con la precisión del paso 11), por línea única y sobre los valores de cada JSON",
+    "pasadas": {
+      "4_conjuntos": "train final, validación, test y hard (test y hard sin etiquetas)",
+      "denue_completo": "todos los nom_estab del DENUE; solo detiene un nombre completo o uno cerca de un id"
+    },
+    "ids": "corridas aisladas de 5 a 8 dígitos iguales a un id del DENUE",
+    "detalle": "data/auditoria/ (ignorado por git)"
+  },
+  "semilla": 42,
+  "split": "no aplica",
+  "hash_split": {
+    "denue": "e12fcc6c4d518a169c9445c7f160e9d6fc9ba02fd0a84d853659862cdf2e2f70",
+    "denue_scian_clasificador/train_final.jsonl": "6f3d0b1ce5472ad96581d27605b1a19e868431e537686da72825da0ef136b917",
+    "denue_scian_clasificador/val.jsonl": "5d778ba77b2ceee3f2ad5b9d094970c6ac6aaf6a529e9e20df9131d38d8723f3",
+    "denue_scian_evaluacion/test.jsonl": "a066b066e6bdd4b424348a61be37ef0f7f8a59eff6cdaa34dbda4355a27aa4a5",
+    "denue_scian_evaluacion/hard.jsonl": "848f82355dc2335d128c7afe2e09bffa92b611534965a7cf65f2e58f4efb425c"
+  },
+  "tamano_muestra": {
+    "commits": 115,
+    "documentos": 437
+  },
+  "resultado": {
+    "commits_alcanzables": 115,
+    "commits_solo_en_el_reflog": 1,
+    "documentos": 437,
+    "documentos_de_texto": 408,
+    "lineas_unicas": 50266,
+    "imagenes_png": 29,
+    "imagenes_con_bloques_de_texto": 1,
+    "otros_binarios": 0,
+    "archivos_no_versionados_revisados": 1,
+    "rutas_prohibidas_en_algun_commit": 0,
+    "rutas_de_credenciales": 0,
+    "hallazgos_distintos": {
+      "4_conjuntos": {
+        "llave_varias_palabras": {
+          "catalogo": 397,
+          "frase_comun_de_prosa": 210,
+          "identificador_de_codigo": 29,
+          "nombre_inventado": 3,
+          "prueba": 70,
+          "texto_fijo": 67
+        },
+        "nombre_crudo": {
+          "catalogo": 471,
+          "frase_comun_de_prosa": 86,
+          "identificador_de_codigo": 233,
+          "nombre_inventado": 1,
+          "prueba": 149,
+          "texto_fijo": 38
+        }
+      },
+      "denue_completo": {
+        "llave_varias_palabras": {
+          "catalogo": 70,
+          "frase_comun_de_prosa": 3,
+          "identificador_de_codigo": 2,
+          "prueba": 101,
+          "sin_categoria": 481,
+          "texto_fijo": 106
+        },
+        "nombre_crudo": {
+          "catalogo": 200,
+          "prueba": 166,
+          "sin_categoria": 164,
+          "texto_fijo": 33
+        }
+      },
+      "general": {
+        "correo": {
+          "falso_positivo": 1
+        },
+        "id": {
+          "codigo_scian": 225,
+          "explicado_por_el_archivo": 129,
+          "numero_explicado_en_contexto": 41
+        },
+        "ruta_de_usuario": {
+          "falso_positivo": 1
+        }
+      }
+    },
+    "no_hallazgos": {
+      "4_conjuntos": {
+        "crudos_cortos_dentro_de_token": 9537,
+        "crudos_solo_digitos": 611,
+        "llaves_una_palabra": 26288
+      },
+      "denue_completo": {
+        "crudos_cortos_dentro_de_token": 11577,
+        "crudos_solo_digitos": 996,
+        "llaves_una_palabra": 56673
+      }
+    },
+    "detienen": 0
+  }
+}

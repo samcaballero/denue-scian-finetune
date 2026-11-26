@@ -1565,3 +1565,55 @@
   - 2 caen dentro de dos nombres inventados. Ninguno de los 3 coincide completo con una llave de validación ni de train final, que fue lo único que Claude Code comprobó antes de usarlos. Pero dos de ellos contienen, como parte, una llave de 3 palabras.
   - Los dos casos caen en la excepción de `CLAUDE.md` (sección d): los nombres inventados y los títulos del catálogo pueden coincidir por casualidad con un `nom_estab`, y eso no cuenta como copia.
   - Con esto se precisa la frase de la sección anterior ("ninguno coincide con una llave"): se refería al nombre completo.
+
+## 2026-11-26 03:30 - Paso 20 (preparación): auditoría de privacidad y material para Hugging Face
+
+- **Qué es.** Dejar lista la publicación del repo de GitHub y de los modelos en Hugging Face sin que nada salga de la laptop: auditoría de todo el historial, model cards, script de subida con dry-run, candados, README y checklist. Esa noche no hubo push, ni subida, ni cambio de visibilidad, y nadie pidió ni leyó un token.
+- **Autoría:**
+  - El chat de Claude del proyecto redactó la instrucción y Samuel la aprobó.
+  - Claude Code propuso el plan. Samuel respondió 4 preguntas: README nuevo esa noche, solo el GGUF afinado, Apache-2.0 para los pesos y una pasada extra contra todo el DENUE que solo detiene con un nombre completo o con una coincidencia cerca de un id.
+  - Samuel aprobó el plan con 7 ajustes:
+    - usuario de Hugging Face `samcaballero`;
+    - README en su propio commit, con la tarea 2 declarada fuera de alcance y sin marcadores de enlaces;
+    - en la revisión manual, ante la duda, `posible_dato_real`;
+    - un número igual a un id solo se descarta solo si es código SCIAN, prefijo de hash o un valor que su archivo explica;
+    - la sesión exportada del 18 nov no se versiona ni se borra, y el transcript de esta sesión no se exporta;
+    - el comando de subida usa el Python de `venv-tokenizador`, con token de escritura y el tamaño total;
+    - si hubiera PARADA A, el reporte queda listo para la mañana.
+  - Claude Code redactó el código, las pruebas, las cards, el README, el checklist y esta sección.
+- **Tarea 2** (direcciones → JSON): no se hizo. Samuel la declaró fuera de alcance desde el 23 de noviembre (CAMBIO DE DISEÑO aprobado por Samuel; registrado el 2026-11-26 en `CLAUDE.md`, sección a).
+- **Auditoría** (`src/auditoria_publicacion.py`, commit `f1d4557`):
+  - **Alcance:** los 115 commits alcanzables (110 anteriores y 5 de este paso) y el archivo no versionado de la sesión del 18 nov: 437 documentos (408 de texto y 29 PNG) y 50,266 líneas únicas, más los mensajes de commit.
+  - **Referencias**, verificadas por SHA-256: train final y validación del paquete del clasificador, test y hard sin etiquetas (el dataset de evaluación) y, para los ids y la pasada extra, el CSV completo con el cargador único (solo `id` y `nom_estab`).
+  - **Resultado: 0 hallazgos que detienen.** Registro: `results/2026-11-26_paso20_auditoria-privacidad.json`, solo con conteos.
+  - **Nombres, 4 conjuntos** (hallazgos distintos):
+    - automáticos: catálogo 868, prueba 219 y texto fijo 105;
+    - revisión manual de Claude Code: frase común de prosa 296, identificador de código 262, nombre inventado 4 y posible dato real 0.
+  - **Nombres inventados:** los 3 de la prueba real de la demo y un ejemplo sintético de normalización del registro del 20 nov. Este último no puede venir del DENUE: el texto lo dice, está en las pruebas y el DENUE no tiene ni acento suelto ni apóstrofo (0 filas de cada uno).
+  - **Pasada extra contra todo el DENUE:** 5 candidatos a detener (2 nombres completos y 3 cerca de un id), los 5 frases comunes o identificadores. Quedan 645 coincidencias parciales sin categoría para revisar con calma; por el criterio de Samuel no detienen.
+  - **Ids:** 395 coincidencias distintas, ninguna de un id real:
+    - 225 códigos SCIAN;
+    - 129 valores que su archivo explica (números de un JSON o con unidad);
+    - 41 revisadas a mano: códigos de 6 dígitos sacados de `clee` o respondidos por los modelos, un código inexistente de las pruebas y un color hexadecimal.
+  - **Secretos:** ninguno. **Correos:** solo `noreply@anthropic.com` y el noreply de GitHub; uno inventado de una prueba nueva. **Rutas de usuario:** solo `Invitado`, ya aceptada en el paso 11.
+  - **Imágenes:** Claude Code miró las 29. Ninguna muestra nombres, ids, correos ni secretos; solo una trae metadatos de texto (XMP con la orientación).
+  - **Rutas prohibidas en algún commit:** ninguna. **Autor y committer de los 115 commits:** el noreply de GitHub de `samcaballero`.
+  - **Reflog:** el commit `1f60028` del 18 nov, con el correo personal, solo sigue en el reflog local. No se publica y no se tocó.
+- **Pesos revisados antes de subir**, con la regla acotada: limpios.
+  - Los `safetensors` solo traen `{"format": "pt"}` y nombres de tensores.
+  - El GGUF solo trae arquitectura, el nombre de su carpeta local y la plantilla de chat de Qwen. No se revisaron los arreglos del tokenizador, que vienen de Qwen.
+- **Licencia de las bases:** `apache-2.0` en `Qwen/Qwen3-4B@1cfa9a72…` y `Qwen/Qwen3-0.6B@c1899de2…`, según la API de Hugging Face, vista el 26 nov.
+- **Hugging Face** (commits `888db87` y `fa91c5d`; nada subido):
+  - **Repos:** `samcaballero/denue-scian-qwen3-4b-lora` (card, LICENSE y adaptador del 4B) y `samcaballero/denue-scian-qwen3-0.6b-lora-gguf` (card, LICENSE, adaptador del 0.6B y GGUF BF16).
+  - **Cards** en `hf/`: en español con resumen en inglés; resultados copiados de `results/2026-11-25_fase4_tabla-final.md`.
+  - **`src/subir_hf.py`:** dry-run por omisión. Verifica bytes y SHA-256 contra `results/` o contra HEAD y rechaza hashes del manifest y extensiones de datos. La subida real se niega con `CLAUDECODE`, pide el token con `getpass` y lo tapa en cualquier error.
+  - **Dry-run** con `samcaballero`: 9 archivos, 1,543,328,915 bytes, todos los SHA-256 verificados. La salida es idéntica con `.venv` y con `venv-tokenizador`. Las firmas de `huggingface_hub` 1.33.0 se comprobaron sin red.
+- **Candados:** 16 reglas `deny` nuevas en `.claude/settings.json`, 8 en Bash y 8 en PowerShell.
+  - Rechazaron los 3 intentos de Claude Code: la subida real del script en Bash y en PowerShell, y una subida con la CLI de Hugging Face.
+  - Segundo candado: `CLAUDECODE` está definida en las shells de Claude Code, y una prueba comprueba que el script se niega antes de pedir el token.
+- **README** (`e82d48f`) y **checklist** (`68d5353`, `docs/checklist-publicacion.md`).
+- **Regla acotada sobre el texto nuevo** (cards, README, checklist, código y pruebas): se reescribieron 7 frases comunes de dos palabras. Quedan el nombre del INEGI en el crédito y una frase del aviso de crédito, que se conserva porque es el texto actual.
+- **Punto 8, en el catálogo del repo:** `541110` es "Bufetes jurídicos". Las misceláneas son `461110`, "Comercio al por menor en tiendas de abarrotes, ultramarinos y misceláneas"; ninguna otra clase lleva "miscel" en su título.
+- **Pruebas:** pasan las 1,115 del repo (28 nuevas).
+- **Commits:** `f1d4557`, `888db87`, `fa91c5d`, `e82d48f`, `68d5353` y el de esta sección, con el registro de la auditoría, el registro de Claude Code y `CLAUDE.md`. Sin push.
+- PARADA B.

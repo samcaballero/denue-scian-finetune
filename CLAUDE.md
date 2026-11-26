@@ -5,7 +5,7 @@ Guía para Claude Code en este repositorio. El repo será público.
 ## a. Proyecto y entorno
 
 - Fine-tuning con QLoRA de `Qwen/Qwen3-0.6B` y `Qwen/Qwen3-4B` (versiones instruct, no `-Base`; **siempre con `enable_thinking=False`**) sobre el DENUE del INEGI (CDMX, edición 2026/05).
-- Dos tareas: (1) nombre de negocio → clase SCIAN de 6 dígitos; (2) dirección sucia → JSON estructurado. Baselines obligatorios: TF-IDF de n-gramas de caracteres + regresión logística, y baseline de diccionario (la clase más frecuente de cada nombre normalizado visto en train; si el nombre no se vio en train, la clase más frecuente global). (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-18; registrado el 2026-11-20)
+- Dos tareas: (1) nombre de negocio → clase SCIAN de 6 dígitos; (2) dirección sucia → JSON estructurado. Baselines obligatorios: TF-IDF de n-gramas de caracteres + regresión logística, y baseline de diccionario (la clase más frecuente de cada nombre normalizado visto en train; si el nombre no se vio en train, la clase más frecuente global). (CAMBIO DE DISEÑO aprobado por Samuel el 2026-11-18; registrado el 2026-11-20) La tarea 2 no se hizo: quedó fuera de alcance desde el 2026-11-23. (CAMBIO DE DISEÑO, decisión de Samuel registrada el 2026-11-26)
 - Clasificador (tarea 1): el modelo responde solo con el código SCIAN de 6 dígitos, sin texto adicional. La descripción de la clase se obtiene del catálogo oficial del SCIAN (de la versión que use `codigo_act`), nunca del modelo.
 - Modelo base sin afinar: en la Fase 4 se mide también `Qwen/Qwen3-0.6B` y `Qwen/Qwen3-4B` sin fine-tuning, 0-shot y few-shot, sobre test y hard set. El número de ejemplos del few-shot y cómo se eligen se fijan en el plan de la Fase 4, antes de abrir test. (Decisión de Samuel del 2026-11-24, propuesta por el chat de Claude del proyecto)
 - Proyecto para una charla técnica el 2026-11-26. El entrenamiento corre en Kaggle (GPU T4) con Unsloth y se lanza con la CLI de Kaggle desde la laptop.
@@ -68,6 +68,11 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - Verifica el SHA-256 de los GGUF de la cuantización elegida y de los binarios de llama.cpp contra el resultado de concordancia, y el del catálogo contra el manifest. Exige 3 GB libres antes de cargar cada modelo: con menos, dice cuánta memoria hay y qué procesos ocupan más, sin cerrar nada.
   - `data/demo/nombres.txt` (ignorado por git): los nombres de la charla, uno por línea, que elige Samuel a mano; las líneas vacías y las que empiezan con `#` se saltan. Después se teclean más.
   - `data/demo/logs/` (ignorado): los logs de los dos `llama-server`, sin prompts. La demo no guarda nombres ni respuestas.
+- Publicación (paso 20):
+  - `src/auditoria_publicacion.py`: auditoría de privacidad de cada blob de todo el historial, de los mensajes de commit y de lo no versionado que quedaría público. Regla acotada de nombres contra los 4 conjuntos y, aparte, contra todo el DENUE; ids, secretos, correos, rutas de usuario, metadatos de las imágenes y rutas prohibidas. La terminal solo recibe ubicación, tipo y largo. El detalle con llaves, la revisión por valor y la clasificación manual (`clasificacion_manual.json`, por id de hallazgo) viven en `data/auditoria/` (ignorado). Sus conteos van en `results/2026-11-26_paso20_auditoria-privacidad.json`. Se corre otra vez antes de cada push; `--archivos` revisa texto nuevo antes de un commit.
+  - Model cards de Hugging Face en `hf/<repo>/README.md` (versionadas), con el marcador `{{usuario_hf}}`, que pone el script al subir.
+  - `src/subir_hf.py`: sube `samcaballero/denue-scian-qwen3-4b-lora` y `samcaballero/denue-scian-qwen3-0.6b-lora-gguf`. Dry-run por omisión; verifica bytes y SHA-256 contra `results/` o contra HEAD. Solo usa la biblioteca estándar; la subida real usa `huggingface_hub` del Python de `venv-tokenizador`.
+  - `docs/checklist-publicacion.md`: los pasos y comandos de Samuel para subir y publicar.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
 ## c. Reglas de evaluación (no negociables)
@@ -84,13 +89,14 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 ## d. Seguridad
 
 - Nunca leer, imprimir ni copiar `~/.kaggle/access_token` ni ninguna otra llave.
+- Nunca pedir, leer, imprimir ni guardar un token de Hugging Face: lo pega Samuel en su terminal cuando `src/subir_hf.py` lo pide con `getpass`.
 - Nunca agregar a git datos, llaves, `.env` ni modelos. Excepciones de datos, ambas del SCIAN de la versión fijada y con crédito al INEGI en `README.md`: el catálogo de clases (`data/scian_2023_clases.csv`), aprobado por Samuel en el paso 2b, y el vocabulario de sus títulos (`data/scian_2023_vocabulario.csv`), aprobado en el paso 5. No forzar con `git add -f` lo que `.gitignore` excluye.
 - Nunca modificar `../datos-originales/`.
 - Columnas sensibles del DENUE:
   - `telefono`, `correoelec`, `www` (datos de contacto): nunca se cargan (quedan fuera de `usecols`) ni se muestran en ejemplos, notebooks, resultados o diapositivas.
   - `raz_social`: no se carga salvo decisión explícita de Samuel, porque puede contener nombres de personas físicas.
 - Antes de agregar capturas o textos al repo, revisar que no muestren llaves, tokens, correos, teléfonos ni contraseñas.
-- `docs/sesiones/`: sus archivos solo se versionan (se agregan a git) después de una revisión de datos sensibles (correos, llaves, datos personales) aprobada por Samuel. En los commits, los archivos se agregan por nombre, nunca con `git add .` ni `git add -A`.
+- `docs/sesiones/`: sus archivos solo se versionan (se agregan a git) después de una revisión de datos sensibles (correos, llaves, datos personales) aprobada por Samuel. En los commits, los archivos se agregan por nombre, nunca con `git add .` ni `git add -A`. `docs/sesiones/2026-11-18_sesion01_estructura-repo.md` no se versiona ni se publica, y no se borra; la sesión del paso 20 no se exporta (decisiones de Samuel del 2026-11-26).
 - Salvo que Samuel lo pida, Claude Code no imprime filas del DENUE en la terminal: solo conteos, códigos SCIAN y nombres de columnas.
 - Ningún `nom_estab` ni llave normalizada se escribe en `results/` ni en archivos versionados; los ejemplos de nombres para la charla los elige Samuel a mano. Los nombres inventados de las pruebas y los títulos del catálogo SCIAN pueden coincidir por casualidad con un `nom_estab`; eso no cuenta como copia.
 
@@ -105,6 +111,7 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
 - Candado local en esta laptop: el hook `.git/hooks/pre-push` rechaza el push cuando existe la variable `CLAUDECODE`, que definen las shells de Claude Code y no la terminal de Samuel. No viaja con el repo: un clon nuevo no lo tiene. No se modifica sin aprobación de Samuel.
 - Candados de Kaggle en `.claude/settings.json`: reglas `deny` que rechazan `kaggle datasets create`, `kaggle datasets version`, `kaggle datasets delete` y `kaggle kernels push`, también con los alias de la CLI (`d`, `k`, `update`) y con cualquier prefijo (ruta completa, `kaggle.exe`, `python -m kaggle`), en Bash y en PowerShell. `kaggle datasets create`, `kaggle datasets version` y `kaggle kernels push` los ejecuta Samuel desde PowerShell. No se modifican sin aprobación de Samuel.
 - Claude Code no escribe ni ejecuta scripts que llamen a la API de Kaggle para crear, versionar o borrar datasets ni para lanzar kernels: las reglas `deny` solo revisan el texto del comando y no cubren esa vía.
+- Candados de Hugging Face en `.claude/settings.json` (paso 20, aprobados por Samuel): reglas `deny` que rechazan la subida real de `src/subir_hf.py` y los comandos de subida, creación de repos y login de la CLI de Hugging Face (`hf` y `huggingface-cli`), en Bash y en PowerShell. Además, el script se niega a la subida real si existe `CLAUDECODE`. La subida la corre Samuel desde PowerShell. Fuera de ese script, Claude Code no escribe ni ejecuta código que llame a la API de Hugging Face para crear repos o subir archivos. No se modifican sin aprobación de Samuel.
 - El modo automático solo se usa con un plan ya aprobado.
 - Nunca lanzar corridas en Kaggle (`kaggle kernels push`) sin aprobación de Samuel; antes de pedirla, estimar las horas de GPU.
 - Commits pequeños, con mensajes en español.
@@ -127,10 +134,12 @@ denue-scian-finetune/
 ├── tests/                # pruebas con pytest (solo datos sintéticos, nunca datos reales)
 ├── notebooks/            # notebooks (entrenamiento en Kaggle)
 ├── evals/                # código y casos de evaluación
+├── hf/                   # model cards de los repos de Hugging Face (paso 20)
 ├── results/              # métricas en JSON: única fuente de números reportables
 ├── kaggle-output/        # salidas descargadas de Kaggle (ignorado; se crea al descargar)
 └── docs/
     ├── bitacora.md         # bitácora del proyecto, con un encabezado por fecha
+    ├── checklist-publicacion.md # pasos para subir los modelos y publicar el repo (paso 20)
     ├── claude-code-log.md  # momentos notables del trabajo con Claude Code
     ├── criterios-errores.md # criterios de los tipos de error del 4B (paso 18), sin nombres
     ├── evidencia/          # capturas de pantalla (revisadas antes de agregarse)

@@ -1028,3 +1028,23 @@ Ninguno llegó a un commit.
   - Caen en la excepción de `CLAUDE.md` para nombres inventados.
   - Se usaron igual porque Samuel pidió la prueba con esos 3, y la bitácora lo precisa.
   - Para la próxima: pasar los nombres inventados por la regla acotada completa, no solo por la coincidencia exacta.
+
+## 2026-11-26 — Paso 20 (preparación): auditoría de privacidad y material para Hugging Face
+
+**Qué se hizo:** auditoría de privacidad de los 115 commits y de lo que quedaría público (`src/auditoria_publicacion.py`), model cards de los dos repos de Hugging Face, script de subida con dry-run (`src/subir_hf.py`), 16 reglas `deny` nuevas, README nuevo y checklist de publicación. Sin push, sin subida y sin tokens.
+
+- **Autoría:** el chat de Claude del proyecto redactó la instrucción y Samuel la aprobó. Claude Code propuso el plan; Samuel respondió 4 preguntas y lo aprobó con 7 ajustes (ver la bitácora). Claude Code redactó el código, las pruebas, los textos y este registro.
+- **Commits:** `f1d4557`, `888db87`, `fa91c5d`, `e82d48f`, `68d5353` y el de este registro, sin push.
+
+### Hallazgos
+
+- **El README describía una tarea que no se hizo.** Decía que el proyecto tenía dos tareas, y su aviso de crédito mencionaba ruido sintético en las direcciones, que nunca existió. Claude Code lo señaló en el plan; Samuel declaró la tarea 2 fuera de alcance desde el 23 de noviembre, y el aviso nuevo ya no lo menciona.
+- **`.claude/settings.local.json` solo lo ignora el `.gitignore` global de la laptop.** No está versionado, pero un clon nuevo no lo ignoraría. Queda como sugerencia en el checklist.
+- **El commit viejo con el correo personal sigue en el reflog local.** No es alcanzable desde ninguna rama, así que un push no lo manda; GitHub ya lo da 404. No se tocó.
+- **Un ejemplo de nombre del registro del 20 nov parecía real.** La revisión manual lo marcó en duda. Claude Code comprobó que es sintético: el mismo texto lo dice, está en las pruebas y el DENUE no tiene ni acento suelto ni apóstrofo (0 filas de cada uno).
+- **Una frase del aviso de crédito contiene dos palabras que son la llave de un negocio.** Se conservó porque Samuel pidió mantener el texto actual del crédito; el checklist lo anota.
+
+### Errores de Claude Code
+
+- **Un heredoc de Bash volvió a perder las barras invertidas.** Claude Code reescribió frases de las cards con un script de Python en un heredoc; el texto a buscar tenía `\r` y `\n` entre acentos graves y dejó de coincidir. La aserción del script detuvo la escritura de esas cards antes de cambiarlas, y se reescribieron con la herramienta de edición. Es el caso de la memoria del proyecto: con barras, nunca heredoc.
+- **Una llave de dos palabras salió en la terminal.** Poco antes, el clasificador del modo automático había bloqueado un `grep` que iba a mostrar llaves. Después, para ubicar un grupo de la revisión manual, Claude Code buscó su índice con `grep` en el archivo de revisión de `data/auditoria/`, y la línea encontrada traía también el valor: una frase común de su propia prosa que es la llave de un negocio. Desde ahí leyó ese archivo solo con su herramienta de lectura.
