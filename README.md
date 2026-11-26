@@ -63,7 +63,12 @@ Las reglas completas están en [`CLAUDE.md`](CLAUDE.md) (sección c) y el regist
 
 ## Modelos
 
-Los adaptadores LoRA del 4B y del 0.6B, y el GGUF BF16 del 0.6B que usa la demo, se publican en Hugging Face. Sus model cards están en [`hf/`](hf/) y se suben con `src/subir_hf.py`, que verifica el SHA-256 de cada archivo antes de subirlo.
+Los adaptadores LoRA del 4B y del 0.6B, y el GGUF BF16 del 0.6B que usa la demo, se publican en Hugging Face:
+
+- Qwen3-4B con LoRA: https://huggingface.co/samcaballero/denue-scian-qwen3-4b-lora
+- Qwen3-0.6B con LoRA y GGUF BF16: https://huggingface.co/samcaballero/denue-scian-qwen3-0.6b-lora-gguf
+
+Sus model cards están en [`hf/`](hf/) y se suben con `src/subir_hf.py`, que verifica el SHA-256 de cada archivo antes de subirlo.
 
 ## Demo
 
