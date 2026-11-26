@@ -64,6 +64,10 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
   - Código: `src/fusion_gguf.py` (con `venv-gguf`: herramientas, espejo contra oficial, fusión y conversión), `src/llama_servidor.py` (lanzador y cliente de `llama-server` en 127.0.0.1) y `src/gguf_fase4.py` (`--tokens` y `--generar` con `venv-tokenizador`; `--evaluar`, `--latencia` y `--escribir-latencia` con `.venv`).
   - `data/fase4/gguf/` (ignorado): `registro_gguf.json` (versiones, URLs, comandos, bytes y SHA-256 de herramientas, fusión y GGUF), las comprobaciones de tokens, las respuestas de validación por cuantización (con ids), las mediciones de latencia (sin ids) y los logs del servidor.
   - Resultados: `results/2026-11-25_fase4_gguf-concordancia.json` (concordancia con Kaggle en validación, nunca en test ni hard; la regla fijada antes de medir eligió BF16 para la demo) y `results/2026-11-25_fase4_latencia.json`.
+- Demo de la charla (paso 19, Tema B): `src/demo.py`, que se lanza con `scripts/demo.ps1` (comando: `powershell -ExecutionPolicy Bypass -File "C:\sca\fine-tuning\proyecto-denue\denue-scian-finetune\scripts\demo.ps1"`).
+  - Verifica el SHA-256 de los GGUF de la cuantización elegida y de los binarios de llama.cpp contra el resultado de concordancia, y el del catálogo contra el manifest. Exige 3 GB libres antes de cargar cada modelo: con menos, dice cuánta memoria hay y qué procesos ocupan más, sin cerrar nada.
+  - `data/demo/nombres.txt` (ignorado por git): los nombres de la charla, uno por línea, que elige Samuel a mano; las líneas vacías y las que empiezan con `#` se saltan. Después se teclean más.
+  - `data/demo/logs/` (ignorado): los logs de los dos `llama-server`, sin prompts. La demo no guarda nombres ni respuestas.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
 ## c. Reglas de evaluación (no negociables)
@@ -119,6 +123,7 @@ denue-scian-finetune/
 ├── pyproject.toml        # configuración de pytest
 ├── data/                 # datos derivados (ignorado; solo se suben .gitkeep, manifest.json, el catálogo y el vocabulario del SCIAN)
 ├── src/                  # código Python del proyecto
+├── scripts/              # lanzadores para PowerShell 5.1 (demo.ps1: la demo de la charla), solo en ASCII
 ├── tests/                # pruebas con pytest (solo datos sintéticos, nunca datos reales)
 ├── notebooks/            # notebooks (entrenamiento en Kaggle)
 ├── evals/                # código y casos de evaluación

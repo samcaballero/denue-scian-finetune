@@ -968,3 +968,39 @@ Ninguno llegó a un commit.
 
 - Los dos últimos bugs llegaron al commit `14b2ac1` y se corrigieron con commits propios (`6743a53` y `021999e`).
 - Ninguno llegó a `results/` ni a un push.
+
+## 2026-11-25 — Fase 4, paso 19 (Tema B): demo de la charla
+
+**Qué se hizo:**
+- `src/demo.py`, `scripts/demo.ps1` y 29 pruebas en `tests/test_demo.py` (`d51639d`).
+- Una prueba real con el `.ps1`, que se detuvo por memoria antes de cargar pesos.
+- **Autoría:** el chat de Claude del proyecto propuso el paso y Samuel lo aprobó. Claude Code redactó el código, las pruebas y este registro.
+- **Commits:** `d51639d` y el de este registro, sin push.
+
+### Decisiones que Samuel corrigió
+
+- **Visto bueno a la PARADA 1,** incluido el desvío 1 (las dos claves de porcentaje renombradas). La duda 2 (las 50 filas sin `tipo_samuel`) la responde Samuel después, y el conteo no se toca.
+- **Memoria:** si al arrancar los servidores no alcanza, se reporta el número y qué procesos ocupan más, y Claude Code no cierra nada.
+
+### Proceso
+
+- **Nombres inventados:** antes de usarlos, Claude Code comprobó que ninguno de los 3 de la prueba real, ni el de calentamiento, ni los 7 de las pruebas coincide con una llave de validación ni de train final. Lo comprobó solo con conteos.
+- **Prueba real:** con el `.ps1` y `--nombres` hacia un archivo fuera del repo, para no leer ni sobrescribir `data/demo/nombres.txt`, que es de Samuel.
+
+### Hallazgos
+
+- **La regla de memoria detuvo la prueba real:** había 1,925 MB libres, con chrome en 8,747 MB. Se detuvo antes de cargar el base, sin lanzar ningún `llama-server`. Esa regla también detuvo la primera latencia.
+- **La verificación tardó 12.2 s,** porque hashea 2.4 GB de GGUF. La causa probable, no comprobada: con poca memoria libre, Windows no puede tener los archivos en caché y los lee del disco.
+- **PowerShell 5.1 lee como ANSI los `.ps1` sin BOM:** el lanzador va solo en ASCII, y una prueba lo exige.
+- **Con la salida redirigida, Python escribe en cp1252,** que no tiene la raya `─`. Claude Code lo comprobó: sin cambiar la codificación, Python falla con `UnicodeEncodeError`. La demo fija UTF-8 en la salida, y en la consola de Windows no cambia nada.
+
+### Bugs que Claude Code introdujo y encontró
+
+- **Cuatro pruebas fallaron en la primera corrida:**
+  - tres buscaban frases que el ajuste de líneas había partido en dos;
+  - una esperaba la palabra "afinado" en el nombre del GGUF, que no la lleva.
+- **El comando para cerrar un `llama-server` colgado salía partido entre dos líneas.** Ahora va en su propia línea, y hay una prueba de ello.
+
+### Errores de Claude Code
+
+Ninguno llegó a un commit.

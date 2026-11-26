@@ -1475,3 +1475,41 @@
   - `a7471cb`: la latencia;
   - el de esta sección, con el registro de Claude Code y `CLAUDE.md`.
 - PARADA 1.
+
+## 2026-11-25 22:05 - Fase 4, paso 19 (Tema B): demo de la charla
+
+- **Qué es.** Un script que, en la laptop y sin red, le pregunta lo mismo al 0.6B sin afinar y al afinado, uno tras otro, y muestra la respuesta de cada uno en una salida angosta, legible a 20 pt.
+- **Autoría:** el chat de Claude del proyecto propuso el paso y Samuel lo aprobó. Samuel dio el visto bueno a la PARADA 1 y al desvío 1 (las dos claves de porcentaje renombradas). Claude Code redactó el código, las pruebas y esta sección.
+- **`src/demo.py`** (con `.venv`, solo biblioteca estándar y módulos de `src/`):
+  - **Antes de cargar nada,** verifica:
+    - el SHA-256 de los dos GGUF de la cuantización elegida (BF16) y de los 52 binarios de llama.cpp, contra `results/2026-11-25_fase4_gguf-concordancia.json`;
+    - el del catálogo SCIAN, contra `data/manifest.json`.
+  - **Arranque:** levanta los dos `llama-server` en 127.0.0.1 con `--offline`, con la regla de 3 GB libres antes de cada modelo. Si no alcanza, dice cuánta memoria había y qué procesos ocupan más, y no cierra nada. Calienta cada modelo con un nombre inventado.
+  - **Nombres:** primero los de `data/demo/nombres.txt`, ignorado por git y elegidos por Samuel; después los que se teclean, hasta una línea vacía o `salir`.
+    - Un nombre con `<|` (podría leerse como token especial) o de más de 200 caracteres no se manda.
+    - `--pausa` espera Enter antes de cada nombre del archivo, y `--ancho` cambia las 56 columnas.
+  - **Pregunta:** idéntica a la del Tema A: `prompt_generacion`, greedy, corte de Kaggle y `/detokenize`. Se muestra la categoría de la regla 5 con el título del catálogo oficial, nunca del modelo: el código con su título, "código inexistente" o "formato inválido" con el texto (hasta 2 líneas). También los ms de punta a punta.
+- **`scripts/demo.ps1`:** el lanzador para PowerShell 5.1, solo en ASCII, porque PowerShell 5.1 lee como ANSI los `.ps1` sin BOM.
+  - Lleva las rutas absolutas del repo, de `llama-server.exe` y de los GGUF.
+  - Los argumentos extra pasan tal cual a `src.demo`.
+  - Comando: `powershell -ExecutionPolicy Bypass -File "C:\sca\fine-tuning\proyecto-denue\denue-scian-finetune\scripts\demo.ps1"`.
+- **Pruebas:** 29 nuevas en `tests/test_demo.py`, con `llama-server` falsos y solo nombres inventados. Cubren:
+  - las tres categorías;
+  - el ancho de cada línea a 32, 40 y 56 columnas;
+  - el archivo de nombres con BOM y CRLF, lo tecleado, `salir`, la línea vacía y el fin de entrada;
+  - los nombres rechazados y la pausa;
+  - un servidor caído;
+  - que no haya URLs y que el cliente rechace otro host;
+  - el `.ps1` en ASCII y con las rutas del proyecto;
+  - los hashes cambiados;
+  - la memoria insuficiente sin lanzar nada;
+  - el puerto ocupado;
+  - un arranque completo con servidores falsos.
+
+  Pasan las 1,087 del repo.
+- **Prueba real** con el `.ps1` y 3 nombres inventados por Claude Code (ninguno coincide con una llave de validación ni de train final):
+  - La verificación de archivos tardó 12.2 s.
+  - Se detuvo antes de cargar el base: había 1,925 MB libres, con chrome en 8,747 MB. No se lanzó ningún `llama-server` y no se cerró nada, como pidió Samuel.
+  - La prueba con los modelos queda pendiente de memoria libre.
+- **Commits:** `d51639d` (la demo, sus pruebas y el lanzador) y el de esta sección, con el registro de Claude Code y `CLAUDE.md`.
+- PARADA 2.
