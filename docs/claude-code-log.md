@@ -907,3 +907,64 @@ Ninguno: las 65 pruebas nuevas pasaron en la primera corrida.
 ### Errores de Claude Code
 
 Ninguno llegó a un commit.
+
+## 2026-11-25 — Fase 4, paso 19 (Tema A): GGUF del 0.6B, concordancia y latencia en la laptop
+
+**Qué se hizo:**
+- **Herramientas y entornos, fuera del repo:**
+  - llama.cpp b12359 (binarios y fuente con SHA-256);
+  - `venv-gguf` instalado sin red;
+  - el espejo verificado contra el oficial tensor por tensor.
+- **Fusión con prueba de equivalencia.** Cinco GGUF: afinado en BF16, Q8_0 y Q4_K_M; base en BF16 y Q4_K_M.
+- **Tokens y generación comparados contra Hugging Face y Kaggle.** Concordancia en validación (`c6bffee`) y latencia (`a7471cb`).
+- **Cierre de `--contar` del paso 18,** con el cambio de nombre de una clave (`02d1cfd`, `1e6101d`).
+- **Commits:** `14b2ac1`, `021999e`, `6743a53`, `c6bffee`, `02d1cfd`, `1e6101d`, `a7471cb` y el de este registro, sin push.
+
+### Autoría
+
+- El chat de Claude del proyecto propuso el paso; Samuel lo aprobó.
+- Claude Code propuso el plan, con 9 decisiones (D1 a D9).
+- Claude Code redactó el código, las pruebas y este registro.
+
+### Decisiones que Samuel corrigió
+
+- **Al aprobar el plan:**
+  - correr `--contar` del paso 18 antes de A0;
+  - D8: sortear 210 filas para la latencia, 10 de calentamiento y 200 medidas. El plan medía 190 de 200, y Claude Code lo había marcado como duda;
+  - lanzar las descargas grandes en segundo plano mientras se escribe el código;
+  - generar primero Q4_K_M, luego Q8_0 y al final BF16.
+- **Cambio de nombre:** aprobó renombrar `aciertan_sector` a `sector_acertado` en `src/errores_fase4.py`, para quitar el falso positivo de `--contar`. Claude Code extendió el cambio a las dos claves de porcentaje, por coherencia.
+
+### Proceso
+
+- **La regla de la demo se fijó en código antes de medir:** `elegir_cuantizacion` quedó en el commit `14b2ac1`, antes de generar ninguna respuesta.
+- **Descargas en segundo plano,** cada una en su carpeta nueva, con su SHA-256 verificado antes de usarla:
+  - los dos zips de llama.cpp;
+  - las ruedas de `venv-gguf`;
+  - los pesos de Hugging Face del espejo y del oficial.
+- **Nada se instaló en `.venv`.** `venv-gguf` se instaló sin red, desde las ruedas bajadas.
+- **Memoria:** antes de cada carga de pesos se exigen 3 GB libres. La latencia se midió con la laptop sin otra carga, como pidió Samuel: sin pytest ni otra corrida a la vez.
+- **Nombres:** los resultados de este paso pasan los candados contra validación y train final, nunca contra test ni hard. La excepción es `--contar`, que es del paso 18 y revisa sus 4 conjuntos, como se diseñó.
+
+### Hallazgos
+
+- **`--contar` del paso 18 no escribió en la primera corrida.** El CSV revisado por Samuel pasó todas sus validaciones, pero la regla acotada de nombres encontró una llave de 2 palabras (8 caracteres) en las líneas 75 y 87 del resultado.
+  - Es un falso positivo: nace de `aciertan_sector`, clave fija del JSON, seguida de un conteo.
+  - En el paso 18, una maqueta con conteos inventados había pasado los candados. Una maqueta así no puede atrapar este caso, porque la llave depende de los números reales.
+  - La llave no se registra.
+- **Los `.exe` de la build b12359 son lanzadores de 9.7 KB** que cargan sus `-impl.dll`. El convertidor importa el paquete `conversion/` y el `gguf-py` de su misma fuente. El registro se amplió para hashear todos esos archivos (commit `021999e`).
+- **El espejo y el oficial tienen configs distintas:** `bos_token_id`, `pad_token_id` y `max_length`, además de `transformers_version` y `unsloth_fixed`. Los pesos son idénticos. Esto confirma la decisión D4 de convertir con la config y el tokenizador oficiales.
+- **El paquete `gguf` no hizo falta instalarlo:** el convertidor agrega a `sys.path` el `gguf-py` de su misma fuente. Instalarlo como paquete habría pedido `poetry-core` para construirlo.
+- **El servidor devuelve el token de fin dentro de `tokens`.** Por eso el corte de Kaggle se aplica sobre las mismas fichas y se puede comprobar que ninguna parada ocurrió en un token de fin ajeno.
+- **La regla eligió BF16,** la cuantización más pesada: 1.2 GB por archivo y unos 1.27 GB de RAM por servidor. Con Chrome y la app de ChatGPT abiertos, la primera corrida de latencia se detuvo por memoria, como manda la regla. Samuel cerró esos programas y la segunda midió.
+
+### Bugs que Claude Code introdujo y encontró
+
+- **Árbol sucio a media corrida.** Claude Code adelantó la edición de `CLAUDE.md` mientras Q8_0 generaba. `--generar` exige el árbol limpio, así que BF16 se habría negado a arrancar. Guardó la edición fuera del repo y la volvió a aplicar antes del commit de documentos.
+- **Texto fijo con frases que coinciden con llaves.** El texto de instalación de `venv-gguf` que Claude Code redactó en `src/fusion_gguf.py` tenía dos frases comunes de 2 palabras que coinciden con llaves de nombres. El candado detuvo la escritura de la concordancia. Claude Code lo reescribió, comprobándolo solo con conteos (commit `6743a53`), y la segunda corrida escribió limpio. Las frases no se registran.
+- **Registro incompleto.** La primera versión del registro de llama.cpp no hasheaba las DLL ni los paquetes que importa el convertidor. Se corrigió en el commit `021999e`.
+
+### Errores de Claude Code
+
+- Los dos últimos bugs llegaron al commit `14b2ac1` y se corrigieron con commits propios (`6743a53` y `021999e`).
+- Ninguno llegó a `results/` ni a un push.

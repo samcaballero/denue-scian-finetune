@@ -54,8 +54,16 @@ Entorno local: Windows 11, Python 3.12.10, sin GPU, 16 GB de RAM. La GPU vive en
     - `errores_4b_vista.md` (`--vista`): la vista sin ids que lee Claude Code;
     - `errores_4b_propuestas.json`: las propuestas de Claude Code, por posición (1 a 50 en orden de `int(id)`);
     - `errores_4b_para_revision.csv` (`--proponer`; UTF-8 con BOM): el CSV que Samuel revisa en Google Sheets. Lleva `posicion` en lugar de `id`: los ids no salen de la laptop. Al terminar, Samuel lo exporta a `errores_4b_revisado.csv` y borra la hoja de Google Drive;
-    - `--contar` lee ese CSV revisado y escribe `results/<fecha>_fase4_errores-por-tipo.json` una sola vez, sin nombres, llaves ni ids.
+    - `--contar` lee ese CSV revisado y escribe `results/<fecha>_fase4_errores-por-tipo.json` una sola vez, sin nombres, llaves ni ids. Ya se escribió en el paso 19: `results/2026-11-25_fase4_errores-por-tipo.json`.
 - Evaluación final del clasificador (paso 17): `src/evaluacion_final_fase4.py`. `--test` es lo único que lee `codigo_act` de test y hard, y escribió una sola vez: la primera corrida se detuvo antes de escribir, y su constancia está en la bitácora del paso 17. Se niega a repetirse si el resultado ya existe. Escribió `results/2026-11-25_fase4_evaluacion-final.json` y la tabla para la charla, `results/2026-11-25_fase4_tabla-final.md`, generada desde ese JSON.
+- GGUF del 0.6B en la laptop (paso 19). Todo lo pesado vive fuera del repo, en `C:\sca\fine-tuning\proyecto-denue\`:
+  - `herramientas/`: llama.cpp **b12359** (la build de la release estable v1.0.0), con los binarios oficiales de Windows para CPU x64 y el código de esa etiqueta (convertidor), más las ruedas de `venv-gguf`;
+  - `venv-gguf/`: torch 2.11.0+cpu, transformers 4.57.6 (los pins del convertidor) y peft 0.21.3, solo para fusionar y convertir;
+  - `venv-tokenizador/`: transformers 5.17.0 y el tokenizador oficial de las dos revisiones (los pins de Kaggle), para comparar tokens y decodificar como en Kaggle;
+  - `modelos/`: caché de Hugging Face, carpetas del base y del afinado listas para convertir, y `gguf/` (afinado en BF16, Q8_0 y Q4_K_M; base en BF16 y Q4_K_M).
+  - Código: `src/fusion_gguf.py` (con `venv-gguf`: herramientas, espejo contra oficial, fusión y conversión), `src/llama_servidor.py` (lanzador y cliente de `llama-server` en 127.0.0.1) y `src/gguf_fase4.py` (`--tokens` y `--generar` con `venv-tokenizador`; `--evaluar`, `--latencia` y `--escribir-latencia` con `.venv`).
+  - `data/fase4/gguf/` (ignorado): `registro_gguf.json` (versiones, URLs, comandos, bytes y SHA-256 de herramientas, fusión y GGUF), las comprobaciones de tokens, las respuestas de validación por cuantización (con ids), las mediciones de latencia (sin ids) y los logs del servidor.
+  - Resultados: `results/2026-11-25_fase4_gguf-concordancia.json` (concordancia con Kaggle en validación, nunca en test ni hard; la regla fijada antes de medir eligió BF16 para la demo) y `results/2026-11-25_fase4_latencia.json`.
 - Entorno de Python del proyecto: `.venv/` dentro del repo (ignorado por git), creado el 2026-11-18 con Python 3.12.10, con dependencias fijadas en `requirements.txt`. Solo para trabajo en CPU: sin torch, transformers ni unsloth.
 
 ## c. Reglas de evaluación (no negociables)

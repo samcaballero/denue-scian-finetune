@@ -1378,3 +1378,100 @@
 - **Pendiente:**
   - Samuel revisa el CSV en Google Sheets, lo exporta a `data/fase4/errores_4b_revisado.csv` y borra la hoja.
   - La sesión siguiente corre `--contar`.
+
+## 2026-11-25 21:20 - Fase 4, paso 19 (Tema A): GGUF del 0.6B, concordancia y latencia en la laptop
+
+- **Qué es.** El 0.6B afinado (`06b-lr2e-4-r32`) corre en la laptop sin GPU. El adaptador se fusiona con la base, se convierte a GGUF (el formato de llama.cpp para correr modelos en CPU) y se mide:
+  - qué tanto responde igual que en Kaggle, en validación y nunca en test ni en hard, como manda el pre-registro;
+  - cuánto tarda.
+
+  Con eso se elige la cuantización (la reducción de bits de los pesos) para la demo de la charla.
+- **Autoría:**
+  - El chat de Claude del proyecto propuso el paso; Samuel lo aprobó.
+  - Claude Code propuso el plan, con 9 decisiones (D1 a D9). Samuel lo aprobó con 4 ajustes:
+    - correr antes `--contar` del paso 18;
+    - 210 filas para la latencia: 10 de calentamiento y 200 medidas;
+    - descargas grandes en segundo plano;
+    - BF16 al final.
+  - Claude Code redactó el código, las pruebas y esta sección.
+- **`--contar` del paso 18** (`results/2026-11-25_fase4_errores-por-tipo.json`, commit `1e6101d`):
+  - **Primera corrida:** no escribió nada. El CSV revisado pasó sus validaciones, pero la regla acotada de nombres encontró un falso positivo: `aciertan_sector`, clave fija del JSON, seguida de su conteo formaba una llave de 2 palabras.
+  - **Arreglo:** con el visto bueno de Samuel, `aciertan_sector` pasó a llamarse `sector_acertado`. Por coherencia también cambiaron `pct_sector_acertado` y `pct_sector_acertado_del_tipo`. Se agregó una prueba de regresión con un nombre inventado (commit `02d1cfd`).
+  - **Segunda corrida:** pasó todos los candados y escribió el resultado.
+  - **Tipos finales en los 50 errores del 4B:**
+    - `nombre_ambiguo`, 32 (64 %);
+    - `clases_hermanas`, 8 (16 %);
+    - `otro`, 6 (12 %);
+    - `etiqueta_dudosa`, 4 (8 %);
+    - `codigo_inexistente`, 0.
+
+    Aciertan el sector 20 de 50 (40 %).
+  - **Revisión de Samuel:** no cambió el tipo de ninguna fila (las 50 quedaron con el tipo propuesto) y dejó nota en 3. La matriz propuesto → final es diagonal.
+- **Herramientas** (decisión D1): llama.cpp b12359, la build de la release estable v1.0.0, cuyo `nightly-tag.txt` dice b12359. Commit `b1b770d9`.
+  - Binarios oficiales de Windows para CPU x64: 25,097,509 bytes, SHA-256 `837c1655…`, igual al digest de GitHub.
+  - Fuente de esa etiqueta: 41,065,740 bytes, SHA-256 `247865b7…`. El comentario del zip es el commit.
+  - El registro guarda el SHA-256 de los 52 archivos de binarios y las huellas de `conversion/` y `gguf-py/`.
+- **`venv-gguf`** (D2), fuera del repo: Python 3.12.10, torch 2.11.0+cpu, transformers 4.57.6, peft 0.21.3 y numpy 2.2.6.
+  - 30 ruedas, cada una con su SHA-256, instaladas sin red.
+  - `gguf` no se instala: el convertidor usa el `gguf-py` de su misma fuente.
+- **Espejo contra oficial** (D3): `unsloth/Qwen3-0.6B@db4e90b8` contra `Qwen/Qwen3-0.6B@c1899de2`.
+  - El SHA-256 de cada archivo coincide con la API de Hugging Face.
+  - Los 310 tensores comunes son idénticos (dtype, forma y bytes). El oficial trae además `lm_head`, igual a `embed_tokens` (están atados).
+  - Las configs difieren en `bos_token_id`, `pad_token_id`, `max_length`, `transformers_version` y `unsloth_fixed`. Por eso los GGUF usan la config y el tokenizador oficiales (D4).
+- **Fusión:** el espejo en bf16, `PeftModel.from_pretrained` y `merge_and_unload`, en CPU (18 s).
+  - Entraron los 196 módulos LoRA, y los 392 tensores son iguales al archivo.
+  - Prueba de equivalencia en las capas 0, 13 y 27 (21 pesos): W' contra bf16(W + B·A calculado en fp32) da 0 elementos distintos.
+  - Los 114 tensores que la LoRA no toca siguen idénticos al espejo.
+- **GGUF** (D5), en `modelos/gguf/`, fuera del repo. BF16 sale de `convert_hf_to_gguf.py`; Q8_0 y Q4_K_M, de `llama-quantize` sobre BF16, sin imatrix (matriz de importancia).
+
+  | Modelo | Cuantización | Bytes | SHA-256 |
+  |---|---|---:|---|
+  | afinado | BF16 | 1,198,182,400 | `5b97e03b…` |
+  | afinado | Q8_0 | 639,447,040 | `e13430dc…` |
+  | afinado | Q4_K_M | 396,704,768 | `9fe59876…` |
+  | base | BF16 | 1,198,182,336 | `b610113a…` |
+  | base | Q4_K_M | 396,704,704 | `6fe53352…` |
+
+- **Tokens:** en los 5 GGUF, los 1,000 prompts de validación dan los mismos ids en `/tokenize` que en el tokenizador de Hugging Face, y el mismo largo que en Kaggle. No se agrega BOS (la ficha de inicio de secuencia), y los 3 tokens especiales son un solo id igual al de Hugging Face.
+- **Generación** (las 3 cuantizaciones del afinado, 1,000 filas cada una):
+  - `/detokenize` coincide con la decodificación de Hugging Face en todas;
+  - todas pararon en un token de fin de la lista de Kaggle;
+  - ninguna llegó al tope;
+  - las fichas de prompt, las fichas generadas y `al_tope` son iguales a las de Kaggle en todas.
+- **Concordancia** (`results/2026-11-25_fase4_gguf-concordancia.json`, 1,000 filas de validación):
+
+  | Cuantización | Idénticas a Kaggle | Accuracy (IC 95 %) | GGUF − Kaggle (IC 95 %) | Códigos inexistentes |
+  |---|---:|---:|---:|---:|
+  | Q4_K_M | 789 (78.9 %) | 0.651 (0.620–0.684) | −0.036 (−0.055 a −0.018) | 1 |
+  | Q8_0 | 832 (83.2 %) | 0.673 (0.643–0.702) | −0.014 (−0.031 a +0.003) | 2 |
+  | BF16 | 834 (83.4 %) | 0.677 (0.647–0.707) | −0.010 (−0.027 a +0.006) | 2 |
+
+  - La referencia de Kaggle tiene accuracy 0.687 (0.656–0.715). Ninguna cuantización da formato inválido.
+  - No se esperaba 100 % ni en BF16: Kaggle respondió con la base en NF4 (cuantización de 4 bits) y la LoRA sin fusionar, y aquí la base va en bf16 con la LoRA fusionada.
+- **Regla de la demo:** fijada en código antes de medir (commit `14b2ac1`). Eligió **BF16**:
+  - tiene la mayor concordancia, 2 filas más que Q8_0;
+  - le saca 45 filas (4.5 puntos) a Q4_K_M, por encima del umbral de 1 punto.
+- **Latencia** (`results/2026-11-25_fase4_latencia.json`): base y afinado en BF16, con los dos servidores arriba como en la demo, 4 hilos y contexto 512. 210 filas de validación sorteadas con semilla 42: 10 de calentamiento, descartadas, y 200 medidas.
+
+  | Modelo | p50 (ms) | p95 (ms) | Prompt (fichas/s) | Generación (fichas/s) | Fichas generadas (mediana) | RAM del proceso | Arranque |
+  |---|---:|---:|---:|---:|---:|---:|---:|
+  | base BF16 | 578.2 | 870.5 | 137.9 | 31.2 | 2 | 1,268 MB | 1.58 s |
+  | afinado BF16 | 689.1 | 887.0 | 139.3 | 27.8 | 7 | 1,268 MB | 1.15 s |
+
+  - La latencia es de punta a punta: `/completion` más `/detokenize`, medida en el cliente.
+  - Las fichas por segundo son el agregado de los tiempos del servidor.
+  - El base es más rápido en la mediana porque genera menos fichas.
+  - **Laptop:** i7-1185G7, 16,110 MB de RAM; 6,940 MB libres al inicio.
+  - **Programas abiertos** (procesos de más de 100 MB): svchost, chrome (1,379 MB), MsMpEng, la compresión de memoria de Windows, claude, msedgewebview2, explorer, msedge y otros menores de Windows y Dell.
+  - **Primer intento detenido por memoria:** con Chrome y la app de ChatGPT abiertos, después de cargar el base quedaron 2,808 MB libres, menos de los 3 GB de la regla. Se detuvo antes de cargar el afinado. Samuel cerró esos programas y la segunda corrida midió.
+- **Pruebas:** pasan las 1,058 del repo, 43 nuevas: 42 de los módulos GGUF y 1 de regresión de `--contar`.
+- **Commits del paso 19:**
+  - `14b2ac1`: el código, con la regla de la demo fijada antes de medir;
+  - `021999e`: el registro de llama.cpp ampliado;
+  - `6743a53`: el texto de instalación reescrito;
+  - `c6bffee`: la concordancia;
+  - `02d1cfd`: el cambio de nombre de `aciertan_sector`;
+  - `1e6101d`: el conteo de errores;
+  - `a7471cb`: la latencia;
+  - el de esta sección, con el registro de Claude Code y `CLAUDE.md`.
+- PARADA 1.
