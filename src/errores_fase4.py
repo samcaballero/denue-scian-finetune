@@ -341,15 +341,15 @@ def contar(filas: Sequence[Mapping], revision: Sequence[Mapping]) -> dict:
     for t in TIPOS:
         filas_t = [i for i, x in enumerate(final) if x == t]
         s = sum(sector[i] for i in filas_t)
-        por_tipo[t] = {"filas": len(filas_t), "pct": _pct(len(filas_t), n), "aciertan_sector": s,
-                       "pct_aciertan_sector_del_tipo": _pct(s, len(filas_t))}
+        por_tipo[t] = {"filas": len(filas_t), "pct": _pct(len(filas_t), n), "sector_acertado": s,
+                       "pct_sector_acertado_del_tipo": _pct(s, len(filas_t))}
     matriz = {p: {t: 0 for t in TIPOS} for p in TIPOS}
     for r, t in zip(revision, final):
         matriz[r["tipo_propuesto"]][t] += 1
     propuestos = Counter(r["tipo_propuesto"] for r in revision)
     return {
         "por_tipo_final": por_tipo,
-        "total": {"filas": n, "aciertan_sector": sum(sector), "pct_aciertan_sector": _pct(sum(sector), n)},
+        "total": {"filas": n, "sector_acertado": sum(sector), "pct_sector_acertado": _pct(sum(sector), n)},
         "por_tipo_propuesto": {t: propuestos.get(t, 0) for t in TIPOS},
         "revision_de_samuel": {
             "cambiadas": sum(1 for r in revision if r["tipo_samuel"] and r["tipo_samuel"] != r["tipo_propuesto"]),
@@ -538,9 +538,9 @@ def correr_contar(ruta_revisado: Path, *, raiz: Path = REPO_RAIZ, fecha: str,
 
 def imprimir_conteo(r: Mapping) -> None:
     c = r["conteos"]
-    print(f"Errores por tipo final ({c['total']['filas']} filas; aciertan el sector {c['total']['aciertan_sector']}):")
+    print(f"Errores por tipo final ({c['total']['filas']} filas; aciertan el sector {c['total']['sector_acertado']}):")
     for t, x in c["por_tipo_final"].items():
-        print(f"  {t}: {x['filas']} ({x['pct']} %); aciertan el sector {x['aciertan_sector']}")
+        print(f"  {t}: {x['filas']} ({x['pct']} %); aciertan el sector {x['sector_acertado']}")
     s = c["revision_de_samuel"]
     print(f"Revisión de Samuel: cambiadas {s['cambiadas']}, confirmadas con el mismo tipo "
           f"{s['confirmadas_con_el_mismo_tipo']}, sin tocar {s['sin_tocar']}, con nota {s['con_nota']}.")

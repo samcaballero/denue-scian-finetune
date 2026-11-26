@@ -322,10 +322,10 @@ def test_contar_camino_feliz_con_csv_de_sheets(con_csv):
     c = r["conteos"]
     assert {t: x["filas"] for t, x in c["por_tipo_final"].items()} == {
         "codigo_inexistente": 2, "clases_hermanas": 2, "etiqueta_dudosa": 2, "nombre_ambiguo": 0, "otro": 0}
-    assert c["por_tipo_final"]["etiqueta_dudosa"]["aciertan_sector"] == 1
-    assert c["por_tipo_final"]["clases_hermanas"]["aciertan_sector"] == 2
+    assert c["por_tipo_final"]["etiqueta_dudosa"]["sector_acertado"] == 1
+    assert c["por_tipo_final"]["clases_hermanas"]["sector_acertado"] == 2
     assert c["por_tipo_final"]["etiqueta_dudosa"]["pct"] == 33.33
-    assert c["total"] == {"filas": 6, "aciertan_sector": 3, "pct_aciertan_sector": 50.0}
+    assert c["total"] == {"filas": 6, "sector_acertado": 3, "pct_sector_acertado": 50.0}
     assert c["revision_de_samuel"] == {"cambiadas": 1, "confirmadas_con_el_mismo_tipo": 2, "sin_tocar": 3,
                                        "con_nota": 1}
     assert c["propuesto_a_final"]["nombre_ambiguo"]["etiqueta_dudosa"] == 1
@@ -411,6 +411,15 @@ def test_contar_candado_de_privacidad_ante_una_llave_plantada(con_csv):
     with pytest.raises(ErrorPrivacidad):
         contar(con_csv, revisado(con_csv), referencias=lambda r: refs)
     assert not salida(con_csv).exists()
+
+
+def test_contar_claves_fijas_no_forman_una_llave_corta_con_el_conteo(con_csv):
+    # Regresión del paso 19: la clave fija "aciertan_sector" seguida de su conteo formaba la llave de dos palabras
+    # "SECTOR 3" y la regla acotada detenía la escritura. Con "sector_acertado", el conteo ya no queda junto a SECTOR.
+    refs = {**REFS, "train_final": [{"id": "6", "nom_estab": "Sector 3", "codigo_act": "461110"}]}
+    r = contar(con_csv, revisado(con_csv), referencias=lambda r: refs)
+    assert r["conteos"]["total"] == {"filas": 6, "sector_acertado": 3, "pct_sector_acertado": 50.0}
+    assert salida(con_csv).exists()
 
 
 def test_contar_candado_de_ids_ante_un_id_plantado(con_csv):
