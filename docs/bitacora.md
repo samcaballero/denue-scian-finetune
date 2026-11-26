@@ -1617,3 +1617,18 @@
 - **Pruebas:** pasan las 1,115 del repo (28 nuevas).
 - **Commits:** `f1d4557`, `888db87`, `fa91c5d`, `e82d48f`, `68d5353` y el de esta sección, con el registro de la auditoría, el registro de Claude Code y `CLAUDE.md`. Sin push.
 - PARADA B.
+- **Verificación antes de subir** (pedida por el chat de Claude del proyecto y aprobada por Samuel): Claude Code comparó cada número de las dos cards y del README contra `results/` (96 comprobaciones, 0 diferencias), incluidas las pareadas de sector y del hard set. "release v1.0.0" quedó confirmado en la API pública de GitHub: el tag `v1.0.0` apunta al commit `b1b770d9`, el mismo de `b12359`, y su `nightly-tag.txt` tiene el SHA-256 registrado. No cambió nada.
+
+## 2026-11-26 12:27 - Paso 20 (cierre): enlaces de Hugging Face, `.gitignore` y QR de la charla
+
+- **Autoría:** el chat de Claude del proyecto redactó la instrucción y Samuel la aprobó. Claude Code hizo los cambios y redactó esta sección.
+- **Subida a Hugging Face:** la hizo Samuel con `src/subir_hf.py`. Commits de Hugging Face que reportó: `fcefee3` y `710607c` (el script hace un commit por repo).
+  - Claude Code no los pudo comprobar: sin sesión, la API de Hugging Face responde a los dos repos con error de autenticación, que es lo que se ve mientras un repo es privado.
+- **README:** la sección "Modelos" ya lleva los enlaces a `samcaballero/denue-scian-qwen3-4b-lora` y `samcaballero/denue-scian-qwen3-0.6b-lora-gguf`.
+- **`.gitignore`:** ahora ignora `.claude/settings.local.json`; antes solo lo ignoraba el `.gitignore` global de esta laptop. El checklist se actualizó con esto y con los enlaces.
+- **QR de la charla** en `docs/figuras/`:
+  - `qr-github.png` lleva al repo de GitHub: versión 6, 1225 × 1225 px, SHA-256 `63091351…`.
+  - `qr-huggingface.png` lleva al perfil `samcaballero` de Hugging Face: versión 5, 1215 × 1215 px, SHA-256 `00fd0c71…`.
+  - Los dos tienen corrección de errores H, fondo blanco, margen de 4 módulos y PNG de 1 bit, sin metadatos.
+  - Se generaron con segno 1.6.6. Para comprobarlos, se leyeron de vuelta desde el PNG con zxing-cpp 3.2.0.post1: cada uno da exactamente su URL.
+  - Esas dos bibliotecas y Pillow 13.0.0 se instalaron en `venv-tokenizador`, no en `.venv`; `pip check` no encontró conflictos, y numpy, transformers y huggingface_hub siguen en sus versiones.

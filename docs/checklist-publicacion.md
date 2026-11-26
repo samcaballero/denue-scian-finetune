@@ -9,7 +9,7 @@ Preparado el 26 de noviembre de 2026 por Claude Code. Esa noche no salió nada d
 - [x] **Nada de datos versionado:** en ningún commit hay archivos bajo `data/` fuera de `data/.gitkeep`, `data/manifest.json`, `data/scian_2023_clases.csv` y `data/scian_2023_vocabulario.csv`, ni bajo `kaggle-output/`, ni con extensión de datos o de modelo (auditoría de todo el historial, `src/auditoria_publicacion.py`).
 - [x] **Sin nombres, ids ni secretos del DENUE:** la auditoría no encontró ningún hallazgo que detenga; los conteos están en `results/2026-11-26_paso20_auditoria-privacidad.json`.
 - [x] **Autor de los commits:** el noreply de GitHub de `samcaballero` en todos los commits.
-- [x] **`.claude/settings.local.json`** no está versionado. Lo ignora el `.gitignore` global de esta laptop, no el del repo. Sugerencia: agregarlo al `.gitignore` del repo para que un clon nuevo tampoco lo suba.
+- [x] **`.claude/settings.local.json`** no está versionado. Desde el cierre del paso 20 también lo ignora el `.gitignore` del repo, así que un clon nuevo tampoco lo sube.
 - [x] **`docs/sesiones/2026-11-18_sesion01_estructura-repo.md`** no se versiona ni se publica (decisión de Samuel); se queda en la laptop sin borrar.
 - [x] **El transcript de la sesión del paso 20** no se exporta ni se versiona: en ella se leyeron datos y capturas.
 - [x] **Commit viejo `1f60028`:** solo existe en el reflog local de esta laptop, fuera de las ramas. Un push solo manda lo alcanzable desde las ramas, así que no se publica; GitHub ya lo da 404 desde que se recreó el repo el 18 de noviembre. No se toca.
@@ -47,7 +47,7 @@ Si algo falla a medio camino, el script se detiene y dice en qué archivo. Se pu
 
 ## 3. Enlaces de Hugging Face en el README
 
-- [ ] Cuando los repos existan, agregar sus dos enlaces a la sección "Modelos" del README (los de la lista de arriba) y hacer el commit.
+- [x] Los dos enlaces ya están en la sección "Modelos" del README (cierre del paso 20). Mientras los repos sigan privados, quien no tenga sesión verá un error al abrirlos.
 
 ## 4. Antes del push
 
