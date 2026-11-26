@@ -1004,3 +1004,27 @@ Ninguno llegó a un commit.
 ### Errores de Claude Code
 
 Ninguno llegó a un commit.
+
+## 2026-11-25 — Fase 4, paso 19 (Tema B): prueba real de la demo
+
+**Qué se hizo:** la prueba real de la demo con los 3 nombres inventados, después de que Samuel cerró Chrome (7,273 MB libres). La salida completa está en la bitácora. Arranque total: 11.3 s, de ellos 5.2 s de verificación. Al terminar no quedó ningún `llama-server` abierto.
+
+- **Autoría:** Samuel dio el visto bueno a la PARADA 2 y a los agregados 1 a 4. Claude Code corrió la prueba y redactó este registro.
+- **Commit:** el de este registro, sin push.
+
+### Decisiones que Samuel corrigió o aclaró
+
+- **Duda 2 de la PARADA 1:** Samuel revisó las 50 filas de errores del 4B y coincidió con todas las propuestas de Claude Code. Por eso dejó `tipo_samuel` vacío.
+  - En el resultado del conteo, `sin_tocar: 50` son filas revisadas y confirmadas, no filas sin revisar.
+  - `results/` no se toca.
+
+### Hallazgos
+
+- **El base sin afinar respondió «6» en dos de los tres nombres** y un código inexistente en el tercero. Es lo que se espera de un modelo que no aprendió el formato. Coincide con la mediana de 2 fichas generadas del base en la latencia.
+
+### Errores de Claude Code
+
+- **La comprobación de los nombres inventados se quedó corta.** Antes de usarlos, Claude Code comprobó solo la coincidencia exacta con una llave. La regla acotada sobre la salida encontró después que dos de ellos contienen, como parte, una llave de 3 palabras.
+  - Caen en la excepción de `CLAUDE.md` para nombres inventados.
+  - Se usaron igual porque Samuel pidió la prueba con esos 3, y la bitácora lo precisa.
+  - Para la próxima: pasar los nombres inventados por la regla acotada completa, no solo por la coincidencia exacta.

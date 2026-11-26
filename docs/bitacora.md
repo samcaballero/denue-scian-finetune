@@ -1513,3 +1513,55 @@
   - La prueba con los modelos queda pendiente de memoria libre.
 - **Commits:** `d51639d` (la demo, sus pruebas y el lanzador) y el de esta sección, con el registro de Claude Code y `CLAUDE.md`.
 - PARADA 2.
+
+## 2026-11-25 23:46 - Fase 4, paso 19 (Tema B): prueba real de la demo y respuesta de Samuel sobre el conteo de errores
+
+- **Autoría:** Samuel dio el visto bueno a la PARADA 2, incluidos los agregados 1 a 4 (`--pausa`, `--nombres`, los nombres que no se mandan y el comando para cerrar un `llama-server` colgado). Claude Code corrió la prueba y redactó esta sección.
+- **Respuesta de Samuel a la duda del conteo del paso 18:** revisó las 50 filas y coincidió con todas las propuestas, por eso dejó `tipo_samuel` vacío.
+  - En `results/2026-11-25_fase4_errores-por-tipo.json`, `sin_tocar: 50` quiere decir eso: 50 filas revisadas por Samuel y confirmadas con el tipo propuesto.
+  - El resultado no se toca.
+- **Prueba real,** con Chrome cerrado por Samuel:
+  - 7,273 MB libres al empezar;
+  - el comando de `CLAUDE.md` con `--nombres` hacia un archivo fuera del repo, con los 3 nombres inventados por Claude Code y sin teclado.
+
+  La salida completa:
+
+  ```text
+  Clasificador SCIAN · Qwen3-0.6B en esta laptop: base sin
+  afinar y afinado (LoRA), BF16, sin red
+  Archivos verificados (SHA-256) en 5.2 s
+  Modelos listos: arranque total 11.3 s
+  ────────────────────────────────────────────────────────
+  Nombre: Tortillería La Mazorca Feliz
+    Base (sin afinar) · 426 ms
+      formato inválido: «6»
+    Afinado · 587 ms
+      311830 · Elaboración de tortillas de maíz y molienda
+      de nixtamal
+  ────────────────────────────────────────────────────────
+  Nombre: Taller Mecánico El Pistón Veloz
+    Base (sin afinar) · 670 ms
+      650000 · código inexistente
+    Afinado · 605 ms
+      811111 · Reparación mecánica en general de
+      automóviles y camiones
+  ────────────────────────────────────────────────────────
+  Nombre: Estudio de Yoga Respira Lento
+    Base (sin afinar) · 406 ms
+      formato inválido: «6»
+    Afinado · 586 ms
+      611621 · Escuelas de deporte del sector privado
+  ────────────────────────────────────────────────────────
+  Nombre (Enter para salir):
+  Demo terminada.
+  ```
+
+  - **Arranque:** 11.3 s desde que arranca Python hasta los dos modelos listos y calientes; 5.2 s de eso son la verificación de archivos.
+  - **De punta a punta:** 17.5 s de reloj, medidos desde fuera. Incluyen abrir PowerShell, los 3 nombres y cerrar los servidores.
+  - **Al terminar:** código de salida 0 y ningún `llama-server` abierto.
+  - Estos tiempos salen de la terminal y no van en `results/`: son de una sola corrida de la demo, no una medición del modelo.
+- **Regla acotada de nombres sobre la salida:** 4 coincidencias de 3 palabras.
+  - 2 son títulos del catálogo SCIAN.
+  - 2 caen dentro de dos nombres inventados. Ninguno de los 3 coincide completo con una llave de validación ni de train final, que fue lo único que Claude Code comprobó antes de usarlos. Pero dos de ellos contienen, como parte, una llave de 3 palabras.
+  - Los dos casos caen en la excepción de `CLAUDE.md` (sección d): los nombres inventados y los títulos del catálogo pueden coincidir por casualidad con un `nom_estab`, y eso no cuenta como copia.
+  - Con esto se precisa la frase de la sección anterior ("ninguno coincide con una llave"): se refería al nombre completo.
